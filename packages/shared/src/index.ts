@@ -1,4 +1,5 @@
 export * from './api.ts';
+export * from './boards.ts';
 export * from './normalize.ts';
 export * from './search.ts';
 export * from './settings.ts';

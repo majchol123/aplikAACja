@@ -1,5 +1,6 @@
 import { SettingsPatchSchema, type AdminUser, type Me } from '@relaacja/shared';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { routePath } from 'hono/route';
 import { z } from 'zod';
@@ -29,7 +30,8 @@ import {
 import { effectiveRole, parseAdminEmails, upsertGoogleUser, type UserRow } from './auth/users.ts';
 import type { AppContext } from './context.ts';
 import { newToken, sha256Hex } from './lib/crypto.ts';
-import { ROUTES, type RouteDef } from './routes/registry.ts';
+import * as boards from './routes/boards.ts';
+import { JSON_BODY_LIMIT, ROUTES, type RouteDef } from './routes/registry.ts';
 import { cookieConflictGuard } from './security/cookies.ts';
 import { csrfGuard } from './security/csrf.ts';
 import { securityHeaders } from './security/headers.ts';
@@ -153,7 +155,20 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
 
   /** The only way to register a route: guard chosen from the registry entry. */
   function defineRoute(def: RouteDef, handler: (c: Ctx) => Response | Promise<Response>): void {
-    const chain: MiddlewareHandler<AppContext>[] = [...guards[def.access], async (c) => handler(c)];
+    const limit: MiddlewareHandler<AppContext>[] =
+      def.method === 'GET'
+        ? []
+        : [
+            bodyLimit({
+              maxSize: def.maxBody ?? JSON_BODY_LIMIT,
+              onError: (c) => c.json({ error: 'payload_too_large' }, 413),
+            }),
+          ];
+    const chain: MiddlewareHandler<AppContext>[] = [
+      ...guards[def.access],
+      ...limit,
+      async (c) => handler(c),
+    ];
     app.on(def.method, [def.path], ...(chain as [MiddlewareHandler<AppContext>]));
   }
 
@@ -312,6 +327,14 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
     if ('error' in result) return c.json(result, 429);
     return c.json(result);
   });
+
+  defineRoute(ROUTES.getBoards, boards.getBoardTree);
+  defineRoute(ROUTES.createHomeBoard, boards.createHomeBoard);
+  defineRoute(ROUTES.patchBoard, boards.patchBoard);
+  defineRoute(ROUTES.createTile, boards.createTile);
+  defineRoute(ROUTES.patchTile, boards.patchTile);
+  defineRoute(ROUTES.deleteTile, boards.deleteTile);
+  defineRoute(ROUTES.moveTile, boards.moveTile);
 
   defineRoute(ROUTES.adminUsers, async (c) => {
     const { results } = await c.env.DB.prepare(

@@ -90,3 +90,25 @@ export function setCookies(res: Response): Record<string, { value: string; raw: 
   }
   return out;
 }
+
+/** JSON API client for one session (writes carry the CSRF headers). */
+export function apiAs(call: ReturnType<typeof makeApp>['call'], cookie: string) {
+  return async function api<T = unknown>(
+    method: string,
+    path: string,
+    body?: unknown,
+    headers: Record<string, string> = {},
+  ): Promise<{ status: number; body: T; res: Response }> {
+    const init: RequestInit =
+      method === 'GET'
+        ? { headers: { Cookie: cookie, ...headers } }
+        : {
+            method,
+            headers: { ...writeHeaders(cookie), ...headers },
+            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+          };
+    const res = await call(path, init);
+    const text = await res.text();
+    return { status: res.status, body: (text ? JSON.parse(text) : null) as T, res };
+  };
+}

@@ -21,7 +21,11 @@ export interface RouteDef {
   method: Method;
   path: string;
   access: Access;
+  /** Request body cap in bytes for non-GET routes (default JSON_BODY_LIMIT). */
+  maxBody?: number;
 }
+
+export const JSON_BODY_LIMIT = 16 * 1024;
 
 export const ROUTES = {
   health: { method: 'GET', path: '/api/health', access: 'public' },
@@ -33,6 +37,14 @@ export const ROUTES = {
   me: { method: 'GET', path: '/api/me', access: 'user' },
   getSettings: { method: 'GET', path: '/api/settings', access: 'user' },
   patchSettings: { method: 'PATCH', path: '/api/settings', access: 'user' },
+  // Board tree (PLAN §3.5); IDs in paths are only looked up inside the caller's own vault.
+  getBoards: { method: 'GET', path: '/api/boards', access: 'user' },
+  createHomeBoard: { method: 'POST', path: '/api/boards/home', access: 'user' },
+  patchBoard: { method: 'PATCH', path: '/api/boards/:id', access: 'user' },
+  createTile: { method: 'POST', path: '/api/boards/:id/tiles', access: 'user' },
+  patchTile: { method: 'PATCH', path: '/api/tiles/:id', access: 'user' },
+  deleteTile: { method: 'DELETE', path: '/api/tiles/:id', access: 'user' },
+  moveTile: { method: 'POST', path: '/api/tiles/move', access: 'user' },
   adminUsers: { method: 'GET', path: '/api/admin/users', access: 'admin' },
   /** Gate in front of the private extra-set Worker (PLAN D5, §4.1 path traversal). */
   extraAsset: { method: 'GET', path: '/sym/extra/*', access: 'extra' },

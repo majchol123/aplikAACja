@@ -2,10 +2,17 @@ import { DurableObject } from 'cloudflare:workers';
 import {
   DEFAULT_SETTINGS,
   SettingsSchema,
+  type BoardChanges,
+  type CreateHome,
+  type CreateTile,
+  type MoveTile,
+  type PatchBoard,
+  type PatchTile,
   type Settings,
   type SettingsPatch,
 } from '@relaacja/shared';
 import type { AppEnv } from '../env.ts';
+import { BoardStore, type BoardError } from './boards.ts';
 import { migrateVault } from './schema.ts';
 
 /** Per-user write budget (token bucket, in memory; resets on eviction, which is acceptable). */
@@ -16,6 +23,8 @@ const WRITE_REFILL_PER_S = 2;
 export const RATE_LIMITED = { error: 'rate_limited' } as const;
 export type RateLimited = typeof RATE_LIMITED;
 
+export type BoardResult = BoardChanges | BoardError | RateLimited;
+
 /**
  * All content of one user lives in one SQLite-backed Durable Object addressed by the
  * user's ID. The Worker derives the stub from the session only (vaultFor), so no request
@@ -24,12 +33,14 @@ export type RateLimited = typeof RATE_LIMITED;
 export class UserVault extends DurableObject<AppEnv> {
   private tokens = WRITE_BURST;
   private refilledAt = Date.now();
+  private readonly boards: BoardStore;
 
   constructor(ctx: DurableObjectState, env: AppEnv) {
     super(ctx, env);
     void ctx.blockConcurrencyWhile(async () => {
       migrateVault(ctx.storage);
     });
+    this.boards = new BoardStore(ctx.storage);
   }
 
   private spendWrite(cost = 1): boolean {
@@ -75,6 +86,37 @@ export class UserVault extends DurableObject<AppEnv> {
       }
     });
     return this.getSettings();
+  }
+
+  // --- boards (inputs validated with the shared Zod schemas by the caller) ----------
+
+  /** Whole tree as JSON, or `json: null` when one of `known` is the current ETag. */
+  getBoardTree(known: string[]): { etag: string; json: string | null } {
+    return this.boards.treeJson(known);
+  }
+
+  createHomeBoard(input: CreateHome): BoardResult {
+    return this.spendWrite() ? this.boards.createHome(input) : RATE_LIMITED;
+  }
+
+  patchBoard(id: string, input: PatchBoard): BoardResult {
+    return this.spendWrite() ? this.boards.patchBoard(id, input) : RATE_LIMITED;
+  }
+
+  createTile(boardId: string, input: CreateTile): BoardResult {
+    return this.spendWrite() ? this.boards.createTile(boardId, input) : RATE_LIMITED;
+  }
+
+  patchTile(id: string, input: PatchTile): BoardResult {
+    return this.spendWrite() ? this.boards.patchTile(id, input) : RATE_LIMITED;
+  }
+
+  deleteTile(id: string, rev: number): BoardResult {
+    return this.spendWrite() ? this.boards.deleteTile(id, rev) : RATE_LIMITED;
+  }
+
+  moveTile(input: MoveTile): BoardResult {
+    return this.spendWrite() ? this.boards.moveTile(input) : RATE_LIMITED;
   }
 
   /** Hard delete of everything the user owns (PLAN §4.3). Idempotent. */

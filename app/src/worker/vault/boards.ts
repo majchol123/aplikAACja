@@ -1,0 +1,609 @@
+import {
+  BOARD_LIMITS,
+  type Board,
+  type BoardChanges,
+  type CreateHome,
+  type CreateTile,
+  type GridSize,
+  type MoveTile,
+  type PatchBoard,
+  type PatchTile,
+  type Tile,
+} from '@relaacja/shared';
+import { newId } from '../lib/crypto.ts';
+
+export type BoardErrorCode =
+  | 'not_found'
+  | 'conflict'
+  | 'already_initialized'
+  | 'cell_occupied'
+  | 'out_of_bounds'
+  | 'invalid_move'
+  | 'too_deep'
+  | 'quota_exceeded'
+  | 'unknown_symbol'
+  | 'invalid_request';
+
+export interface BoardError {
+  error: BoardErrorCode;
+}
+
+/** Thrown inside a write transaction to roll it back and answer with `code`. */
+class Abort extends Error {
+  constructor(readonly code: BoardErrorCode) {
+    super(code);
+  }
+}
+
+type BoardRow = {
+  id: string;
+  name: string;
+  parent_board_id: string | null;
+  rows: number;
+  cols: number;
+  rev: number;
+};
+
+type TileRow = {
+  id: string;
+  board_id: string;
+  row: number;
+  col: number;
+  kind: Tile['kind'];
+  target_board_id: string | null;
+  label: string;
+  label_position: Tile['labelPosition'];
+  font_size: Tile['fontSize'];
+  color_role: Tile['colorRole'];
+  color_mode: Tile['colorMode'];
+  symbol_set: 'arasaac' | 'extra' | 'own' | null;
+  symbol_ref: string | null;
+};
+
+type MetaRow = { epoch: string; version: number; boards: number; tiles: number };
+
+const BOARD_COLUMNS = 'id, name, parent_board_id, rows, cols, rev';
+const TILE_COLUMNS =
+  'id, board_id, row, col, kind, target_board_id, label, label_position, font_size, color_role, color_mode, symbol_set, symbol_ref';
+
+/** Recursion guard for tree queries; far above maxDepth, below SQLite's limits. */
+const WALK_LIMIT = 64;
+
+function toTile(row: TileRow): Tile {
+  return {
+    id: row.id,
+    row: row.row,
+    col: row.col,
+    kind: row.kind,
+    targetBoardId: row.target_board_id,
+    label: row.label,
+    labelPosition: row.label_position,
+    fontSize: row.font_size,
+    colorRole: row.color_role,
+    colorMode: row.color_mode,
+    symbol:
+      row.symbol_set && row.symbol_ref !== null
+        ? { set: row.symbol_set, ref: row.symbol_ref }
+        : null,
+  };
+}
+
+function toBoard(row: BoardRow, tiles: Tile[]): Board {
+  return {
+    id: row.id,
+    name: row.name,
+    parentId: row.parent_board_id,
+    rows: row.rows,
+    cols: row.cols,
+    rev: row.rev,
+    tiles,
+  };
+}
+
+/** What one write did, collected while it runs and turned into BoardChanges at the end. */
+class Changes {
+  /** Existing boards whose revision goes up. */
+  readonly bumped = new Set<string>();
+  /** New boards (rev 1). */
+  readonly created = new Set<string>();
+  /** Answered as they are (a no-op write). */
+  readonly unchanged = new Set<string>();
+  readonly removed = new Set<string>();
+  /** A folder changed parent: the tree shape must be re-validated before commit. */
+  restructured = false;
+}
+
+/**
+ * Board tree inside one UserVault. Callers pass input already validated by the shared Zod
+ * schemas; everything that depends on stored state (revisions, cells, tree shape, quotas)
+ * is checked here, inside the same synchronous transaction as the write.
+ */
+export class BoardStore {
+  constructor(
+    private readonly storage: DurableObjectStorage,
+    private readonly now: () => number = Date.now,
+  ) {}
+
+  private get sql(): SqlStorage {
+    return this.storage.sql;
+  }
+
+  // --- reads -----------------------------------------------------------------------
+
+  private meta(): MetaRow {
+    return this.sql
+      .exec<MetaRow>('SELECT epoch, version, boards, tiles FROM vault_meta WHERE id = 1')
+      .one();
+  }
+
+  /** Weak validator of the whole tree; changes on every committed write. */
+  etag(): string {
+    const { epoch, version } = this.meta();
+    return `W/"${epoch}.${version}"`;
+  }
+
+  /**
+   * The whole tree as a JSON string (the Worker forwards it without re-parsing), or null
+   * when `known` already contains the current ETag.
+   */
+  treeJson(known: readonly string[] = []): { etag: string; json: string | null } {
+    const etag = this.etag();
+    const opaque = etag.slice(2);
+    if (known.some((tag) => tag === '*' || tag.replace(/^W\//, '') === opaque)) {
+      return { etag, json: null };
+    }
+    const boards = this.sql.exec<BoardRow>(`SELECT ${BOARD_COLUMNS} FROM boards`).toArray();
+    const tiles = this.tilesByBoard(
+      this.sql
+        .exec<TileRow>(`SELECT ${TILE_COLUMNS} FROM tiles ORDER BY board_id, row, col`)
+        .toArray(),
+    );
+    const home = boards.find((b) => b.parent_board_id === null);
+    return {
+      etag,
+      json: JSON.stringify({
+        homeId: home?.id ?? null,
+        boards: boards.map((b) => toBoard(b, tiles.get(b.id) ?? [])),
+      }),
+    };
+  }
+
+  private tilesByBoard(rows: TileRow[]): Map<string, Tile[]> {
+    const out = new Map<string, Tile[]>();
+    for (const row of rows) {
+      const list = out.get(row.board_id);
+      if (list) list.push(toTile(row));
+      else out.set(row.board_id, [toTile(row)]);
+    }
+    return out;
+  }
+
+  private readBoards(ids: string[]): Board[] {
+    if (ids.length === 0) return [];
+    const marks = ids.map(() => '?').join(', ');
+    const boards = this.sql
+      .exec<BoardRow>(`SELECT ${BOARD_COLUMNS} FROM boards WHERE id IN (${marks})`, ...ids)
+      .toArray();
+    const tiles = this.tilesByBoard(
+      this.sql
+        .exec<TileRow>(
+          `SELECT ${TILE_COLUMNS} FROM tiles WHERE board_id IN (${marks}) ORDER BY board_id, row, col`,
+          ...ids,
+        )
+        .toArray(),
+    );
+    return boards.map((b) => toBoard(b, tiles.get(b.id) ?? []));
+  }
+
+  private board(id: string): BoardRow | undefined {
+    return this.sql
+      .exec<BoardRow>(`SELECT ${BOARD_COLUMNS} FROM boards WHERE id = ?`, id)
+      .toArray()[0];
+  }
+
+  private tile(id: string): TileRow | undefined {
+    return this.sql
+      .exec<TileRow>(`SELECT ${TILE_COLUMNS} FROM tiles WHERE id = ?`, id)
+      .toArray()[0];
+  }
+
+  private tileAt(boardId: string, row: number, col: number): TileRow | undefined {
+    return this.sql
+      .exec<TileRow>(
+        `SELECT ${TILE_COLUMNS} FROM tiles WHERE board_id = ? AND row = ? AND col = ?`,
+        boardId,
+        row,
+        col,
+      )
+      .toArray()[0];
+  }
+
+  /** The board, if it exists and the caller saw its current revision. */
+  private boardAt(id: string, rev: number | undefined): BoardRow {
+    const board = this.board(id);
+    if (!board) throw new Abort('not_found');
+    if (rev === undefined) throw new Abort('invalid_request');
+    if (board.rev !== rev) throw new Abort('conflict');
+    return board;
+  }
+
+  /** Folder levels between the home board and `boardId` (home = 0). */
+  private depth(boardId: string): number {
+    return this.sql
+      .exec<{ depth: number }>(
+        `WITH RECURSIVE up (id, parent, depth) AS (
+           SELECT id, parent_board_id, 0 FROM boards WHERE id = ?1
+           UNION ALL
+           SELECT b.id, b.parent_board_id, up.depth + 1
+             FROM boards b JOIN up ON b.id = up.parent
+            WHERE up.depth < ?2
+         )
+         SELECT MAX(depth) AS depth FROM up`,
+        boardId,
+        WALK_LIMIT,
+      )
+      .one().depth;
+  }
+
+  /** `rootId` and every board below it. */
+  private subtree(rootId: string): string[] {
+    return this.sql
+      .exec<{ id: string }>(
+        `WITH RECURSIVE down (id, depth) AS (
+           SELECT ?1, 0
+           UNION
+           SELECT b.id, down.depth + 1
+             FROM boards b JOIN down ON b.parent_board_id = down.id
+            WHERE down.depth < ?2
+         )
+         SELECT DISTINCT id FROM down`,
+        rootId,
+        WALK_LIMIT,
+      )
+      .toArray()
+      .map((r) => r.id);
+  }
+
+  /**
+   * Every board reachable from home and no folder deeper than allowed. A cycle detaches
+   * its boards from home, so the reachable count is enough to detect it.
+   */
+  private assertTree(): void {
+    const walk = this.sql
+      .exec<{ reached: number; depth: number | null }>(
+        `WITH RECURSIVE down (id, depth) AS (
+           SELECT id, 0 FROM boards WHERE parent_board_id IS NULL
+           UNION
+           SELECT b.id, down.depth + 1
+             FROM boards b JOIN down ON b.parent_board_id = down.id
+            WHERE down.depth < ?1
+         )
+         SELECT COUNT(DISTINCT id) AS reached, MAX(depth) AS depth FROM down`,
+        WALK_LIMIT,
+      )
+      .one();
+    if (walk.reached !== this.meta().boards) throw new Abort('invalid_move');
+    if ((walk.depth ?? 0) > BOARD_LIMITS.maxDepth) throw new Abort('too_deep');
+  }
+
+  private assertInGrid(board: BoardRow, row: number, col: number): void {
+    if (row >= board.rows || col >= board.cols) throw new Abort('out_of_bounds');
+  }
+
+  private assertQuota(newBoards: number, newTiles: number): void {
+    const meta = this.meta();
+    if (
+      meta.boards + newBoards > BOARD_LIMITS.maxBoards ||
+      meta.tiles + newTiles > BOARD_LIMITS.maxTiles
+    ) {
+      throw new Abort('quota_exceeded');
+    }
+  }
+
+  private assertSymbol(symbol: Tile['symbol'] | undefined): void {
+    if (symbol?.set !== 'own') return;
+    const found = this.sql
+      .exec<{ n: number }>('SELECT COUNT(*) AS n FROM media WHERE id = ?', symbol.ref)
+      .one().n;
+    if (found === 0) throw new Abort('unknown_symbol');
+  }
+
+  // --- writes ----------------------------------------------------------------------
+
+  /**
+   * Runs `work` in one transaction. Any Abort rolls everything back; on success the
+   * touched boards get a new revision, the tree ETag changes, and the caller receives the
+   * current state of every affected board.
+   */
+  private write(work: (changes: Changes, now: number) => void): BoardChanges | BoardError {
+    const changes = new Changes();
+    const now = this.now();
+    try {
+      this.storage.transactionSync(() => {
+        work(changes, now);
+        for (const id of changes.bumped) {
+          if (changes.created.has(id) || changes.removed.has(id)) continue;
+          this.sql.exec('UPDATE boards SET rev = rev + 1, updated_at = ? WHERE id = ?', now, id);
+        }
+        if (changes.restructured) this.assertTree();
+        if (changes.bumped.size + changes.created.size + changes.removed.size > 0) {
+          this.sql.exec('UPDATE vault_meta SET version = version + 1 WHERE id = 1');
+        }
+      });
+    } catch (err) {
+      if (err instanceof Abort) return { error: err.code };
+      throw err;
+    }
+    const ids = new Set([...changes.bumped, ...changes.created, ...changes.unchanged]);
+    for (const id of changes.removed) ids.delete(id);
+    return { boards: this.readBoards([...ids]), removed: [...changes.removed] };
+  }
+
+  private insertBoard(
+    changes: Changes,
+    now: number,
+    name: string,
+    parentId: string | null,
+    grid: GridSize,
+  ): string {
+    const id = newId();
+    this.sql.exec(
+      `INSERT INTO boards (id, name, parent_board_id, rows, cols, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      id,
+      name,
+      parentId,
+      grid.rows,
+      grid.cols,
+      now,
+      now,
+    );
+    changes.created.add(id);
+    return id;
+  }
+
+  /** New board opened by a folder tile on `parent`. */
+  private createFolderBoard(
+    changes: Changes,
+    now: number,
+    parent: BoardRow,
+    name: string,
+    grid: GridSize | undefined,
+  ): string {
+    if (this.depth(parent.id) + 1 > BOARD_LIMITS.maxDepth) throw new Abort('too_deep');
+    return this.insertBoard(changes, now, name, parent.id, grid ?? parent);
+  }
+
+  /** Deletes `rootId` with all boards below it and the folder tile that opens it. */
+  private removeSubtree(changes: Changes, rootId: string): void {
+    for (const id of this.subtree(rootId)) changes.removed.add(id);
+    this.sql.exec('DELETE FROM boards WHERE id = ?', rootId);
+  }
+
+  createHome(input: CreateHome): BoardChanges | BoardError {
+    return this.write((changes, now) => {
+      if (this.meta().boards > 0) throw new Abort('already_initialized');
+      this.insertBoard(changes, now, input.name, null, input);
+    });
+  }
+
+  patchBoard(id: string, input: PatchBoard): BoardChanges | BoardError {
+    return this.write((changes, now) => {
+      const board = this.boardAt(id, input.rev);
+      const rows = input.rows ?? board.rows;
+      const cols = input.cols ?? board.cols;
+      if (rows < board.rows || cols < board.cols) {
+        const cut = this.sql
+          .exec<{ n: number }>(
+            'SELECT COUNT(*) AS n FROM tiles WHERE board_id = ? AND (row >= ? OR col >= ?)',
+            id,
+            rows,
+            cols,
+          )
+          .one().n;
+        if (cut > 0) throw new Abort('out_of_bounds');
+      }
+      const name = input.name ?? board.name;
+      this.sql.exec(
+        'UPDATE boards SET name = ?, rows = ?, cols = ? WHERE id = ?',
+        name,
+        rows,
+        cols,
+        id,
+      );
+      changes.bumped.add(id);
+      // A sub-board and the folder tile opening it share one name.
+      if (input.name !== undefined && board.parent_board_id !== null) {
+        this.sql.exec(
+          'UPDATE tiles SET label = ?, updated_at = ? WHERE target_board_id = ?',
+          name,
+          now,
+          id,
+        );
+        changes.bumped.add(board.parent_board_id);
+      }
+    });
+  }
+
+  createTile(boardId: string, input: CreateTile): BoardChanges | BoardError {
+    return this.write((changes, now) => {
+      const board = this.boardAt(boardId, input.rev);
+      this.assertInGrid(board, input.row, input.col);
+      if (this.tileAt(boardId, input.row, input.col)) throw new Abort('cell_occupied');
+      this.assertQuota(input.kind === 'folder' ? 1 : 0, 1);
+      this.assertSymbol(input.symbol);
+      const target =
+        input.kind === 'folder'
+          ? this.createFolderBoard(changes, now, board, input.label, input.folder)
+          : null;
+      this.sql.exec(
+        `INSERT INTO tiles (id, board_id, row, col, kind, target_board_id, label, label_position,
+                            font_size, color_role, color_mode, symbol_set, symbol_ref,
+                            created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        newId(),
+        boardId,
+        input.row,
+        input.col,
+        input.kind,
+        target,
+        input.label,
+        input.labelPosition ?? 'bottom',
+        input.fontSize ?? 'M',
+        input.colorRole ?? null,
+        input.colorMode ?? 'border',
+        input.symbol?.set ?? null,
+        input.symbol?.ref ?? null,
+        now,
+        now,
+      );
+      changes.bumped.add(boardId);
+    });
+  }
+
+  patchTile(tileId: string, input: PatchTile): BoardChanges | BoardError {
+    return this.write((changes, now) => {
+      const tile = this.tile(tileId);
+      if (!tile) throw new Abort('not_found');
+      const board = this.boardAt(tile.board_id, input.rev);
+      const kind = input.kind ?? tile.kind;
+      if (input.folder !== undefined && !(kind === 'folder' && tile.kind === 'word')) {
+        throw new Abort('invalid_request'); // the grid applies to a newly created folder only
+      }
+      this.assertSymbol(input.symbol);
+      const label = input.label ?? tile.label;
+
+      let target = tile.target_board_id;
+      if (kind === 'folder' && target === null) {
+        this.assertQuota(1, 0);
+        target = this.createFolderBoard(changes, now, board, label, input.folder);
+      }
+      const removedTarget = kind === 'word' ? tile.target_board_id : null;
+      const { symbol } = input;
+      this.sql.exec(
+        `UPDATE tiles SET kind = ?, target_board_id = ?, label = ?, label_position = ?,
+                          font_size = ?, color_role = ?, color_mode = ?, symbol_set = ?,
+                          symbol_ref = ?, updated_at = ?
+          WHERE id = ?`,
+        kind,
+        kind === 'folder' ? target : null,
+        label,
+        input.labelPosition ?? tile.label_position,
+        input.fontSize ?? tile.font_size,
+        input.colorRole === undefined ? tile.color_role : input.colorRole,
+        input.colorMode ?? tile.color_mode,
+        symbol === undefined ? tile.symbol_set : (symbol?.set ?? null),
+        symbol === undefined ? tile.symbol_ref : (symbol?.ref ?? null),
+        now,
+        tileId,
+      );
+      changes.bumped.add(board.id);
+      // Folder → word: the tile no longer references the sub-board, which goes with its subtree.
+      if (removedTarget !== null) this.removeSubtree(changes, removedTarget);
+      // Renaming a folder renames the board it opens.
+      if (
+        kind === 'folder' &&
+        target !== null &&
+        input.label !== undefined &&
+        tile.kind === 'folder'
+      ) {
+        this.sql.exec('UPDATE boards SET name = ? WHERE id = ?', label, target);
+        changes.bumped.add(target);
+      }
+    });
+  }
+
+  deleteTile(tileId: string, rev: number): BoardChanges | BoardError {
+    return this.write((changes) => {
+      const tile = this.tile(tileId);
+      if (!tile) throw new Abort('not_found');
+      this.boardAt(tile.board_id, rev);
+      // Deleting the sub-board cascades to the folder tile itself.
+      if (tile.target_board_id !== null) this.removeSubtree(changes, tile.target_board_id);
+      this.sql.exec('DELETE FROM tiles WHERE id = ?', tileId);
+      changes.bumped.add(tile.board_id);
+    });
+  }
+
+  /** Moves a tile to a cell (any board); a tile already there takes the vacated cell. */
+  moveTile(input: MoveTile): BoardChanges | BoardError {
+    return this.write((changes, now) => {
+      const tile = this.tile(input.tileId);
+      if (!tile) throw new Abort('not_found');
+      const from = this.boardAt(tile.board_id, input.rev);
+      const to = input.toBoardId === from.id ? from : this.boardAt(input.toBoardId, input.toRev);
+      this.assertInGrid(to, input.row, input.col);
+      if (to.id === from.id && tile.row === input.row && tile.col === input.col) {
+        changes.unchanged.add(from.id);
+        return;
+      }
+      const other = this.tileAt(to.id, input.row, input.col);
+      const place = (id: string, boardId: string, row: number, col: number) =>
+        this.sql.exec(
+          'UPDATE tiles SET board_id = ?, row = ?, col = ?, updated_at = ? WHERE id = ?',
+          boardId,
+          row,
+          col,
+          now,
+          id,
+        );
+      const reparent = (folder: TileRow, parentId: string) => {
+        if (folder.target_board_id === null || folder.board_id === parentId) return;
+        this.sql.exec(
+          'UPDATE boards SET parent_board_id = ? WHERE id = ?',
+          parentId,
+          folder.target_board_id,
+        );
+        changes.bumped.add(folder.target_board_id);
+        changes.restructured = true;
+      };
+      if (other) {
+        // Park the moving tile off-grid so the swap never violates UNIQUE (board, row, col).
+        place(tile.id, from.id, -1, -1);
+        place(other.id, from.id, tile.row, tile.col);
+        reparent(other, from.id);
+      }
+      place(tile.id, to.id, input.row, input.col);
+      reparent(tile, to.id);
+      changes.bumped.add(from.id);
+      changes.bumped.add(to.id);
+    });
+  }
+
+  /** Invariant violations (empty when healthy). Used by tests and future admin checks. */
+  integrity(): string[] {
+    const problems: string[] = [];
+    const q = <T extends Record<string, SqlStorageValue>>(query: string) =>
+      this.sql.exec<T>(query).toArray();
+    const homes =
+      q<{ n: number }>('SELECT COUNT(*) AS n FROM boards WHERE parent_board_id IS NULL')[0]?.n ?? 0;
+    const counts = q<{ boards: number; tiles: number }>(
+      'SELECT (SELECT COUNT(*) FROM boards) AS boards, (SELECT COUNT(*) FROM tiles) AS tiles',
+    )[0];
+    const meta = this.meta();
+    if (counts && counts.boards > 0 && homes !== 1) problems.push(`homes=${homes}`);
+    if (counts && (counts.boards !== meta.boards || counts.tiles !== meta.tiles)) {
+      problems.push(`counters ${meta.boards}/${meta.tiles} != ${counts.boards}/${counts.tiles}`);
+    }
+    for (const r of q<{ id: string }>(
+      `SELECT b.id FROM boards b LEFT JOIN tiles t ON t.target_board_id = b.id
+        WHERE b.parent_board_id IS NOT NULL AND (t.id IS NULL OR t.board_id != b.parent_board_id)`,
+    )) {
+      problems.push(`board ${r.id}: folder tile missing or on another board`);
+    }
+    for (const r of q<{ id: string }>(
+      `SELECT t.id FROM tiles t JOIN boards b ON b.id = t.board_id
+        WHERE t.row < 0 OR t.col < 0 OR t.row >= b.rows OR t.col >= b.cols`,
+    )) {
+      problems.push(`tile ${r.id}: outside the grid`);
+    }
+    if (counts && counts.boards > 0) {
+      try {
+        this.assertTree();
+      } catch (err) {
+        problems.push(`tree: ${err instanceof Abort ? err.code : String(err)}`);
+      }
+    }
+    return problems;
+  }
+}

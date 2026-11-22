@@ -43,4 +43,14 @@ export type ApiErrorCode =
   | 'extra_set_not_enabled'
   | 'extra_set_unavailable'
   | 'rate_limited'
+  | 'payload_too_large'
+  // Boards and tiles (PLAN §3.5).
+  | 'conflict'
+  | 'already_initialized'
+  | 'cell_occupied'
+  | 'out_of_bounds'
+  | 'invalid_move'
+  | 'too_deep'
+  | 'quota_exceeded'
+  | 'unknown_symbol'
   | 'internal';

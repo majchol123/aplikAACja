@@ -24,9 +24,45 @@ describe('UserVault', () => {
         'preferred_symbols',
         'phrase_history',
         'favorites',
+        'vault_meta',
       ]) {
         expect(tables).toContain(t);
       }
+    });
+  });
+
+  it('upgrades a v1 vault: settings kept, board tables rebuilt with the tree constraints', async () => {
+    const stub = vaultFor(env, 'vault-v1');
+    await runInDurableObject(stub, async (_i: UserVault, state) => {
+      // Recreate exactly what F1 code left behind.
+      await state.storage.deleteAll();
+      const sql = state.storage.sql;
+      sql.exec(
+        'CREATE TABLE _schema (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)',
+      );
+      sql.exec(VAULT_MIGRATIONS[0]!);
+      sql.exec('INSERT INTO _schema (id, version) VALUES (1, 1)');
+      sql.exec(`INSERT INTO settings (key, value) VALUES ('activeSets', '["extra","arasaac"]')`);
+
+      expect(migrateVault(state.storage)).toBe(VAULT_MIGRATIONS.length);
+      const columns = sql
+        .exec<{ name: string }>("SELECT name FROM pragma_table_info('tiles')")
+        .toArray()
+        .map((c) => c.name);
+      expect(columns).not.toContain('rev');
+      expect(sql.exec('SELECT * FROM vault_meta').one()).toMatchObject({
+        version: 0,
+        boards: 0,
+        tiles: 0,
+      });
+    });
+    expect((await stub.getSettings()).activeSets).toEqual(['extra', 'arasaac']);
+  });
+
+  it('keeps working on a newer schema after a code rollback', async () => {
+    await runInDurableObject(vaultFor(env, 'vault-newer'), (_i: UserVault, state) => {
+      state.storage.sql.exec('UPDATE _schema SET version = 99 WHERE id = 1');
+      expect(migrateVault(state.storage)).toBe(99);
     });
   });
 

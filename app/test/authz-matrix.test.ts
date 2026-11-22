@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { ROUTES } from '../src/worker/routes/registry.ts';
-import { insertUser, makeApp, sessionCookie, writeHeaders, type TestUser } from './helpers.ts';
+import type { BoardChanges } from '@relaacja/shared';
+import {
+  apiAs,
+  insertUser,
+  makeApp,
+  sessionCookie,
+  writeHeaders,
+  type TestUser,
+} from './helpers.ts';
 
 /**
  * Authorization matrix (PLAN §7): every registered route × every principal, with an
@@ -20,11 +28,22 @@ const PRINCIPALS: Principal[] = [
 const all = (status: number) =>
   Object.fromEntries(PRINCIPALS.map((p) => [p, status])) as Record<Principal, number>;
 const userOnly = { ...all(200), anon: 401, blocked: 403 };
+/** Objects in user A's vault: everybody else gets the same 404 as for a missing ID. */
+const ownedByA = { ...all(404), anon: 401, blocked: 403, userA: 200 };
 
-const EXPECTED: Record<
-  string,
-  { body?: unknown; path?: string; status: Record<Principal, number> }
-> = {
+/** IDs of a home board with one word tile, created in user A's vault before the round. */
+interface Fixture {
+  boardId: string;
+  tileId: string;
+}
+
+type Row = {
+  body?: Record<string, unknown> | ((f: Fixture) => Record<string, unknown>);
+  path?: string | ((f: Fixture) => string);
+  status: Record<Principal, number>;
+};
+
+const EXPECTED: Record<string, Row> = {
   'GET /api/health': { status: all(200) },
   'GET /api/auth/login': { status: all(302) },
   'GET /api/auth/callback': { status: all(302) },
@@ -35,6 +54,32 @@ const EXPECTED: Record<
   'GET /api/me': { status: userOnly },
   'GET /api/settings': { status: userOnly },
   'PATCH /api/settings': { body: { returnToHome: false }, status: userOnly },
+  'GET /api/boards': { status: userOnly },
+  // Fresh accounts create their own home board; user A already has one (the fixture).
+  'POST /api/boards/home': {
+    body: { name: 'Start', rows: 4, cols: 5 },
+    status: { ...all(201), anon: 401, blocked: 403, userA: 409 },
+  },
+  'PATCH /api/boards/:id': {
+    path: (f) => `/api/boards/${f.boardId}`,
+    body: { rev: 2, name: 'Nowa' },
+    status: ownedByA,
+  },
+  'POST /api/boards/:id/tiles': {
+    path: (f) => `/api/boards/${f.boardId}/tiles`,
+    body: { rev: 2, row: 1, col: 1, kind: 'word', label: 'pić' },
+    status: { ...ownedByA, userA: 201 },
+  },
+  'PATCH /api/tiles/:id': {
+    path: (f) => `/api/tiles/${f.tileId}`,
+    body: { rev: 2, label: 'jeść' },
+    status: ownedByA,
+  },
+  'DELETE /api/tiles/:id': { path: (f) => `/api/tiles/${f.tileId}?rev=2`, status: ownedByA },
+  'POST /api/tiles/move': {
+    body: (f) => ({ tileId: f.tileId, rev: 2, toBoardId: f.boardId, row: 3, col: 4 }),
+    status: ownedByA,
+  },
   'GET /api/admin/users': {
     status: { ...all(403), anon: 401, admin: 200, superadmin: 200 },
   },
@@ -44,6 +89,25 @@ const EXPECTED: Record<
     status: { ...all(403), anon: 401, extra: 200 },
   },
 };
+
+async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: TestUser) {
+  const api = apiAs(call, await sessionCookie(owner.id));
+  const home = await api<BoardChanges>('POST', '/api/boards/home', {
+    name: 'Start',
+    rows: 4,
+    cols: 5,
+  });
+  const boardId = home.body.boards[0]!.id;
+  const tile = await api<BoardChanges>('POST', `/api/boards/${boardId}/tiles`, {
+    rev: 1,
+    row: 0,
+    col: 0,
+    kind: 'word',
+    label: 'jeść',
+  });
+  // Board revision is 2 after the tile was added.
+  return { boardId, tileId: tile.body.boards[0]!.tiles[0]!.id } satisfies Fixture;
+}
 
 async function makePrincipals(): Promise<Record<Exclude<Principal, 'anon'>, TestUser>> {
   return {
@@ -73,8 +137,12 @@ describe('authorization matrix', () => {
   for (const route of Object.keys(EXPECTED)) {
     it(route, async () => {
       const users = await makePrincipals();
+      const fixture = await boardFixture(call, users.userA);
       const [method, pattern] = route.split(' ') as [string, string];
-      const { body, path = pattern, status } = EXPECTED[route]!;
+      const row = EXPECTED[route]!;
+      const { status } = row;
+      const path = typeof row.path === 'function' ? row.path(fixture) : (row.path ?? pattern);
+      const body = typeof row.body === 'function' ? row.body(fixture) : row.body;
       for (const principal of PRINCIPALS) {
         const cookie = principal === 'anon' ? undefined : await sessionCookie(users[principal].id);
         const init: RequestInit =
