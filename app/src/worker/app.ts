@@ -1,4 +1,4 @@
-import { SettingsPatchSchema, type AdminUser, type Me } from '@relaacja/shared';
+import { SettingsPatchSchema, type Me } from '@relaacja/shared';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
@@ -31,6 +31,7 @@ import { effectiveRole, parseAdminEmails, upsertGoogleUser, type UserRow } from 
 import type { AppContext } from './context.ts';
 import { newToken, sha256Hex } from './lib/crypto.ts';
 import { defer } from './lib/defer.ts';
+import * as admin from './routes/admin.ts';
 import * as boards from './routes/boards.ts';
 import * as categories from './routes/categories.ts';
 import * as media from './routes/media.ts';
@@ -341,24 +342,15 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.renameMedia, media.renameMedia);
   defineRoute(ROUTES.deleteMedia, media.deleteMedia);
 
-  defineRoute(ROUTES.adminUsers, async (c) => {
-    const { results } = await c.env.DB.prepare(
-      `SELECT id, email, display_name, role, status, extra_set_enabled, storage_bytes, created_at, last_login_at
-         FROM users ORDER BY created_at DESC LIMIT 1000`,
-    ).all<UserRow>();
-    const users: AdminUser[] = results.map((r) => ({
-      id: r.id,
-      email: r.email,
-      displayName: r.display_name,
-      role: r.role,
-      status: r.status,
-      extraSet: r.extra_set_enabled === 1,
-      storageBytes: r.storage_bytes,
-      createdAt: r.created_at,
-      lastLoginAt: r.last_login_at,
-    }));
-    return c.json({ users });
-  });
+  defineRoute(ROUTES.adminUsers, admin.listUsers);
+  defineRoute(ROUTES.adminBlock, admin.blockUser(deps.now));
+  defineRoute(ROUTES.adminUnblock, admin.unblockUser(deps.now));
+  defineRoute(ROUTES.adminExtraSet, admin.setExtraSet(deps.now));
+  defineRoute(ROUTES.adminRole, admin.setRole(deps.now));
+  defineRoute(ROUTES.adminDelete, admin.deleteUser(deps.now));
+  defineRoute(ROUTES.adminUserData, admin.userData(deps.now));
+  defineRoute(ROUTES.adminUserMedia, admin.userMedia);
+  defineRoute(ROUTES.adminAudit, admin.listAudit);
 
   defineRoute(ROUTES.extraAsset, serveExtraFile);
 

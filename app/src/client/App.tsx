@@ -1,5 +1,6 @@
 import type { Me } from '@relaacja/shared';
 import { useState } from 'react';
+import { AdminScreen } from './admin/AdminScreen.tsx';
 import { useBoardTree } from './boards/data.ts';
 import { Communication } from './comm/Communication.tsx';
 import { useDeviceSettings } from './device.ts';
@@ -8,7 +9,7 @@ import { PinPad } from './edit/PinPad.tsx';
 import { Onboarding } from './Onboarding.tsx';
 import { SettingsScreen } from './settings/SettingsScreen.tsx';
 
-type Mode = 'communicate' | 'edit' | 'settings';
+type Mode = 'communicate' | 'edit' | 'settings' | 'admin';
 
 /**
  * Opens in communication mode. Edit mode and settings are behind a 2-second hold and an
@@ -35,12 +36,14 @@ export function App({ me }: { me: Me }) {
   );
   const hasHome = Boolean(tree.data?.homeId);
 
+  if (mode === 'admin') return <AdminScreen me={me} onBack={() => setMode('settings')} />;
   if (mode === 'settings') {
     return (
       <SettingsScreen
         me={me}
         backLabel={hasHome ? 'Wróć do edycji' : 'Wróć'}
         onBack={() => setMode(hasHome ? 'edit' : 'communicate')}
+        onAdmin={() => setMode('admin')}
       />
     );
   }

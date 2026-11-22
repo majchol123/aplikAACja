@@ -14,7 +14,7 @@ import { useDeviceSettings } from '../device.ts';
 import { useAccountSettings, useUpdateAccountSettings } from './account.ts';
 import { speak, speechSupported, useVoices } from '../speech.ts';
 
-const PRESET_LABELS: Record<VoicePreset, string> = {
+export const PRESET_LABELS: Record<VoicePreset, string> = {
   woman: 'Kobieta',
   man: 'Mężczyzna',
   girl: 'Dziewczynka',

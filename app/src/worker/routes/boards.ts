@@ -13,6 +13,7 @@ import type { z } from 'zod';
 import type { AppContext } from '../context.ts';
 import type { BoardErrorCode } from '../vault/boards.ts';
 import { vaultFor, type BoardResult } from '../vault/user-vault.ts';
+import { recordTotals } from './totals.ts';
 
 type Ctx = Context<AppContext>;
 
@@ -60,7 +61,9 @@ function extraRefused(c: Ctx, symbol: SymbolRef | null | undefined): Response | 
 
 function answer(c: Ctx, result: BoardResult, status: ContentfulStatusCode = 200): Response {
   if ('error' in result) return c.json({ error: result.error }, ERROR_STATUS[result.error]);
-  return c.json(result, status);
+  const { totals, ...changes } = result;
+  recordTotals(c, c.get('user').userId, totals);
+  return c.json(changes, status);
 }
 
 /** At most a few validators; anything longer is ignored rather than parsed. */
@@ -74,7 +77,11 @@ function knownEtags(header: string | undefined): string[] {
 }
 
 export async function getBoardTree(c: Ctx): Promise<Response> {
-  const { etag, json } = await vault(c).getBoardTree(knownEtags(c.req.header('If-None-Match')));
+  const { etag, json, totals } = await vault(c).getBoardTree(
+    knownEtags(c.req.header('If-None-Match')),
+  );
+  // Also how accounts that only use their boards get counted in the admin panel.
+  recordTotals(c, c.get('user').userId, totals);
   if (json === null) return c.body(null, 304, { ETag: etag });
   return c.body(json, 200, { 'Content-Type': 'application/json; charset=utf-8', ETag: etag });
 }

@@ -32,6 +32,7 @@ const PRINCIPALS: Principal[] = [
 const all = (status: number) =>
   Object.fromEntries(PRINCIPALS.map((p) => [p, status])) as Record<Principal, number>;
 const userOnly = { ...all(200), anon: 401, blocked: 403 };
+const adminsOnly = { ...all(403), anon: 401, admin: 200, superadmin: 200 };
 /** Objects in user A's vault: everybody else gets the same 404 as for a missing ID. */
 const ownedByA = { ...all(404), anon: 401, blocked: 403, userA: 200 };
 
@@ -40,6 +41,9 @@ interface Fixture {
   boardId: string;
   tileId: string;
   mediaId: string;
+  /** User A, the account admin routes act on. */
+  ownerId: string;
+  ownerEmail: string;
 }
 
 type Row = {
@@ -105,9 +109,42 @@ const EXPECTED: Record<string, Row> = {
     status: ownedByA,
   },
   'DELETE /api/media/:id': { path: (f) => `/api/media/${f.mediaId}`, status: ownedByA },
-  'GET /api/admin/users': {
-    status: { ...all(403), anon: 401, admin: 200, superadmin: 200 },
+  'GET /api/admin/users': { status: adminsOnly },
+  // Admin routes act on user A: admins manage plain accounts, superadmins everyone below.
+  'POST /api/admin/users/:id/block': {
+    path: (f) => `/api/admin/users/${f.ownerId}/block`,
+    status: adminsOnly,
   },
+  'POST /api/admin/users/:id/unblock': {
+    path: (f) => `/api/admin/users/${f.ownerId}/unblock`,
+    status: adminsOnly,
+  },
+  // Only someone who has the extra set passes it on (the admin here has not got it).
+  'POST /api/admin/users/:id/extra-set': {
+    path: (f) => `/api/admin/users/${f.ownerId}/extra-set`,
+    body: { enabled: true },
+    status: { ...adminsOnly, admin: 403 },
+  },
+  'POST /api/admin/users/:id/role': {
+    path: (f) => `/api/admin/users/${f.ownerId}/role`,
+    body: { role: 'admin' },
+    status: { ...adminsOnly, admin: 403 },
+  },
+  // The admin deletes the account first; the superadmin then finds nothing.
+  'DELETE /api/admin/users/:id': {
+    path: (f) => `/api/admin/users/${f.ownerId}`,
+    body: (f) => ({ email: f.ownerEmail }),
+    status: { ...adminsOnly, admin: 204, superadmin: 404 },
+  },
+  'GET /api/admin/users/:id/data': {
+    path: (f) => `/api/admin/users/${f.ownerId}/data`,
+    status: adminsOnly,
+  },
+  'GET /api/admin/users/:id/media/:mediaId': {
+    path: (f) => `/api/admin/users/${f.ownerId}/media/${f.mediaId}`,
+    status: adminsOnly,
+  },
+  'GET /api/admin/audit': { status: adminsOnly },
   'PUT /api/admin/category-icons': {
     body: { set: 'arasaac', key: 'verb', symbol: 6061 },
     status: { ...all(403), anon: 401, admin: 200, superadmin: 200 },
@@ -143,6 +180,8 @@ async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: Tes
     boardId,
     tileId: tile.body.boards[0]!.tiles[0]!.id,
     mediaId: photo.body.media.id,
+    ownerId: owner.id,
+    ownerEmail: owner.email,
   } satisfies Fixture;
 }
 
@@ -244,20 +283,26 @@ describe('cross-user isolation', () => {
     const res = await call('/api/admin/users', {
       headers: { Cookie: await sessionCookie(admin.id) },
     });
-    const body = (await res.json()) as { users: Record<string, unknown>[] };
+    const body = (await res.json()) as { users: Record<string, unknown>[]; truncated: boolean };
+    expect(body.truncated).toBe(false);
     expect(body.users.length).toBeGreaterThan(0);
     for (const u of body.users) {
       expect(Object.keys(u).sort()).toEqual(
         [
+          'blockedAt',
+          'boards',
           'createdAt',
           'displayName',
           'email',
+          'extraSet',
           'id',
           'lastLoginAt',
-          'extraSet',
+          'lastSeenAt',
+          'media',
           'role',
           'status',
           'storageBytes',
+          'tiles',
         ].sort(),
       );
     }

@@ -1,5 +1,5 @@
-import type { AdminUser, Me } from '@relaacja/shared';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import type { Me } from '@relaacja/shared';
+import { useMutation } from '@tanstack/react-query';
 import { api } from '../api.ts';
 import { Library } from '../library/Library.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
@@ -15,10 +15,12 @@ export function SettingsScreen({
   me,
   backLabel,
   onBack,
+  onAdmin,
 }: {
   me: Me;
   backLabel: string;
   onBack: () => void;
+  onAdmin: () => void;
 }) {
   const isAdmin = me.role === 'admin' || me.role === 'superadmin';
   const logout = useMutation({
@@ -28,11 +30,6 @@ export function SettingsScreen({
   const logoutAll = useMutation({
     mutationFn: () => api('/api/auth/logout-all', { method: 'POST' }),
     onSettled: goHome,
-  });
-  const users = useQuery({
-    queryKey: ['admin', 'users'],
-    queryFn: () => api<{ users: AdminUser[] }>('/api/admin/users'),
-    enabled: isAdmin,
   });
 
   return (
@@ -77,8 +74,15 @@ export function SettingsScreen({
               {me.role === 'superadmin' ? 'Superadministrator' : 'Administrator'}
             </h2>
             <p className="mt-1 text-slate-600">
-              Liczba kont: {users.data ? users.data.users.length : users.isError ? 'błąd' : '…'}
+              Konta, blokady, dodatkowy zestaw, statystyki i dziennik zdarzeń.
             </p>
+            <button
+              type="button"
+              onClick={onAdmin}
+              className="mt-4 rounded-full bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800"
+            >
+              Otwórz panel administratora
+            </button>
           </section>
         )}
 

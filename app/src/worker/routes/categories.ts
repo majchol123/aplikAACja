@@ -1,7 +1,7 @@
 import { PutCategoryIconSchema, type CategoryIcons, type LibrarySet } from '@relaacja/shared';
 import type { Context } from 'hono';
 import type { AppContext } from '../context.ts';
-import { newId } from '../lib/crypto.ts';
+import { auditStatement } from '../lib/audit.ts';
 
 type Ctx = Context<AppContext>;
 
@@ -51,18 +51,12 @@ export function putCategoryIcon(now: () => number) {
 
     const db = c.env.DB;
     const at = now();
-    const audit = db
-      .prepare(
-        `INSERT INTO admin_audit (id, at, actor_user_id, action, target_user_id, details)
-         VALUES (?1, ?2, ?3, ?4, NULL, ?5)`,
-      )
-      .bind(
-        newId(),
-        at,
-        user.userId,
-        symbol === null ? 'category_icon.reset' : 'category_icon.set',
-        JSON.stringify({ set, key, symbol }),
-      );
+    const audit = auditStatement(db, {
+      at,
+      actor: user.userId,
+      action: symbol === null ? 'category_icon.reset' : 'category_icon.set',
+      details: { set, key, symbol },
+    });
     if (symbol === null) {
       await db.batch([
         db

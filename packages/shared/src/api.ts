@@ -19,19 +19,6 @@ export const MeSchema = z.object({
 });
 export type Me = z.infer<typeof MeSchema>;
 
-export const AdminUserSchema = z.object({
-  id: z.string(),
-  email: z.string(),
-  displayName: z.string().nullable(),
-  role: RoleSchema,
-  status: z.enum(STATUSES),
-  extraSet: z.boolean(),
-  storageBytes: z.number(),
-  createdAt: z.number(),
-  lastLoginAt: z.number().nullable(),
-});
-export type AdminUser = z.infer<typeof AdminUserSchema>;
-
 export type ApiErrorCode =
   | 'unauthenticated'
   | 'blocked'
@@ -53,4 +40,6 @@ export type ApiErrorCode =
   | 'too_deep'
   | 'quota_exceeded'
   | 'unknown_symbol'
+  // Admin panel (PLAN §2.6): the typed e-mail does not match the account to delete.
+  | 'confirmation_mismatch'
   | 'internal';

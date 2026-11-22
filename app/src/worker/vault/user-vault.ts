@@ -32,7 +32,31 @@ const WRITE_REFILL_PER_S = 2;
 export const RATE_LIMITED = { error: 'rate_limited' } as const;
 export type RateLimited = typeof RATE_LIMITED;
 
-export type BoardResult = BoardChanges | BoardError | RateLimited;
+/**
+ * Counters every vault keeps in vault_meta (triggers). Writes and tree reads hand them to
+ * the Worker, which copies them to D1 for the admin panel (routes/totals.ts).
+ */
+export type VaultTotals = {
+  boards: number;
+  tiles: number;
+  media: number;
+  mediaBytes: number;
+};
+
+/** A successful result together with the account totals after it. */
+export type Counted<T> = T & { totals: VaultTotals };
+/** Counted for successful results, errors unchanged (distributes over unions). */
+type WithTotals<R> = R extends { error: string } ? R : Counted<R>;
+
+export type BoardResult = Counted<BoardChanges> | BoardError | RateLimited;
+
+/** Read-only copy of a whole account for the admin data view (PLAN §2.6). */
+export interface VaultSnapshot {
+  tree: string;
+  media: MediaList;
+  settings: Settings;
+  totals: VaultTotals;
+}
 
 /**
  * All content of one user lives in one SQLite-backed Durable Object addressed by the
@@ -54,6 +78,19 @@ export class UserVault extends DurableObject<AppEnv> {
     this.boards = new BoardStore(ctx.storage);
     this.preferred = new PreferredStore(ctx.storage);
     this.media = new MediaStore(ctx.storage);
+  }
+
+  private totals(): VaultTotals {
+    return this.ctx.storage.sql
+      .exec<VaultTotals>(
+        'SELECT boards, tiles, media, media_bytes AS mediaBytes FROM vault_meta WHERE id = 1',
+      )
+      .one();
+  }
+
+  /** Adds the totals to a successful result; errors pass through. */
+  private counted<R extends object>(result: R): WithTotals<R> {
+    return ('error' in result ? result : { ...result, totals: this.totals() }) as WithTotals<R>;
   }
 
   private spendWrite(cost = 1): boolean {
@@ -104,32 +141,32 @@ export class UserVault extends DurableObject<AppEnv> {
   // --- boards (inputs validated with the shared Zod schemas by the caller) ----------
 
   /** Whole tree as JSON, or `json: null` when one of `known` is the current ETag. */
-  getBoardTree(known: string[]): { etag: string; json: string | null } {
-    return this.boards.treeJson(known);
+  getBoardTree(known: string[]): { etag: string; json: string | null; totals: VaultTotals } {
+    return { ...this.boards.treeJson(known), totals: this.totals() };
   }
 
   createHomeBoard(input: CreateHome): BoardResult {
-    return this.spendWrite() ? this.boards.createHome(input) : RATE_LIMITED;
+    return this.spendWrite() ? this.counted(this.boards.createHome(input)) : RATE_LIMITED;
   }
 
   patchBoard(id: string, input: PatchBoard): BoardResult {
-    return this.spendWrite() ? this.boards.patchBoard(id, input) : RATE_LIMITED;
+    return this.spendWrite() ? this.counted(this.boards.patchBoard(id, input)) : RATE_LIMITED;
   }
 
   createTile(boardId: string, input: CreateTile): BoardResult {
-    return this.spendWrite() ? this.boards.createTile(boardId, input) : RATE_LIMITED;
+    return this.spendWrite() ? this.counted(this.boards.createTile(boardId, input)) : RATE_LIMITED;
   }
 
   patchTile(id: string, input: PatchTile): BoardResult {
-    return this.spendWrite() ? this.boards.patchTile(id, input) : RATE_LIMITED;
+    return this.spendWrite() ? this.counted(this.boards.patchTile(id, input)) : RATE_LIMITED;
   }
 
   deleteTile(id: string, rev: number): BoardResult {
-    return this.spendWrite() ? this.boards.deleteTile(id, rev) : RATE_LIMITED;
+    return this.spendWrite() ? this.counted(this.boards.deleteTile(id, rev)) : RATE_LIMITED;
   }
 
   moveTile(input: MoveTile): BoardResult {
-    return this.spendWrite() ? this.boards.moveTile(input) : RATE_LIMITED;
+    return this.spendWrite() ? this.counted(this.boards.moveTile(input)) : RATE_LIMITED;
   }
 
   // --- preferred symbol variants -----------------------------------------------------
@@ -154,18 +191,31 @@ export class UserVault extends DurableObject<AppEnv> {
   }
 
   /** `image` must come from cleanImage, `label` from MediaLabelSchema. */
-  async putMedia(label: string, image: CleanImage): Promise<MediaSaved | MediaError | RateLimited> {
-    return this.spendWrite() ? this.media.put(label, image) : RATE_LIMITED;
+  async putMedia(
+    label: string,
+    image: CleanImage,
+  ): Promise<Counted<MediaSaved> | MediaError | RateLimited> {
+    return this.spendWrite() ? this.counted(await this.media.put(label, image)) : RATE_LIMITED;
   }
 
   renameMedia(id: string, label: string): MediaSaved | MediaError | RateLimited {
     return this.spendWrite() ? this.media.rename(id, label) : RATE_LIMITED;
   }
 
-  deleteMedia(id: string): MediaDeleted | BoardError | RateLimited {
+  deleteMedia(id: string): Counted<MediaDeleted> | BoardError | RateLimited {
     if (!this.spendWrite()) return RATE_LIMITED;
     const result = this.boards.removeMedia(id);
-    return 'error' in result ? result : { ...result, usage: this.media.usage() };
+    return this.counted('error' in result ? result : { ...result, usage: this.media.usage() });
+  }
+
+  /** Everything the admin data view shows, in one call; nothing is written. */
+  snapshot(): VaultSnapshot {
+    return {
+      tree: this.boards.treeJson().json ?? '{"homeId":null,"boards":[]}',
+      media: this.getMediaList(),
+      settings: this.getSettings(),
+      totals: this.totals(),
+    };
   }
 
   /** Hard delete of everything the user owns (PLAN §4.3). Idempotent. */

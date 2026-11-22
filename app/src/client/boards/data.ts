@@ -77,9 +77,13 @@ export function useCreateHome() {
 /**
  * Tile symbol → image URL. Library sets resolve through their index (file names carry a
  * content hash that changes when the mirror updates), own photos by their ID; null = show
- * the label only.
+ * the label only. `ownUrl` must be stable (the admin data view passes its own route).
  */
-export function useSymbolResolver(me: Me, tiles: readonly Tile[]) {
+export function useSymbolResolver(
+  me: Me,
+  tiles: readonly Tile[],
+  ownUrl: (id: string) => string = mediaUrl,
+) {
   const needs = useMemo(() => {
     const sets = new Set<LibrarySet>();
     for (const tile of tiles) {
@@ -106,9 +110,9 @@ export function useSymbolResolver(me: Me, tiles: readonly Tile[]) {
   return useCallback(
     (symbol: Tile['symbol']): string | null => {
       if (!symbol) return null;
-      if (symbol.set === 'own') return mediaUrl(symbol.ref);
+      if (symbol.set === 'own') return ownUrl(symbol.ref);
       return files.get(`${symbol.set}:${symbol.ref}`) ?? null;
     },
-    [files],
+    [files, ownUrl],
   );
 }

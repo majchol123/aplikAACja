@@ -69,7 +69,21 @@ export const ROUTES = {
   getMedia: { method: 'GET', path: '/api/media/:id', access: 'user' },
   renameMedia: { method: 'PATCH', path: '/api/media/:id', access: 'user' },
   deleteMedia: { method: 'DELETE', path: '/api/media/:id', access: 'user' },
+  // Admin panel (PLAN §2.6): the only routes naming another account; rank rules and audit
+  // in routes/admin.ts.
   adminUsers: { method: 'GET', path: '/api/admin/users', access: 'admin' },
+  adminBlock: { method: 'POST', path: '/api/admin/users/:id/block', access: 'admin' },
+  adminUnblock: { method: 'POST', path: '/api/admin/users/:id/unblock', access: 'admin' },
+  adminExtraSet: { method: 'POST', path: '/api/admin/users/:id/extra-set', access: 'admin' },
+  adminRole: { method: 'POST', path: '/api/admin/users/:id/role', access: 'admin' },
+  adminDelete: { method: 'DELETE', path: '/api/admin/users/:id', access: 'admin' },
+  adminUserData: { method: 'GET', path: '/api/admin/users/:id/data', access: 'admin' },
+  adminUserMedia: {
+    method: 'GET',
+    path: '/api/admin/users/:id/media/:mediaId',
+    access: 'admin',
+  },
+  adminAudit: { method: 'GET', path: '/api/admin/audit', access: 'admin' },
   putCategoryIcon: { method: 'PUT', path: '/api/admin/category-icons', access: 'admin' },
   /** Gate in front of the private extra-set Worker (PLAN D5, §4.1 path traversal). */
   extraAsset: { method: 'GET', path: '/sym/extra/*', access: 'extra' },

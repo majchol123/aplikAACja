@@ -1,16 +1,10 @@
-import {
-  MEDIA_LIMITS,
-  MediaLabelSchema,
-  ObjectIdSchema,
-  PatchMediaSchema,
-  type MediaUsage,
-} from '@relaacja/shared';
+import { MEDIA_LIMITS, MediaLabelSchema, ObjectIdSchema, PatchMediaSchema } from '@relaacja/shared';
 import type { Context } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { AppContext } from '../context.ts';
-import { defer } from '../lib/defer.ts';
 import { cleanImage, type ImageProblem } from '../media/image.ts';
 import { vaultFor } from '../vault/user-vault.ts';
+import { recordTotals } from './totals.ts';
 
 type Ctx = Context<AppContext>;
 
@@ -34,15 +28,6 @@ function pathId(c: Ctx): string | null {
 const invalid = (c: Ctx) => c.json({ error: 'invalid_request' }, 400);
 const notFound = (c: Ctx) => c.json({ error: 'not_found' }, 404);
 
-/** Storage used per account, for the admin overview (D1, after the response). */
-function recordUsage(c: Ctx, usage: MediaUsage): void {
-  defer(c)(
-    c.env.DB.prepare('UPDATE users SET storage_bytes = ?1 WHERE id = ?2')
-      .bind(usage.bytes, c.get('user').userId)
-      .run(),
-  );
-}
-
 export async function listMedia(c: Ctx): Promise<Response> {
   return c.json(await vault(c).getMediaList());
 }
@@ -62,8 +47,9 @@ export async function uploadMedia(c: Ctx): Promise<Response> {
   if ('error' in result) {
     return c.json({ error: result.error }, result.error === 'rate_limited' ? 429 : 422);
   }
-  recordUsage(c, result.usage);
-  return c.json(result, 201);
+  const { totals, ...saved } = result;
+  recordTotals(c, c.get('user').userId, totals);
+  return c.json(saved, 201);
 }
 
 export async function getMedia(c: Ctx): Promise<Response> {
@@ -99,6 +85,7 @@ export async function deleteMedia(c: Ctx): Promise<Response> {
     if (result.error === 'not_found') return notFound(c);
     return c.json({ error: result.error }, result.error === 'rate_limited' ? 429 : 409);
   }
-  recordUsage(c, result.usage);
-  return c.json(result);
+  const { totals, ...deleted } = result;
+  recordTotals(c, c.get('user').userId, totals);
+  return c.json(deleted);
 }
