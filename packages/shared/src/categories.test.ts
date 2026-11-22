@@ -88,7 +88,7 @@ describe('CategoryTree', () => {
       extra,
     );
     expect(extraTree.view(null, DEFAULT)?.folders).toEqual([
-      { id: 7, name: 'Owoce', icon: '/sym/extra/g/7.0000abcd.webp', count: 2 },
+      { id: 7, name: 'Owoce', icon: '/sym/extra/g/7.0000abcd.webp', ownIcon: true, count: 2 },
     ]);
     expect(extraTree.view(7, DEFAULT)?.symbols.map((s) => s.label)).toEqual(['banan', 'jabłko']);
     expect(extraTree.view(99, DEFAULT)).toBeNull();

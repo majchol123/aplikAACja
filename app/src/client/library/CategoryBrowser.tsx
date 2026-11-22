@@ -181,9 +181,11 @@ export function CategoryBrowser({
                   onClick={() => open(folder.id)}
                   className="relative flex w-full flex-col items-center rounded-xl border-4 border-brand-300 bg-brand-50 p-1.5 hover:bg-brand-100"
                 >
-                  <span className="absolute left-1 top-1 text-brand-700">
-                    <FolderIcon />
-                  </span>
+                  {!folder.ownIcon && (
+                    <span className="absolute left-1 top-1 text-brand-700">
+                      <FolderIcon />
+                    </span>
+                  )}
                   {folder.icon ? (
                     <img
                       src={folder.icon}

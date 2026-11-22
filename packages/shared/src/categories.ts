@@ -14,6 +14,8 @@ export interface CategoryFolder {
   name: string;
   /** Same-origin picture URL; null when no visible symbol can stand for the folder. */
   icon: string | null;
+  /** The icon is the set's own folder picture (drawn as a folder already), not a symbol. */
+  ownIcon: boolean;
   /** Visible symbols in the folder and its subfolders, each counted once. */
   count: number;
 }
@@ -124,6 +126,7 @@ export class CategoryTree {
           id: child.id,
           name: child.name,
           icon: this.icon(child, stats, filter),
+          ownIcon: child.file !== null,
           count: stats.count,
         },
       ];
