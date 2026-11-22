@@ -2,6 +2,7 @@ export * from './api.ts';
 export * from './boards.ts';
 export * from './device.ts';
 export * from './normalize.ts';
+export * from './preferred.ts';
 export * from './search.ts';
 export * from './settings.ts';
 export * from './speech.ts';

@@ -45,6 +45,9 @@ export const ROUTES = {
   patchTile: { method: 'PATCH', path: '/api/tiles/:id', access: 'user' },
   deleteTile: { method: 'DELETE', path: '/api/tiles/:id', access: 'user' },
   moveTile: { method: 'POST', path: '/api/tiles/move', access: 'user' },
+  // Preferred variant of a word (PLAN §2.2).
+  getPreferredSymbols: { method: 'GET', path: '/api/symbols/preferred', access: 'user' },
+  putPreferredSymbol: { method: 'PUT', path: '/api/symbols/preferred', access: 'user' },
   adminUsers: { method: 'GET', path: '/api/admin/users', access: 'admin' },
   /** Gate in front of the private extra-set Worker (PLAN D5, §4.1 path traversal). */
   extraAsset: { method: 'GET', path: '/sym/extra/*', access: 'extra' },

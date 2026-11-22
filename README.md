@@ -1,13 +1,13 @@
 # relAACja
 
-Bezpłatna aplikacja webowa AAC (komunikacja wspomagająca i alternatywna) dla dzieci z trudnościami w komunikacji werbalnej. Rodzic loguje się kontem Google, układa tablice z piktogramów ARASAAC i własnych zdjęć, a dziecko buduje z symboli zdania odczytywane na głos.
+Bezpłatna aplikacja webowa AAC (komunikacja wspomagająca i alternatywna) dla osób, które przy mówieniu wspomagają się symbolami — dzieci, młodzieży i dorosłych. Po zalogowaniu kontem Google tablice z symboli ARASAAC i własnych zdjęć układa się w trybie edycji, a w trybie komunikacji buduje się z nich zdania odczytywane na głos.
 
 - Architektura, decyzje i etapy: [`docs/PLAN.md`](docs/PLAN.md)
 - Backlog: [`TODO.md`](TODO.md)
 
 ## Stos
 
-Cloudflare Workers (plan Free) + Static Assets, Durable Objects (SQLite, jeden na użytkownika, jurysdykcja EU), D1, Hono, Zod, React 19, Vite 8, Tailwind CSS 4, TanStack Query. Testy: Vitest w runtime Workers (`@cloudflare/vitest-plugin`), Playwright + axe-core. Narzędzia offline (`tools/`): Python 3.13 + uv, Pillow, pytest, ruff.
+Cloudflare Workers (plan Free) + Static Assets, Durable Objects (SQLite, jeden na użytkownika, jurysdykcja EU), D1, Hono, Zod, React 19, Vite 8, Tailwind CSS 4, TanStack Query, dnd-kit. Testy: Vitest w runtime Workers (`@cloudflare/vitest-plugin`), Playwright + axe-core. Narzędzia offline (`tools/`): Python 3.13 + uv, Pillow, pytest, ruff.
 
 | Katalog | Zawartość |
 |---|---|
@@ -38,7 +38,7 @@ Zestawy symboli lokalnie (opcjonalnie; bez nich biblioteka jest pusta, a E2E pod
 
 ```bash
 cd tools
-uv run build_arasaac.py --out ../workers/arasaac/dist        # ~12,7 tys. piktogramów, ~185 MB
+uv run build_arasaac.py --out ../workers/arasaac/dist        # ~12,7 tys. symboli, ~185 MB
 uv run build_lexicon.py --set-dir ../workers/arasaac/dist/sym/arasaac
 # Starter board: spec tools/template/starter.toml → templates/starter.json + HTML preview
 uv run build_template.py --spec template/starter.toml --set-dir ../workers/arasaac/dist/sym/arasaac \
@@ -61,4 +61,4 @@ Push na `main` → CI → staging (`relaacja-staging.jagiellona.one.pl`) → rę
 
 ## Licencje
 
-Kod: MIT ([`LICENSE`](LICENSE)). Piktogramy ARASAAC mają osobną licencję CC BY-NC-SA 4.0 i nie są częścią repozytorium; słownik odmian pochodzi z PoliMorf (BSD-2) — patrz [`NOTICE`](NOTICE).
+Kod: MIT ([`LICENSE`](LICENSE)). Symbole ARASAAC mają osobną licencję CC BY-NC-SA 4.0 i nie są częścią repozytorium; słownik odmian pochodzi z PoliMorf (BSD-2) — patrz [`NOTICE`](NOTICE).

@@ -67,7 +67,7 @@ export function validClaims(overrides: Record<string, unknown> = {}): Record<str
     sub: '1234567890',
     email: 'parent@example.com',
     email_verified: true,
-    name: 'Rodzic Testowy',
+    name: 'Osoba Testowa',
     iat: now,
     exp: now + 3600,
     nonce: 'nonce-placeholder',

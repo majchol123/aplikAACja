@@ -40,7 +40,7 @@ def test_index_contents(tmp_path: Path) -> None:
         "person",
         "misc",
     ]
-    assert index["attribution"].startswith("Autor piktogramów: Sergio Palao")
+    assert index["attribution"].startswith("Autor symboli: Sergio Palao")
     for item in index["items"]:
         assert (set_dir(tmp_path) / item["f"]).read_bytes()[8:12] == b"WEBP"
     headers = (tmp_path / "out" / "_headers").read_text()

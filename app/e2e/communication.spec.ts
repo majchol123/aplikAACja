@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   failOnConsoleErrors,
   freshLogin,
-  holdParentLock,
+  holdEditLock,
   mockArasaac,
   mockSpeech,
   spoken,
@@ -38,7 +38,7 @@ async function starterBoard(page: Page, name: string) {
   await expect(current(page)).toHaveText('Start');
 }
 
-test('child builds a sentence through a folder and hears it (PLAN F2)', async ({ page }) => {
+test('a sentence built through a folder is spoken (PLAN F2)', async ({ page }) => {
   await starterBoard(page, 'Zdanie');
   // PLAN §2.7: 9 words and 8 folders, the rest left for the parent.
   await expect(page.getByTestId('board-grid').getByRole('button')).toHaveCount(17);
@@ -93,16 +93,18 @@ test('sliding off a tile does not activate it', async ({ page }) => {
   await expect(sentence(page)).toHaveText(['ja', 'ty']);
 });
 
-test('parent mode needs a 2-second hold and keeps device and account settings', async ({
+test('edit mode needs a 2-second hold; settings keep device and account values', async ({
   page,
 }) => {
-  await starterBoard(page, 'Rodzic');
-  await page.getByRole('button', { name: /Tryb rodzica/ }).click();
+  await starterBoard(page, 'Ustawienia');
+  await page.getByRole('button', { name: /Tryb edycji/ }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Przytrzymaj 2 sekundy' })).toBeVisible();
   await expect(page.getByTestId('board-grid')).toBeVisible();
 
-  await holdParentLock(page);
-  await expect(page.getByText('Tryb rodzica', { exact: true })).toBeVisible();
+  await holdEditLock(page);
+  await expect(page.getByRole('heading', { name: 'Tryb edycji' })).toBeVisible();
+  await page.getByRole('button', { name: 'Ustawienia' }).click();
+  await expect(page.getByRole('heading', { name: 'Ustawienia' })).toBeVisible();
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations).toEqual([]);
 
@@ -113,7 +115,8 @@ test('parent mode needs a 2-second hold and keeps device and account settings', 
   // Account-wide: stay in the folder after a word; capital letters.
   await page.getByRole('checkbox', { name: /wracaj na pulpit/ }).uncheck();
   await page.getByRole('checkbox', { name: 'Etykiety wielkimi literami' }).check();
-  await page.getByRole('button', { name: 'Wróć do tablicy' }).click();
+  await page.getByRole('button', { name: 'Wróć do edycji' }).click();
+  await page.getByRole('button', { name: 'Gotowe' }).click();
 
   await tile(page, 'Jedzenie, folder').click();
   await tile(page, 'Śniadanie, folder').click();

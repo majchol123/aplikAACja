@@ -214,7 +214,7 @@ footer{{margin-top:32px;color:#64748b;font-size:12px}}
 </style></head><body>
 <h1>Szablon „{html.escape(template["name"])}”</h1>
 <p>{len(boards)} tablic, {tile_count} kafelków.
-Pod kafelkiem: numer piktogramu ARASAAC i jego hasła.</p>
+Pod kafelkiem: numer symbolu ARASAAC i jego hasła.</p>
 <p class="legend">{legend}</p>
 {"".join(sections)}
 <footer>{html.escape(attribution)}</footer>

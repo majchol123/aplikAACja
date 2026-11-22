@@ -1,31 +1,13 @@
-import {
-  type FitzgeraldRole,
-  type LibrarySet,
-  type Me,
-  type Settings,
-  type SymbolHit,
-} from '@relaacja/shared';
+import type { LibrarySet, Me, Settings } from '@relaacja/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDeferredValue, useId, useMemo, useState } from 'react';
 import { api } from '../api.ts';
-import { useAccountSettings } from '../settings.ts';
-import { buildSearch, useManifest, useSymbolSet } from './data.ts';
+import { ROLE_COLORS } from '../boards/colors.ts';
+import { useAccountSettings } from '../settings/account.ts';
+import { ARASAAC_NOTE } from './attribution.ts';
+import { useLibrary } from './useLibrary.ts';
 
-/** Fitzgerald Key colours (PLAN §3.3), used as the tile border. */
-const ROLE_BORDER: Record<FitzgeraldRole, string> = {
-  person: 'border-yellow-400',
-  noun: 'border-orange-400',
-  verb: 'border-green-500',
-  descriptor: 'border-sky-500',
-  social: 'border-pink-400',
-  question: 'border-purple-500',
-  negation: 'border-red-500',
-  misc: 'border-slate-300',
-};
-
-const ARASAAC_NOTE =
-  'Piktogramy: Sergio Palao, ARASAAC (arasaac.org), licencja CC BY-NC-SA, własność Rządu Aragonii.';
-
+/** Active symbol sets and a browser over them (settings screen). */
 export function Library({ me }: { me: Me }) {
   const queryClient = useQueryClient();
   const settings = useAccountSettings();
@@ -36,15 +18,8 @@ export function Library({ me }: { me: Me }) {
   // Shown immediately while the PATCH is in flight (a controlled checkbox must change
   // within the click event); cleared when the server answers.
   const [pendingSets, setPendingSets] = useState<Settings['activeSets'] | null>(null);
-  const saved = settings.data?.activeSets;
-  const active = useMemo(() => pendingSets ?? saved ?? [], [pendingSets, saved]);
-  const wantsExtra = me.extraSet && active.includes('extra');
-  const wantsArasaac = active.includes('arasaac');
-  const arasaacManifest = useManifest('arasaac', wantsArasaac);
-  // The small manifest is fetched whenever the set is granted, so its name can be shown.
-  const extraManifest = useManifest('extra', me.extraSet);
-  const arasaac = useSymbolSet(arasaacManifest.data, wantsArasaac);
-  const extra = useSymbolSet(extraManifest.data, wantsExtra);
+  const library = useLibrary(me, pendingSets ?? undefined);
+  const active = library.sets;
 
   const updateSets = useMutation({
     mutationFn: (activeSets: Settings['activeSets']) =>
@@ -53,34 +28,8 @@ export function Library({ me }: { me: Me }) {
     onSettled: () => setPendingSets(null),
   });
 
-  const search = useMemo(
-    () =>
-      buildSearch([wantsArasaac ? arasaac.data : undefined, wantsExtra ? extra.data : undefined]),
-    [arasaac.data, extra.data, wantsArasaac, wantsExtra],
-  );
-
-  const hits: SymbolHit[] = useMemo(() => {
-    if (!settings.data) return [];
-    const sets = active.filter(
-      (s): s is LibrarySet => s === 'arasaac' || (s === 'extra' && me.extraSet),
-    );
-    return search.search(deferredQuery, {
-      sets,
-      hideSexual: settings.data.contentFilter.hideSexual,
-      hideViolence: settings.data.contentFilter.hideViolence,
-      limit: 60,
-    });
-  }, [search, deferredQuery, settings.data, active, me.extraSet]);
-
-  const setNames: Record<LibrarySet, string> = {
-    arasaac: 'ARASAAC',
-    extra: extraManifest.data?.name ?? 'Dodatkowy zestaw',
-  };
-  const loading = (wantsArasaac && arasaac.isPending) || (wantsExtra && extra.isPending);
-  const failed = [
-    wantsArasaac && (arasaacManifest.isError || arasaac.isError) && 'ARASAAC',
-    wantsExtra && (extraManifest.isError || extra.isError) && setNames.extra,
-  ].filter(Boolean);
+  const { search } = library;
+  const hits = useMemo(() => search(deferredQuery), [search, deferredQuery]);
 
   function toggle(set: LibrarySet, on: boolean): void {
     if (!settings.data) return;
@@ -111,7 +60,7 @@ export function Library({ me }: { me: Me }) {
               checked={active.includes(set)}
               onChange={(e) => toggle(set, e.target.checked)}
             />
-            {setNames[set]}
+            {library.setNames[set]}
           </label>
         ))}
       </fieldset>
@@ -132,15 +81,15 @@ export function Library({ me }: { me: Me }) {
       />
 
       <p className="mt-2 min-h-5 text-sm text-slate-600" role="status" aria-live="polite">
-        {failed.length
-          ? `Nie udało się wczytać: ${failed.join(', ')}.`
-          : loading
+        {library.failed.length
+          ? `Nie udało się wczytać: ${library.failed.join(', ')}.`
+          : library.loading
             ? 'Wczytywanie biblioteki…'
             : deferredQuery.trim()
               ? hits.length
                 ? `Znaleziono: ${hits.length}${hits.length === 60 ? '+' : ''}`
                 : 'Brak wyników.'
-              : `${search.size.toLocaleString('pl-PL')} symboli w aktywnych zestawach.`}
+              : `${library.size.toLocaleString('pl-PL')} symboli w aktywnych zestawach.`}
       </p>
 
       {hits.length > 0 && (
@@ -151,7 +100,7 @@ export function Library({ me }: { me: Me }) {
           {hits.map((hit) => (
             <li
               key={`${hit.set}:${hit.id}`}
-              className={`flex flex-col items-center rounded-xl border-4 bg-white p-2 ${ROLE_BORDER[hit.role]}`}
+              className={`flex flex-col items-center rounded-xl border-4 bg-white p-2 ${ROLE_COLORS[hit.role].border}`}
             >
               <img
                 src={hit.src}
@@ -165,13 +114,13 @@ export function Library({ me }: { me: Me }) {
               <span className="mt-1 text-center text-sm font-semibold leading-tight text-slate-800">
                 {hit.label}
               </span>
-              <span className="text-xs text-slate-500">{setNames[hit.set]}</span>
+              <span className="text-xs text-slate-500">{library.setNames[hit.set]}</span>
             </li>
           ))}
         </ul>
       )}
 
-      {wantsArasaac && <p className="mt-4 text-xs text-slate-500">{ARASAAC_NOTE}</p>}
+      {library.usesArasaac && <p className="mt-4 text-xs text-slate-500">{ARASAAC_NOTE}</p>}
     </section>
   );
 }

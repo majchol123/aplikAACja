@@ -37,6 +37,17 @@ export const DeviceSettingsSchema = z
     /** Highlight the tile for 150 ms and vibrate for 20 ms (where supported) on activation. */
     feedback: z.boolean(),
     motor: MotorSettingsSchema,
+    /**
+     * Optional 4-digit PIN in front of edit mode on this device (PLAN §2.2), as salted
+     * SHA-256. A lock against accidental edits, not a secret: 10 000 PINs are trivial to try.
+     */
+    pin: z
+      .object({
+        salt: z.string().regex(/^[0-9a-f]{32}$/),
+        hash: z.string().regex(/^[0-9a-f]{64}$/),
+      })
+      .strict()
+      .nullable(),
   })
   .strict();
 export type DeviceSettings = z.infer<typeof DeviceSettingsSchema>;
@@ -46,6 +57,7 @@ export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
   speakOnTap: true,
   feedback: true,
   motor: { activateOn: 'release', minHoldMs: 0, sameTileGuardMs: 400, globalGuardMs: 150 },
+  pin: null,
 };
 
 /** Stored values from older versions fall back to defaults key by key. */

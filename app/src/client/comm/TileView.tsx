@@ -1,4 +1,5 @@
 import type { Tile } from '@relaacja/shared';
+import type { Ref } from 'react';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { FolderIcon } from './icons.tsx';
 
@@ -19,6 +20,9 @@ export function TileView({
   uppercase = false,
   flash = false,
   holdMs = 0,
+  ariaLabel,
+  onClick,
+  ref,
 }: {
   tile: Tile;
   src: string | null;
@@ -27,6 +31,10 @@ export function TileView({
   flash?: boolean;
   /** Being held with a minimum hold time: progress ring over that time. */
   holdMs?: number;
+  /** Accessible name when the tile does something else than speaking (editor). */
+  ariaLabel?: string;
+  onClick?: () => void;
+  ref?: Ref<HTMLButtonElement>;
 }) {
   const colors = ROLE_COLORS[tile.colorRole ?? 'none'];
   const style =
@@ -43,9 +51,11 @@ export function TileView({
   );
   return (
     <button
+      ref={ref}
       type="button"
       data-tile={tile.id}
-      aria-label={folder ? `${tile.label}, folder` : tile.label}
+      aria-label={ariaLabel ?? (folder ? `${tile.label}, folder` : tile.label)}
+      onClick={onClick}
       className={`tile ${style} ${folder ? 'tile-folder' : ''} ${flash ? 'tile-flash' : ''}`}
     >
       {tile.labelPosition === 'top' && label}

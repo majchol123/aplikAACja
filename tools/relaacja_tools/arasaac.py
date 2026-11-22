@@ -37,7 +37,7 @@ SET_DIR = Path("sym") / "arasaac"
 MARKER = ".relaacja-symbols"
 
 ATTRIBUTION = (
-    "Autor piktogramów: Sergio Palao. Pochodzenie: ARASAAC (https://arasaac.org). "
+    "Autor symboli: Sergio Palao. Pochodzenie: ARASAAC (https://arasaac.org). "
     "Licencja: CC (BY-NC-SA). Właściciel: Rząd Aragonii (Hiszpania)."
 )
 

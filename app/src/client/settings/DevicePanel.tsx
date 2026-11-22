@@ -11,7 +11,7 @@ import {
 } from '@relaacja/shared';
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useDeviceSettings } from '../device.ts';
-import { useAccountSettings, useUpdateAccountSettings } from '../settings.ts';
+import { useAccountSettings, useUpdateAccountSettings } from './account.ts';
 import { speak, speechSupported, useVoices } from '../speech.ts';
 
 const PRESET_LABELS: Record<VoicePreset, string> = {

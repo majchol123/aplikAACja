@@ -12,6 +12,8 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local"
   },
   "dependencies": {
+    "@dnd-kit/dom": "0.5.3",
+    "@dnd-kit/react": "0.5.3",
     "@relaacja/shared": "workspace:*",
     "@tanstack/react-query": "^5.108.2",
     "hono": "^4.13.19",

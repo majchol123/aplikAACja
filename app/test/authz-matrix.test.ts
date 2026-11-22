@@ -80,6 +80,11 @@ const EXPECTED: Record<string, Row> = {
     body: (f) => ({ tileId: f.tileId, rev: 2, toBoardId: f.boardId, row: 3, col: 4 }),
     status: ownedByA,
   },
+  'GET /api/symbols/preferred': { status: userOnly },
+  'PUT /api/symbols/preferred': {
+    body: { word: 'chleb', symbol: { set: 'arasaac', ref: '2494' } },
+    status: userOnly,
+  },
   'GET /api/admin/users': {
     status: { ...all(403), anon: 401, admin: 200, superadmin: 200 },
   },

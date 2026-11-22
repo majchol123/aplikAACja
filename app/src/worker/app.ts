@@ -31,6 +31,7 @@ import { effectiveRole, parseAdminEmails, upsertGoogleUser, type UserRow } from 
 import type { AppContext } from './context.ts';
 import { newToken, sha256Hex } from './lib/crypto.ts';
 import * as boards from './routes/boards.ts';
+import * as symbols from './routes/symbols.ts';
 import { JSON_BODY_LIMIT, ROUTES, type RouteDef } from './routes/registry.ts';
 import { cookieConflictGuard } from './security/cookies.ts';
 import { csrfGuard } from './security/csrf.ts';
@@ -335,6 +336,8 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.patchTile, boards.patchTile);
   defineRoute(ROUTES.deleteTile, boards.deleteTile);
   defineRoute(ROUTES.moveTile, boards.moveTile);
+  defineRoute(ROUTES.getPreferredSymbols, symbols.getPreferredSymbols);
+  defineRoute(ROUTES.putPreferredSymbol, symbols.putPreferredSymbol);
 
   defineRoute(ROUTES.adminUsers, async (c) => {
     const { results } = await c.env.DB.prepare(

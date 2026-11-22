@@ -12,12 +12,12 @@ import { useCallback, useMemo } from 'react';
 import { api, ApiError } from '../api.ts';
 import { useManifest, useSymbolIndex } from '../library/data.ts';
 
-interface CachedTree {
+export interface CachedTree {
   etag: string;
   tree: BoardTree;
 }
 
-const TREE_KEY = ['boards'] as const;
+export const TREE_KEY = ['boards'] as const;
 
 /** Revalidates with the tree ETag: an unchanged tree costs one row read and no body. */
 async function fetchTree(previous: CachedTree | undefined): Promise<CachedTree> {
@@ -39,7 +39,7 @@ export function useBoardTree() {
     queryKey: TREE_KEY,
     queryFn: () => fetchTree(queryClient.getQueryData<CachedTree>(TREE_KEY)),
     staleTime: 60_000,
-    // Picks up edits made on another device (parent's phone) while the tablet stays open.
+    // Picks up edits made on another device (a caregiver's phone) while the tablet stays open.
     refetchInterval: 5 * 60_000,
     select: (cached) => cached.tree,
   });

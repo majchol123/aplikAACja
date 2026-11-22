@@ -3,13 +3,22 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../api.ts';
 import { Library } from '../library/Library.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
+import { LockPanel } from './LockPanel.tsx';
 
 function goHome(): void {
   location.assign('/');
 }
 
-/** Parent mode: settings, symbol library, account (board editor: F2 step 3). */
-export function ParentPanel({ me, onExit }: { me: Me; onExit: () => void }) {
+/** Settings, symbol library and account; reached from edit mode (PLAN §2.2). */
+export function SettingsScreen({
+  me,
+  backLabel,
+  onBack,
+}: {
+  me: Me;
+  backLabel: string;
+  onBack: () => void;
+}) {
   const isAdmin = me.role === 'admin' || me.role === 'superadmin';
   const logout = useMutation({
     mutationFn: () => api('/api/auth/logout', { method: 'POST' }),
@@ -31,17 +40,17 @@ export function ParentPanel({ me, onExit }: { me: Me; onExit: () => void }) {
         <img src="/favicon.svg" alt="" className="size-9" />
         <span className="text-xl font-bold tracking-tight text-brand-800">relAACja</span>
         <h1 className="rounded-full bg-brand-100 px-3 py-1 text-sm font-semibold text-brand-800">
-          Tryb rodzica
+          Ustawienia
         </h1>
         <span className="ml-auto truncate text-sm text-slate-600" data-testid="user-name">
           {me.displayName ?? me.email}
         </span>
         <button
           type="button"
-          onClick={onExit}
+          onClick={onBack}
           className="rounded-full bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800"
         >
-          Wróć do tablicy
+          {backLabel}
         </button>
         <button
           type="button"
@@ -54,6 +63,7 @@ export function ParentPanel({ me, onExit }: { me: Me; onExit: () => void }) {
 
       <main className="mt-6 flex-1 space-y-6">
         <DevicePanel />
+        <LockPanel />
         <Library me={me} />
 
         {isAdmin && (

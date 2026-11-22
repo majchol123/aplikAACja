@@ -1,6 +1,6 @@
 import type { Settings, SettingsPatch } from '@relaacja/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from './api.ts';
+import { api } from '../api.ts';
 
 /** Account-wide settings stored in the vault (shared by every device of the account). */
 export function useAccountSettings() {

@@ -25,7 +25,7 @@ describe('verifyIdToken', () => {
     expect(await verify(token)).toEqual({
       sub: '1234567890',
       email: 'parent@example.com',
-      name: 'Rodzic Testowy',
+      name: 'Osoba Testowa',
     });
   });
 

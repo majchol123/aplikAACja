@@ -29,7 +29,7 @@ export const SettingsSchema = z
       })
       .strict(),
     /**
-     * Voice preset and slider multipliers (PLAN §2.4): the child's voice, so per account.
+     * Voice preset and slider multipliers (PLAN §2.4): the user's own voice, so per account.
      * Which system voice plays each preset is chosen per device (device.ts).
      */
     speech: z

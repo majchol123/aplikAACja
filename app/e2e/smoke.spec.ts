@@ -36,12 +36,12 @@ test('login errors are shown on the landing page', async ({ page }) => {
   await expect(page).toHaveURL('http://localhost:5173/');
 });
 
-test('signed-in parent sees the app and can sign out', async ({ page }) => {
-  await freshLogin(page, 'Rodzic E2E');
+test('a signed-in user sees the app and can sign out', async ({ page }) => {
+  await freshLogin(page, 'Konto E2E');
   // A new account starts with the first-board choice; account settings are one tap away.
   await expect(page.getByRole('heading', { name: 'Przygotujmy pierwszą tablicę' })).toBeVisible();
   await page.getByRole('button', { name: 'Ustawienia i konto' }).click();
-  await expect(page.getByTestId('user-name')).toHaveText('Rodzic E2E');
+  await expect(page.getByTestId('user-name')).toHaveText('Konto E2E');
   await expect(page.locator('#landing')).toHaveCount(0);
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations).toEqual([]);

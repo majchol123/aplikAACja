@@ -46,3 +46,35 @@ export const FolderIcon = ({ className = 'size-5' }) => (
     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
   </svg>
 );
+export const PlusIcon = ({ className = 'size-10' }) => (
+  <svg {...common} className={className}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+export const OpenIcon = ({ className = 'size-6' }) => (
+  <svg {...common} className={className}>
+    <path d="M5 12h13m-5-6 6 6-6 6" />
+  </svg>
+);
+export const GearIcon = ({ className = 'size-6' }) => (
+  <svg {...common} className={className}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 2v3m0 14v3M4.9 4.9l2.1 2.1m10 10 2.1 2.1M2 12h3m14 0h3M4.9 19.1 7 17M17 7l2.1-2.1" />
+  </svg>
+);
+export const GridIcon = ({ className = 'size-6' }) => (
+  <svg {...common} className={className}>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+  </svg>
+);
+export const StarIcon = ({ className = 'size-5' }) => (
+  <svg {...common} className={className}>
+    <path
+      d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"
+      fill="currentColor"
+    />
+  </svg>
+);

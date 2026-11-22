@@ -1,10 +1,11 @@
 import { TapFilter, type Board, type BoardTree, type Me, type Tile } from '@relaacja/shared';
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
 import { useDeviceSettings } from '../device.ts';
 import { useSpeaker } from '../speech.ts';
-import { useAccountSettings } from '../settings.ts';
-import { ArrowBackIcon, BackspaceIcon, HomeIcon, LockIcon, PlayIcon, TrashIcon } from './icons.tsx';
+import { useAccountSettings } from '../settings/account.ts';
+import { BackspaceIcon, LockIcon, PlayIcon, TrashIcon } from './icons.tsx';
 import { TileView } from './TileView.tsx';
 import { useWakeLock } from './wake-lock.ts';
 
@@ -16,21 +17,25 @@ interface SentenceItem {
 
 const HOLD_MS = 2000;
 
-/** Child's view: grid of the current board, sentence bar, folder navigation (PLAN §2.1). */
+/** Communication view: grid of the current board, sentence bar, folder navigation (PLAN §2.1). */
 export function Communication({
   me,
   tree,
-  onParentMode,
+  boardId,
+  onBoardChange,
+  onEditMode,
 }: {
   me: Me;
   tree: BoardTree;
-  onParentMode: () => void;
+  /** Board on screen (shared with the editor); null = home. */
+  boardId: string | null;
+  onBoardChange: (boardId: string) => void;
+  onEditMode: () => void;
 }) {
   const boards = useMemo(() => new Map(tree.boards.map((b) => [b.id, b])), [tree.boards]);
   const homeId = tree.homeId ?? '';
-  const [currentId, setCurrentId] = useState(homeId);
   // A board deleted on another device: fall back to the home board.
-  const board = boards.get(currentId) ?? boards.get(homeId);
+  const board = boards.get(boardId ?? homeId) ?? boards.get(homeId);
   const [sentence, setSentence] = useState<SentenceItem[]>([]);
   const nextKey = useRef(0);
   const speak = useSpeaker();
@@ -42,15 +47,9 @@ export function Communication({
 
   if (!board) return null;
 
-  const path: Board[] = [];
-  for (let b: Board | undefined = board; b; b = b.parentId ? boards.get(b.parentId) : undefined) {
-    path.unshift(b);
-    if (path.length > 20) break;
-  }
-
   function activate(tile: Tile): void {
     if (tile.kind === 'folder') {
-      if (tile.targetBoardId && boards.has(tile.targetBoardId)) setCurrentId(tile.targetBoardId);
+      if (tile.targetBoardId && boards.has(tile.targetBoardId)) onBoardChange(tile.targetBoardId);
       return;
     }
     setSentence((items) => [
@@ -58,7 +57,7 @@ export function Communication({
       { key: nextKey.current++, label: tile.label, src: resolve(tile.symbol) },
     ]);
     if (device.speakOnTap) speak(tile.label);
-    if ((account.data?.returnToHome ?? true) && board?.parentId) setCurrentId(homeId);
+    if ((account.data?.returnToHome ?? true) && board?.parentId) onBoardChange(homeId);
   }
 
   const speakSentence = () => speak(sentence.map((i) => i.label).join(' '));
@@ -72,39 +71,9 @@ export function Communication({
         onBackspace={() => setSentence((items) => items.slice(0, -1))}
         onClear={() => setSentence([])}
       />
-      <nav className="flex items-center gap-2" aria-label="Nawigacja po tablicach">
-        <NavButton label="Pulpit" disabled={!board.parentId} onClick={() => setCurrentId(homeId)}>
-          <HomeIcon />
-        </NavButton>
-        <NavButton
-          label="Wstecz"
-          disabled={!board.parentId}
-          onClick={() => board.parentId && setCurrentId(board.parentId)}
-        >
-          <ArrowBackIcon />
-        </NavButton>
-        <ol className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-lg font-semibold text-slate-700">
-          {path.map((b, i) => (
-            <li key={b.id} className="flex min-w-0 items-center gap-1">
-              {i > 0 && <span aria-hidden="true">›</span>}
-              {i === path.length - 1 ? (
-                <span className="truncate" aria-current="page" data-testid="current-board">
-                  {b.name}
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="truncate rounded-lg px-1 underline-offset-4 hover:underline"
-                  onClick={() => setCurrentId(b.id)}
-                >
-                  {b.name}
-                </button>
-              )}
-            </li>
-          ))}
-        </ol>
-        <ParentLock onUnlock={onParentMode} />
-      </nav>
+      <BoardNav boards={boards} board={board} homeId={homeId} onOpen={onBoardChange}>
+        <EditLock onUnlock={onEditMode} />
+      </BoardNav>
       <BoardGrid
         board={board}
         resolve={resolve}
@@ -112,30 +81,6 @@ export function Communication({
         onActivate={activate}
       />
     </main>
-  );
-}
-
-function NavButton({
-  label,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 disabled:opacity-35"
-    >
-      {children}
-    </button>
   );
 }
 
@@ -340,8 +285,8 @@ function BoardGrid({
   );
 }
 
-/** Parent mode only after holding the button for 2 s, so a child does not open it by chance. */
-function ParentLock({ onUnlock }: { onUnlock: () => void }) {
+/** Edit mode only after holding the button for 2 s, so it does not open by chance. */
+function EditLock({ onUnlock }: { onUnlock: () => void }) {
   const [holding, setHolding] = useState(false);
   const [hint, setHint] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -368,7 +313,7 @@ function ParentLock({ onUnlock }: { onUnlock: () => void }) {
     <div className="relative">
       <button
         type="button"
-        aria-label="Tryb rodzica (przytrzymaj 2 sekundy)"
+        aria-label="Tryb edycji (przytrzymaj 2 sekundy)"
         data-holding={holding}
         onPointerDown={start}
         onPointerUp={stop}

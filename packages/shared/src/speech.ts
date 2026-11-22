@@ -1,7 +1,7 @@
 /**
  * Text-to-speech voice selection (PLAN §2, D7). Web Speech exposes no voice gender and no
- * child voices, so presets combine a guessed gender with pitch/rate; the parent can pin a
- * specific voice per device. Pure functions: the browser part lives in the client.
+ * child voices, so presets combine a guessed gender with pitch/rate; a specific voice can be
+ * pinned per device. Pure functions: the browser part lives in the client.
  */
 export const VOICE_PRESETS = ['woman', 'man', 'girl', 'boy'] as const;
 export type VoicePreset = (typeof VOICE_PRESETS)[number];

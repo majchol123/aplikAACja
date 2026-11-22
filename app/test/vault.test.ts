@@ -54,6 +54,7 @@ describe('UserVault', () => {
         version: 0,
         boards: 0,
         tiles: 0,
+        preferred: 0,
       });
     });
     expect((await stub.getSettings()).activeSets).toEqual(['extra', 'arasaac']);

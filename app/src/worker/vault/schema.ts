@@ -114,6 +114,14 @@ export const VAULT_MIGRATIONS: readonly string[] = [
      BEGIN UPDATE vault_meta SET tiles = tiles + 1 WHERE id = 1; END;
    CREATE TRIGGER tiles_uncounted AFTER DELETE ON tiles
      BEGIN UPDATE vault_meta SET tiles = tiles - 1 WHERE id = 1; END;`,
+
+  // v3 — preferred symbol variants (F2 step 3): row count kept by triggers like boards/tiles.
+  `ALTER TABLE vault_meta ADD COLUMN preferred INTEGER NOT NULL DEFAULT 0;
+   UPDATE vault_meta SET preferred = (SELECT COUNT(*) FROM preferred_symbols) WHERE id = 1;
+   CREATE TRIGGER preferred_counted AFTER INSERT ON preferred_symbols
+     BEGIN UPDATE vault_meta SET preferred = preferred + 1 WHERE id = 1; END;
+   CREATE TRIGGER preferred_uncounted AFTER DELETE ON preferred_symbols
+     BEGIN UPDATE vault_meta SET preferred = preferred - 1 WHERE id = 1; END;`,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {

@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS, planSpeech, type SpeechPrefs, type VoiceInfo } from '@relaacja/shared';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useDeviceSettings } from './device.ts';
-import { useAccountSettings } from './settings.ts';
+import { useAccountSettings } from './settings/account.ts';
 
 const synth: SpeechSynthesis | null =
   typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;

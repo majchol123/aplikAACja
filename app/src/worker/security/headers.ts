@@ -4,10 +4,22 @@ import type { MiddlewareHandler } from 'hono';
  * Content Security Policy for HTML documents. Mirrored into the static `_headers` file at
  * build time (vite.config.ts) so assets served without invoking the Worker get it too.
  */
+/**
+ * The drag-and-drop library (@dnd-kit/dom, pinned) injects three fixed <style> elements while
+ * a tile is dragged: the dragged tile's movement, the grabbing cursor and no text selection.
+ * They are allowed by hash, not with 'unsafe-inline'. A new library version that changes
+ * them fails the E2E suite (CSP violations are console errors) with the new hashes.
+ */
+const DND_KIT_STYLES = [
+  "'sha256-E7zJXfkufcgTIQG1Th6iYnoGis+rTfZd044bgiM1kr4='", // Feedback
+  "'sha256-P3zrZWkaCzrI/B9T0+WLFRTTY8rvTIfnbvP5TBI9Vgo='", // Cursor
+  "'sha256-YYLJe/bgx7gKdFc8dp3EM3/S8hpKeZs7JyhfBoZYPuk='", // PreventSelection
+];
+
 export const HTML_CSP = [
   "default-src 'self'",
   "script-src 'self'",
-  "style-src 'self'",
+  `style-src 'self' ${DND_KIT_STYLES.join(' ')}`,
   "img-src 'self' blob: data:",
   "font-src 'self'",
   "connect-src 'self'",

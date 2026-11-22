@@ -8,11 +8,14 @@ import {
   type MoveTile,
   type PatchBoard,
   type PatchTile,
+  type PreferredSymbol,
+  type PutPreferred,
   type Settings,
   type SettingsPatch,
 } from '@relaacja/shared';
 import type { AppEnv } from '../env.ts';
 import { BoardStore, type BoardError } from './boards.ts';
+import { PreferredStore, type PreferredError } from './preferred.ts';
 import { migrateVault } from './schema.ts';
 
 /** Per-user write budget (token bucket, in memory; resets on eviction, which is acceptable). */
@@ -34,6 +37,7 @@ export class UserVault extends DurableObject<AppEnv> {
   private tokens = WRITE_BURST;
   private refilledAt = Date.now();
   private readonly boards: BoardStore;
+  private readonly preferred: PreferredStore;
 
   constructor(ctx: DurableObjectState, env: AppEnv) {
     super(ctx, env);
@@ -41,6 +45,7 @@ export class UserVault extends DurableObject<AppEnv> {
       migrateVault(ctx.storage);
     });
     this.boards = new BoardStore(ctx.storage);
+    this.preferred = new PreferredStore(ctx.storage);
   }
 
   private spendWrite(cost = 1): boolean {
@@ -117,6 +122,17 @@ export class UserVault extends DurableObject<AppEnv> {
 
   moveTile(input: MoveTile): BoardResult {
     return this.spendWrite() ? this.boards.moveTile(input) : RATE_LIMITED;
+  }
+
+  // --- preferred symbol variants -----------------------------------------------------
+
+  getPreferredSymbols(): PreferredSymbol[] {
+    return this.preferred.list();
+  }
+
+  /** `input` must already be validated with PutPreferredSchema by the caller. */
+  putPreferredSymbol(input: PutPreferred): PreferredSymbol | PreferredError | RateLimited {
+    return this.spendWrite() ? this.preferred.put(input) : RATE_LIMITED;
   }
 
   /** Hard delete of everything the user owns (PLAN §4.3). Idempotent. */

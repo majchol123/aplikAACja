@@ -148,3 +148,65 @@ html[data-state='anon'] .landing-reveal {
   transform: scaleX(1);
   transition: transform 2s linear;
 }
+
+/* Edit mode (PLAN §2.2): same grid as communication, every cell editable. */
+.edit-root {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.edit-tile {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* A long press starts dragging; the browser must not pan or zoom meanwhile. */
+  touch-action: none;
+}
+.edit-dragging {
+  opacity: 0.85;
+  filter: drop-shadow(0 8px 16px rgb(0 0 0 / 0.25));
+}
+.edit-drop-target {
+  border-radius: 9cqmin;
+  outline: max(3px, 2cqmin) dashed #0f766e;
+  outline-offset: 1cqmin;
+}
+.edit-empty {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border: max(2px, 1.5cqmin) dashed #cbd5e1;
+  border-radius: 9cqmin;
+  color: #94a3b8;
+}
+.edit-empty:hover,
+.edit-empty:focus-visible {
+  border-color: #0f766e;
+  color: #0f766e;
+}
+.edit-empty-icon {
+  width: 30cqmin;
+  height: 30cqmin;
+}
+/* Top-left: the label (bottom) and the folder badge (top-right) stay visible. */
+.edit-open {
+  position: absolute;
+  top: 3cqmin;
+  left: 3cqmin;
+  display: flex;
+  width: max(36px, 22cqmin);
+  height: max(36px, 22cqmin);
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #0f766e;
+  color: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+}
+.edit-open-icon {
+  width: 60%;
+  height: 60%;
+}

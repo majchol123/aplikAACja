@@ -2,15 +2,19 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-/** CSP violations and runtime errors surface as console errors: fail on any of them. */
-export function failOnConsoleErrors(): void {
+/**
+ * CSP violations and runtime errors surface as console errors: fail on any of them.
+ * Refusals the tests provoke on purpose (auth/CSRF 401/403, `expected`) are logged by the
+ * browser too and are let through.
+ */
+export function failOnConsoleErrors({ expected = [] as number[] } = {}): void {
   const errors = new WeakMap<Page, string[]>();
+  const allowed = new RegExp(`status of (${[401, 403, ...expected].join('|')})\\b`);
   test.beforeEach(({ page }) => {
     const list: string[] = [];
     errors.set(page, list);
     page.on('console', (msg) => {
-      // Expected auth/CSRF rejections (401/403) are logged by the browser too.
-      if (msg.type() === 'error' && !/status of 40[13]/.test(msg.text())) list.push(msg.text());
+      if (msg.type() === 'error' && !allowed.test(msg.text())) list.push(msg.text());
     });
     page.on('pageerror', (err) => list.push(err.message));
   });
@@ -152,9 +156,9 @@ export async function spoken(page: Page) {
   );
 }
 
-/** Opens parent mode the way a parent does: holding the lock button for 2 seconds. */
-export async function holdParentLock(page: Page) {
-  const lock = page.getByRole('button', { name: /Tryb rodzica/ });
+/** Opens edit mode the way people do: holding the lock button for 2 seconds. */
+export async function holdEditLock(page: Page) {
+  const lock = page.getByRole('button', { name: /Tryb edycji/ });
   const box = (await lock.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
