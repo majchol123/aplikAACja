@@ -40,6 +40,9 @@ Zestawy symboli lokalnie (opcjonalnie; bez nich biblioteka jest pusta, a E2E pod
 cd tools
 uv run build_arasaac.py --out ../workers/arasaac/dist        # ~12,7 tys. piktogramów, ~185 MB
 uv run build_lexicon.py --set-dir ../workers/arasaac/dist/sym/arasaac
+# Starter board: spec tools/template/starter.toml → templates/starter.json + HTML preview
+uv run build_template.py --spec template/starter.toml --set-dir ../workers/arasaac/dist/sym/arasaac \
+  --out ../templates/starter.json --preview /tmp/starter-preview.html
 ```
 
 Mirror w środowiskach serwuje osobny Worker na ścieżce `/sym/arasaac/*` (Route ma pierwszeństwo przed Custom Domain aplikacji). Dodatkowy zestaw działa lokalnie, gdy obok `vite dev` działa `pnpm --filter @relaacja/extra dev` z assetami w `workers/extra/dist/`; bez niego brama odpowiada `503`.

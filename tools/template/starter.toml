@@ -1,0 +1,60 @@
+# Starter board for new accounts (PLAN §2.7). Build: see tools/build_template.py.
+# Token: label[|lookup][#arasaac-id][@fitzgerald-role]; "-" = empty cell for the parent.
+name = "Start"
+rows = 4
+cols = 6
+words = [
+  "ja@person", "ty@person", "chcę|chcieć@verb", "nie chcę#6156@negation", "tak@social", "nie@negation",
+  "proszę", "dziękuję", "pomocy#32648@social", "-", "-", "-",
+]
+
+[[folders]]
+tile = "Osoby|ludzie@person"
+words = [
+  "ja@person", "ty@person", "mama@person", "tata@person", "siostra@person",
+  "brat@person", "babcia@person", "dziadek@person", "pani@person", "pan#4665@person",
+  "kolega|przyjaciel@person", "koleżanka|przyjaciółka@person",
+]
+
+[[folders]]
+tile = "Jedzenie"
+
+  [[folders.folders]]
+  tile = "Śniadanie"
+  words = ["chleb", "masło", "ser", "szynka", "jajko", "płatki|płatki śniadaniowe", "mleko", "kanapka", "dżem"]
+
+  [[folders.folders]]
+  tile = "Obiad"
+  words = ["zupa", "mięso", "ziemniaki|ziemniak", "kotlet#6976", "surówka", "makaron#25486", "ryż", "ryba"]
+
+  [[folders.folders]]
+  tile = "Kolacja"
+  words = ["kanapka", "chleb", "ser", "jajko", "parówka", "jogurt", "herbata#29802", "kakao#4940@noun"]
+
+  [[folders.folders]]
+  tile = "Przekąski i owoce|owoc"
+  words = ["jabłko", "banan", "gruszka", "winogrona", "truskawki|truskawka", "pomarańcza", "ciastko#3331", "jogurt", "żelki#7118"]
+
+[[folders]]
+tile = "Picie#2276@noun"
+words = ["woda#32464", "sok", "mleko", "herbata#29802", "kakao#4940@noun", "kompot#4575"]
+
+[[folders]]
+tile = "Uczucia#12359@descriptor"
+words = ["wesoły", "smutny", "zły", "zmęczony", "boję się|przestraszony", "boli#30620"]
+
+[[folders]]
+tile = "Ciało"
+words = ["głowa", "brzuch", "nos", "ucho", "ręka#2669", "noga", "ząb#10267", "boli#30620"]
+
+[[folders]]
+tile = "Miejsca#6964"
+words = ["dom#2317", "szkoła", "przedszkole", "park", "sklep", "toaleta#5921", "plac zabaw"]
+
+[[folders]]
+tile = "Zabawa#23392@noun"
+words = ["klocki", "piłka", "rower", "bajka", "rysować", "huśtawka"]
+
+[[folders]]
+tile = "Ubrania"
+words = ["koszulka", "spodnie", "buty", "kurtka#2319", "czapka", "piżama"]

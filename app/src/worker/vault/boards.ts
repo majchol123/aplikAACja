@@ -8,9 +8,11 @@ import {
   type MoveTile,
   type PatchBoard,
   type PatchTile,
+  type TemplateBoard,
   type Tile,
 } from '@relaacja/shared';
 import { newId } from '../lib/crypto.ts';
+import { loadTemplate } from './templates.ts';
 
 export type BoardErrorCode =
   | 'not_found'
@@ -383,8 +385,54 @@ export class BoardStore {
   createHome(input: CreateHome): BoardChanges | BoardError {
     return this.write((changes, now) => {
       if (this.meta().boards > 0) throw new Abort('already_initialized');
-      this.insertBoard(changes, now, input.name, null, input);
+      if ('template' in input) {
+        const template = loadTemplate(input.template);
+        const home = this.insertBoard(changes, now, template.name, null, template.board);
+        this.seed(changes, now, home, template.board);
+      } else {
+        this.insertBoard(changes, now, input.name, null, input);
+      }
     });
+  }
+
+  /** Template contents, already checked by templateProblems (bounds, cells, depth, size). */
+  private seed(changes: Changes, now: number, boardId: string, board: TemplateBoard): void {
+    for (const tile of board.tiles) {
+      const target = tile.board
+        ? this.insertBoard(changes, now, tile.label, boardId, tile.board)
+        : null;
+      this.insertTile(boardId, { ...tile, kind: tile.kind ?? 'word' }, target, now);
+      if (tile.board && target) this.seed(changes, now, target, tile.board);
+    }
+  }
+
+  private insertTile(
+    boardId: string,
+    tile: Omit<CreateTile, 'rev' | 'folder'>,
+    target: string | null,
+    now: number,
+  ): void {
+    this.sql.exec(
+      `INSERT INTO tiles (id, board_id, row, col, kind, target_board_id, label, label_position,
+                          font_size, color_role, color_mode, symbol_set, symbol_ref,
+                          created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      newId(),
+      boardId,
+      tile.row,
+      tile.col,
+      tile.kind,
+      target,
+      tile.label,
+      tile.labelPosition ?? 'bottom',
+      tile.fontSize ?? 'M',
+      tile.colorRole ?? null,
+      tile.colorMode ?? 'border',
+      tile.symbol?.set ?? null,
+      tile.symbol?.ref ?? null,
+      now,
+      now,
+    );
   }
 
   patchBoard(id: string, input: PatchBoard): BoardChanges | BoardError {
@@ -436,27 +484,7 @@ export class BoardStore {
         input.kind === 'folder'
           ? this.createFolderBoard(changes, now, board, input.label, input.folder)
           : null;
-      this.sql.exec(
-        `INSERT INTO tiles (id, board_id, row, col, kind, target_board_id, label, label_position,
-                            font_size, color_role, color_mode, symbol_set, symbol_ref,
-                            created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        newId(),
-        boardId,
-        input.row,
-        input.col,
-        input.kind,
-        target,
-        input.label,
-        input.labelPosition ?? 'bottom',
-        input.fontSize ?? 'M',
-        input.colorRole ?? null,
-        input.colorMode ?? 'border',
-        input.symbol?.set ?? null,
-        input.symbol?.ref ?? null,
-        now,
-        now,
-      );
+      this.insertTile(boardId, input, target, now);
       changes.bumped.add(boardId);
     });
   }

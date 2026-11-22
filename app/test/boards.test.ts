@@ -97,6 +97,33 @@ describe('board tree', () => {
     }
   });
 
+  it('creates the home board from the starter template in one request', async () => {
+    const { api, user } = await setup();
+    const res = await api<BoardChanges>('POST', '/api/boards/home', { template: 'starter' });
+    expect(res.status).toBe(201);
+    const t = await tree(api);
+    // PLAN §2.7: home, 8 folders, 4 meal boards under Jedzenie.
+    expect(t.boards).toHaveLength(13);
+    const start = find(t, t.homeId!);
+    expect(start).toMatchObject({ name: 'Start', rows: 4, cols: 6, parentId: null });
+    expect(start.tiles).toHaveLength(17);
+    const food = start.tiles.find((x) => x.label === 'Jedzenie')!;
+    expect(food).toMatchObject({ kind: 'folder', symbol: { set: 'arasaac', ref: '4610' } });
+    const meals = find(t, food.targetBoardId!);
+    expect(meals).toMatchObject({ name: 'Jedzenie', parentId: start.id, rows: 4, cols: 5 });
+    expect(meals.tiles.map((x) => x.label)).toEqual([
+      'Śniadanie',
+      'Obiad',
+      'Kolacja',
+      'Przekąski i owoce',
+    ]);
+    expect(t.boards.reduce((n, b) => n + b.tiles.length, 0)).toBe(106);
+    expect(await integrity(user.id)).toEqual([]);
+    const again = await api('POST', '/api/boards/home', { template: 'starter' });
+    expect(again.body).toEqual({ error: 'already_initialized' });
+    expect((await api('POST', '/api/boards/home', { template: 'nope' })).status).toBe(400);
+  });
+
   it('builds Jedzenie → Śniadanie → chleb (PLAN F2 acceptance)', async () => {
     const { api, user } = await setup();
     let start = await home(api);

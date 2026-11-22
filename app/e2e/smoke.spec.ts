@@ -1,64 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { expect, test } from '@playwright/test';
+import { devLogin, failOnConsoleErrors, freshLogin, mockArasaac } from './support.ts';
 
-// CSP violations and runtime errors surface as console errors: fail on any of them.
-test.beforeEach(({ page }) => {
-  const errors: string[] = [];
-  page.on('console', (msg) => {
-    // Expected auth/CSRF rejections (401/403) are logged by the browser too; anything else fails.
-    if (msg.type() === 'error' && !/status of 40[13]/.test(msg.text())) errors.push(msg.text());
-  });
-  page.on('pageerror', (err) => errors.push(err.message));
-  (page as Page & { __errors?: string[] }).__errors = errors;
-});
-
-test.afterEach(({ page }) => {
-  expect((page as Page & { __errors?: string[] }).__errors ?? []).toEqual([]);
-});
-
-async function devLogin(page: Page, who: { sub: string; email: string; name: string }) {
-  await page.goto('/');
-  const status = await page.evaluate(async (body) => {
-    const res = await fetch('/api/auth/dev-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Relaacja': '1' },
-      body: JSON.stringify(body),
-    });
-    return res.status;
-  }, who);
-  expect(status).toBe(204);
-  await page.goto('/');
-}
-
-const VECTORS = resolve(import.meta.dirname, '../../packages/shared/test-vectors');
-const TINY_WEBP = Buffer.from('UklGRhwAAABXRUJQVlA4TBAAAAAvB8ABAAdQwP5H/wMR0f8A', 'base64');
-
-/** The ARASAAC mirror is a separate Worker in production; here the shared vectors stand in. */
-async function mockArasaac(page: Page) {
-  const index = readFileSync(resolve(VECTORS, 'sample-index.json'));
-  const forms = readFileSync(resolve(VECTORS, 'sample-forms.json'));
-  const manifest = {
-    v: 1,
-    set: 'arasaac',
-    name: 'ARASAAC',
-    index: 'index.00000000.json',
-    forms: 'forms.00000000.json',
-    count: 11,
-  };
-  await page.route('**/sym/arasaac/**', (route) => {
-    const path = new URL(route.request().url()).pathname;
-    if (path.endsWith('/manifest.json')) return route.fulfill({ json: manifest });
-    if (path.endsWith('/index.00000000.json'))
-      return route.fulfill({ body: index, contentType: 'application/json' });
-    if (path.endsWith('/forms.00000000.json'))
-      return route.fulfill({ body: forms, contentType: 'application/json' });
-    if (path.endsWith('.webp'))
-      return route.fulfill({ body: TINY_WEBP, contentType: 'image/webp' });
-    return route.fulfill({ status: 404 });
-  });
-}
+failOnConsoleErrors();
 
 test('landing page is public, accessible and links the privacy policy', async ({ page }) => {
   const res = await page.goto('/');
@@ -93,7 +37,10 @@ test('login errors are shown on the landing page', async ({ page }) => {
 });
 
 test('signed-in parent sees the app and can sign out', async ({ page }) => {
-  await devLogin(page, { sub: 'e2e-parent', email: 'parent@example.com', name: 'Rodzic E2E' });
+  await freshLogin(page, 'Rodzic E2E');
+  // A new account starts with the first-board choice; account settings are one tap away.
+  await expect(page.getByRole('heading', { name: 'Przygotujmy pierwszą tablicę' })).toBeVisible();
+  await page.getByRole('button', { name: 'Ustawienia i konto' }).click();
   await expect(page.getByTestId('user-name')).toHaveText('Rodzic E2E');
   await expect(page.locator('#landing')).toHaveCount(0);
   const axe = await new AxeBuilder({ page }).analyze();
@@ -115,9 +62,9 @@ test('cross-site style form post is rejected', async ({ page }) => {
 
 test('symbol library finds inflected words typed without Polish letters', async ({ page }) => {
   await mockArasaac(page);
-  // Fresh account per run: the test changes saved settings.
-  const sub = `e2e-library-${test.info().project.name}-${Date.now()}`;
-  await devLogin(page, { sub, email: `${sub}@example.com`, name: 'Biblioteka' });
+  await freshLogin(page, 'Biblioteka');
+  await page.getByRole('button', { name: 'Ustawienia i konto' }).click();
+  const library = page.getByRole('region', { name: 'Biblioteka symboli' });
   const box = page.getByRole('searchbox', { name: 'Szukaj symbolu' });
   await expect(page.getByText('11 symboli w aktywnych zestawach.')).toBeVisible();
 
@@ -138,9 +85,10 @@ test('symbol library finds inflected words typed without Polish letters', async 
   await page.getByRole('checkbox', { name: 'ARASAAC' }).uncheck();
   await expect(page.getByText('0 symboli w aktywnych zestawach.')).toBeVisible();
   await page.reload();
+  await page.getByRole('button', { name: 'Ustawienia i konto' }).click();
   await expect(page.getByRole('checkbox', { name: 'ARASAAC' })).not.toBeChecked();
   // Without the flag the extra set is neither offered nor reachable.
-  await expect(page.getByRole('checkbox')).toHaveCount(1);
+  await expect(library.getByRole('checkbox')).toHaveCount(1);
   expect((await page.request.get('/sym/extra/manifest.json')).status()).toBe(403);
 });
 

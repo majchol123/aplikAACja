@@ -10,6 +10,7 @@ import {
   type SymbolIndex,
 } from '@relaacja/shared';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import type { z } from 'zod';
 
 export interface LoadedSet {
@@ -34,15 +35,11 @@ export async function loadManifest(set: LibrarySet): Promise<SetManifest> {
   return manifest;
 }
 
-export async function loadSet(manifest: SetManifest): Promise<LoadedSet> {
-  const base = SET_BASE[manifest.set];
-  const [index, lexicon] = await Promise.all([
-    getJson(base + manifest.index, SymbolIndexSchema),
-    manifest.forms ? getJson(base + manifest.forms, LexiconSchema) : Promise.resolve(null),
-  ]);
+async function loadIndex(manifest: SetManifest): Promise<SymbolIndex> {
+  const index = await getJson(SET_BASE[manifest.set] + manifest.index, SymbolIndexSchema);
   if (index.set !== manifest.set)
     throw new Error(`index for ${manifest.set} describes ${index.set}`);
-  return { manifest, index, lexicon };
+  return index;
 }
 
 export function useManifest(set: LibrarySet, enabled: boolean) {
@@ -55,15 +52,43 @@ export function useManifest(set: LibrarySet, enabled: boolean) {
   });
 }
 
-/** Index + lexicon, keyed by their content-addressed names. */
-export function useSymbolSet(manifest: SetManifest | undefined, enabled: boolean) {
+/** The index alone is enough to show tiles; keyed by its content-addressed name. */
+export function useSymbolIndex(manifest: SetManifest | undefined, enabled: boolean) {
   return useQuery({
-    queryKey: ['symbol-set', manifest?.set, manifest?.index, manifest?.forms],
-    queryFn: () => (manifest ? loadSet(manifest) : Promise.reject(new Error('no manifest'))),
+    queryKey: ['symbol-index', manifest?.set, manifest?.index],
+    queryFn: () => (manifest ? loadIndex(manifest) : Promise.reject(new Error('no manifest'))),
     enabled: enabled && manifest !== undefined,
     staleTime: Infinity,
     retry: 1,
   });
+}
+
+/** Index + lexicon (search needs the inflected forms too). */
+export function useSymbolSet(manifest: SetManifest | undefined, enabled: boolean) {
+  const index = useSymbolIndex(manifest, enabled);
+  const forms = useQuery({
+    queryKey: ['symbol-forms', manifest?.set, manifest?.forms],
+    queryFn: () =>
+      manifest?.forms
+        ? getJson(SET_BASE[manifest.set] + manifest.forms, LexiconSchema)
+        : Promise.resolve(null),
+    enabled: enabled && manifest !== undefined,
+    staleTime: Infinity,
+    retry: 1,
+  });
+  // Stable identity: the search index built from it is expensive.
+  const data = useMemo<LoadedSet | undefined>(
+    () =>
+      manifest && index.data && forms.data !== undefined
+        ? { manifest, index: index.data, lexicon: forms.data }
+        : undefined,
+    [manifest, index.data, forms.data],
+  );
+  return {
+    data,
+    isPending: index.isPending || forms.isPending,
+    isError: index.isError || forms.isError,
+  };
 }
 
 export function buildSearch(sets: (LoadedSet | undefined)[]): SymbolSearch {

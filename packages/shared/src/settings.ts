@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { VOICE_PRESETS } from './speech.ts';
 
 /**
  * `extra` is an optional additional symbol set granted per account by an administrator
@@ -27,6 +28,18 @@ export const SettingsSchema = z
         hideViolence: z.boolean(),
       })
       .strict(),
+    /**
+     * Voice preset and slider multipliers (PLAN §2.4): the child's voice, so per account.
+     * Which system voice plays each preset is chosen per device (device.ts).
+     */
+    speech: z
+      .object({
+        preset: z.enum(VOICE_PRESETS),
+        rate: z.number().min(0.5).max(1.5),
+        pitch: z.number().min(0.5).max(1.5),
+      })
+      .strict(),
+    uppercaseLabels: z.boolean(),
   })
   .strict();
 export type Settings = z.infer<typeof SettingsSchema>;
@@ -39,4 +52,6 @@ export const DEFAULT_SETTINGS: Settings = {
   returnToHome: true,
   searchSources: 'both',
   contentFilter: { hideSexual: true, hideViolence: true },
+  speech: { preset: 'woman', rate: 1, pitch: 1 },
+  uppercaseLabels: false,
 };

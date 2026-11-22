@@ -30,3 +30,121 @@
 html[data-state='anon'] .landing-reveal {
   animation: none;
 }
+
+/*
+ * Communication grid. Each cell is a size container, so tiles, borders and labels scale
+ * with the cell (cqmin = 1% of the cell's smaller side) whatever the grid and the screen.
+ */
+.comm-root {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.tile-cell {
+  container-type: size;
+  min-width: 0;
+  min-height: 0;
+}
+.tile {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 2cqmin;
+  overflow: hidden;
+  border-style: solid;
+  border-radius: 9cqmin;
+  padding: 4cqmin;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  cursor: pointer;
+}
+.tile:active {
+  filter: brightness(0.93);
+}
+.tile:focus-visible {
+  outline: 4px solid #0f766e;
+  outline-offset: 2px;
+}
+.tile-outline {
+  border-width: max(3px, 5cqmin);
+}
+.tile-filled {
+  border-width: max(2px, 2.5cqmin);
+}
+.tile-folder {
+  border-top-right-radius: 2cqmin;
+}
+.tile-label {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #1e293b;
+}
+.tile-label-s {
+  font-size: 10cqmin;
+}
+.tile-label-m {
+  font-size: 13cqmin;
+}
+.tile-label-l {
+  font-size: 16cqmin;
+}
+.tile-label-xl {
+  font-size: 20cqmin;
+}
+.tile-badge {
+  position: absolute;
+  top: 3cqmin;
+  right: 3cqmin;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.9);
+  padding: 1.5cqmin;
+  color: #334155;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+}
+.tile-badge-icon {
+  width: 12cqmin;
+  height: 12cqmin;
+}
+
+.tile-flash {
+  filter: brightness(0.85);
+  outline: max(3px, 3cqmin) solid #0f766e;
+}
+/* Minimum hold time: a ring fills while the tile is held (PLAN §2.5). */
+.hold-ring {
+  position: absolute;
+  inset: 15%;
+  pointer-events: none;
+}
+.hold-ring circle {
+  fill: none;
+  stroke: #0f766e;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  animation: hold-fill linear forwards;
+}
+@keyframes hold-fill {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Parent-mode lock: the bar fills while the button is held. */
+.hold-progress {
+  transform: scaleX(0);
+  transform-origin: left;
+}
+[data-holding='true'] .hold-progress {
+  transform: scaleX(1);
+  transition: transform 2s linear;
+}

@@ -5,9 +5,10 @@ import {
   type Settings,
   type SymbolHit,
 } from '@relaacja/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDeferredValue, useId, useMemo, useState } from 'react';
 import { api } from '../api.ts';
+import { useAccountSettings } from '../settings.ts';
 import { buildSearch, useManifest, useSymbolSet } from './data.ts';
 
 /** Fitzgerald Key colours (PLAN §3.3), used as the tile border. */
@@ -25,13 +26,9 @@ const ROLE_BORDER: Record<FitzgeraldRole, string> = {
 const ARASAAC_NOTE =
   'Piktogramy: Sergio Palao, ARASAAC (arasaac.org), licencja CC BY-NC-SA, własność Rządu Aragonii.';
 
-function useSettings() {
-  return useQuery({ queryKey: ['settings'], queryFn: () => api<Settings>('/api/settings') });
-}
-
 export function Library({ me }: { me: Me }) {
   const queryClient = useQueryClient();
-  const settings = useSettings();
+  const settings = useAccountSettings();
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const inputId = useId();

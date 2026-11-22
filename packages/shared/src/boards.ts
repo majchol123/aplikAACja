@@ -78,10 +78,50 @@ const tileStyle = {
   symbol: SymbolRefSchema.nullable(),
 };
 
-export const CreateHomeSchema = z
-  .object({ name: BoardNameSchema, rows: rowsSchema, cols: colsSchema })
-  .strict();
+/** Bundled board templates (templates/*.json), created in one server-side transaction. */
+export const TEMPLATES = ['starter'] as const;
+export type TemplateName = (typeof TEMPLATES)[number];
+
+/** An empty home board, or one built from a bundled template. */
+export const CreateHomeSchema = z.union([
+  z.object({ name: BoardNameSchema, rows: rowsSchema, cols: colsSchema }).strict(),
+  z.object({ template: z.enum(TEMPLATES) }).strict(),
+]);
 export type CreateHome = z.infer<typeof CreateHomeSchema>;
+
+const TemplateTileSchema = z
+  .object({
+    row: rowSchema,
+    col: colSchema,
+    kind: z.enum(TILE_KINDS).optional(),
+    label: TileLabelSchema,
+    labelPosition: tileStyle.labelPosition.optional(),
+    fontSize: tileStyle.fontSize.optional(),
+    colorRole: tileStyle.colorRole.optional(),
+    colorMode: tileStyle.colorMode.optional(),
+    symbol: tileStyle.symbol.optional(),
+    /** Contents of the board a folder opens (folders only). */
+    get board() {
+      return TemplateBoardSchema.optional();
+    },
+  })
+  .strict();
+
+const TemplateBoardSchema = z
+  .object({
+    rows: rowsSchema,
+    cols: colsSchema,
+    get tiles() {
+      return z.array(TemplateTileSchema);
+    },
+  })
+  .strict();
+
+export const TemplateSchema = z
+  .object({ v: z.literal(1), name: BoardNameSchema, board: TemplateBoardSchema })
+  .strict();
+export type Template = z.infer<typeof TemplateSchema>;
+export type TemplateBoard = z.infer<typeof TemplateBoardSchema>;
 
 /** `rev` is the board's current revision; a stale one is refused with 409 (PLAN §3.5). */
 export const PatchBoardSchema = z
@@ -188,4 +228,35 @@ export interface BoardTree {
 export interface BoardChanges {
   boards: Board[];
   removed: string[];
+}
+
+/** Structural problems of a template (empty when it can be created as is). */
+export function templateProblems(template: Template): string[] {
+  const problems: string[] = [];
+  let boards = 0;
+  let tiles = 0;
+  const walk = (board: TemplateBoard, path: string, depth: number) => {
+    boards++;
+    if (depth > BOARD_LIMITS.maxDepth)
+      problems.push(`${path}: deeper than ${BOARD_LIMITS.maxDepth}`);
+    const cells = new Set<string>();
+    for (const tile of board.tiles) {
+      tiles++;
+      const where = `${path} › ${tile.label}`;
+      if (tile.row >= board.rows || tile.col >= board.cols)
+        problems.push(`${where}: outside the grid`);
+      const cell = `${tile.row},${tile.col}`;
+      if (cells.has(cell)) problems.push(`${where}: cell ${cell} taken twice`);
+      cells.add(cell);
+      const folder = tile.kind === 'folder';
+      if (folder !== (tile.board !== undefined)) problems.push(`${where}: board iff folder`);
+      if (tile.symbol?.set === 'own') problems.push(`${where}: templates cannot use own photos`);
+      if (tile.board) walk(tile.board, where, depth + 1);
+    }
+  };
+  walk(template.board, template.name, 0);
+  if (boards > BOARD_LIMITS.maxBoards || tiles > BOARD_LIMITS.maxTiles) {
+    problems.push(`too big: ${boards} boards, ${tiles} tiles`);
+  }
+  return problems;
 }
