@@ -7,9 +7,13 @@ import { resolve } from 'node:path';
  * Refusals the tests provoke on purpose (auth/CSRF 401/403, `expected`) are logged by the
  * browser too and are let through.
  */
-export function failOnConsoleErrors({ expected = [] as number[] } = {}): void {
+export function failOnConsoleErrors({
+  expected = [] as number[],
+  offline = false, // requests the test sends with the network switched off
+} = {}): void {
   const errors = new WeakMap<Page, string[]>();
-  const allowed = new RegExp(`status of (${[401, 403, ...expected].join('|')})\\b`);
+  const codes = new RegExp(`status of (${[401, 403, ...expected].join('|')})\\b`);
+  const allowed = offline ? new RegExp(`${codes.source}|net::ERR_INTERNET_DISCONNECTED`) : codes;
   test.beforeEach(({ page }) => {
     const list: string[] = [];
     errors.set(page, list);

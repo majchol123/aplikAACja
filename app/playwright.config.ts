@@ -12,6 +12,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'retain-on-failure',
+    // A service worker would answer requests before page.route() mocks see them; the one
+    // test of the worker itself (pwa.spec.ts) allows it.
+    serviceWorkers: 'block',
     launchOptions: executablePath ? { executablePath } : {},
   },
   projects: [

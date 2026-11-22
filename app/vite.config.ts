@@ -20,6 +20,9 @@ function staticHeaders(): Plugin {
     block({ ...COMMON_SECURITY_HEADERS, 'Content-Security-Policy': HTML_CSP }),
     '/assets/*',
     block({ 'Cache-Control': 'public, max-age=31536000, immutable' }),
+    // Browsers check the worker script for updates themselves; it must never be stale.
+    '/sw.js',
+    block({ 'Cache-Control': 'no-cache' }),
     '',
   ].join('\n');
   return {
@@ -28,6 +31,25 @@ function staticHeaders(): Plugin {
     applyToEnvironment: (env) => env.name === 'client',
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: '_headers', source });
+    },
+  };
+}
+
+/**
+ * The service worker is built as its own entry at /sw.js (its scope is the whole origin).
+ * It is registered as a classic script, so it must not import shared chunks.
+ */
+function serviceWorkerEntry(): Plugin {
+  return {
+    name: 'relaacja:service-worker',
+    apply: 'build',
+    applyToEnvironment: (env) => env.name === 'client',
+    generateBundle(_options, bundle) {
+      const sw = bundle['sw.js'];
+      if (!sw || sw.type !== 'chunk') throw new Error('sw.js was not emitted');
+      if (sw.imports.length > 0 || sw.dynamicImports.length > 0) {
+        throw new Error(`sw.js must be self-contained, imports: ${sw.imports.join(', ')}`);
+      }
     },
   };
 }
@@ -55,7 +77,14 @@ function contactEmail(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), cloudflare(), staticHeaders(), contactEmail()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    cloudflare(),
+    staticHeaders(),
+    serviceWorkerEntry(),
+    contactEmail(),
+  ],
   server: { port: 5173, strictPort: true },
   preview: { port: 5173, strictPort: true },
   environments: {
@@ -65,6 +94,11 @@ export default defineConfig({
           input: {
             main: resolve(import.meta.dirname, 'index.html'),
             privacy: resolve(import.meta.dirname, 'prywatnosc.html'),
+            about: resolve(import.meta.dirname, 'o-aplikacji.html'),
+            sw: resolve(import.meta.dirname, 'src/sw/sw.ts'),
+          },
+          output: {
+            entryFileNames: (chunk) => (chunk.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js'),
           },
         },
       },

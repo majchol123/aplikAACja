@@ -51,7 +51,9 @@ export const DEFAULT_SETTINGS: Settings = {
   activeSets: ['arasaac', 'own'],
   returnToHome: true,
   searchSources: 'both',
-  contentFilter: { hideSexual: true, hideViolence: true },
+  // Violence stays visible by default: "hit", "bite", "kick" are everyday words for talking
+  // about behaviour and for disclosing harm (PLAN §3.3).
+  contentFilter: { hideSexual: true, hideViolence: false },
   speech: { preset: 'woman', rate: 1, pitch: 1 },
   uppercaseLabels: false,
 };

@@ -5,6 +5,7 @@ import { api } from '../api.ts';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { useAccountSettings } from '../settings/account.ts';
 import { ARASAAC_NOTE } from './attribution.ts';
+import { ContentFilter } from './ContentFilter.tsx';
 import { useLibrary } from './useLibrary.ts';
 
 /** Active symbol sets and a browser over them (settings screen). */
@@ -40,6 +41,18 @@ export function Library({ me }: { me: Me }) {
   }
 
   const offered: LibrarySet[] = me.extraSet ? ['arasaac', 'extra'] : ['arasaac'];
+  const isOffered = (s: Settings['activeSets'][number]): s is LibrarySet =>
+    (offered as string[]).includes(s);
+  // Search ranks results by the order of the active sets (PLAN §3.3).
+  const ordered = active.filter(isOffered);
+
+  function moveUp(set: LibrarySet): void {
+    const above = ordered[ordered.indexOf(set) - 1];
+    if (above === undefined || !settings.data) return;
+    const next = active.map((s) => (s === set ? above : s === above ? set : s));
+    setPendingSets(next);
+    updateSets.mutate(next);
+  }
 
   return (
     <section
@@ -64,6 +77,33 @@ export function Library({ me }: { me: Me }) {
           </label>
         ))}
       </fieldset>
+
+      {ordered.length > 1 && (
+        <div className="mt-3">
+          <p className="text-sm font-medium text-slate-700">Kolejność w wynikach</p>
+          <ol className="mt-1 space-y-1">
+            {ordered.map((set, i) => (
+              <li key={set} className="flex items-center gap-3 text-slate-700">
+                <span className="w-5 text-right tabular-nums">{i + 1}.</span>
+                {library.setNames[set]}
+                {i > 0 && (
+                  <button
+                    type="button"
+                    className="text-sm text-brand-800 underline underline-offset-4"
+                    disabled={updateSets.isPending}
+                    aria-label={`Przenieś wyżej: ${library.setNames[set]}`}
+                    onClick={() => moveUp(set)}
+                  >
+                    Wyżej
+                  </button>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      <ContentFilter />
 
       <label htmlFor={inputId} className="mt-4 block text-sm font-medium text-slate-700">
         Szukaj symbolu

@@ -76,9 +76,23 @@ test('symbol library finds inflected words typed without Polish letters', async 
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations).toEqual([]);
 
-  // Sexual content is hidden by default (PLAN §2.2).
+  // Content filter (PLAN §3.3): sexuality hidden by default, violence shown.
+  const results = page.getByTestId('library-results');
   await box.fill('całować');
   await expect(page.getByText('Brak wyników.')).toBeVisible();
+  await box.fill('bić');
+  await expect(results).toContainText('bić');
+  await library.getByRole('checkbox', { name: /Ukrywaj symbole o seksualności/ }).uncheck();
+  await library.getByRole('checkbox', { name: /Ukrywaj symbole przemocy/ }).check();
+  await expect(page.getByText('Brak wyników.')).toBeVisible();
+  await box.fill('całować');
+  await expect(results).toContainText('całować');
+  await page.reload();
+  await page.getByRole('button', { name: 'Ustawienia i konto' }).click();
+  await expect(
+    library.getByRole('checkbox', { name: /Ukrywaj symbole o seksualności/ }),
+  ).not.toBeChecked();
+  await expect(library.getByRole('checkbox', { name: /Ukrywaj symbole przemocy/ })).toBeChecked();
 
   // Active sets are saved on the account.
   await box.clear();
@@ -88,7 +102,9 @@ test('symbol library finds inflected words typed without Polish letters', async 
   await page.getByRole('button', { name: 'Ustawienia i konto' }).click();
   await expect(page.getByRole('checkbox', { name: 'ARASAAC' })).not.toBeChecked();
   // Without the flag the extra set is neither offered nor reachable.
-  await expect(library.getByRole('checkbox')).toHaveCount(1);
+  await expect(
+    library.getByRole('group', { name: 'Aktywne zestawy symboli' }).getByRole('checkbox'),
+  ).toHaveCount(1);
   expect((await page.request.get('/sym/extra/manifest.json')).status()).toBe(403);
 });
 

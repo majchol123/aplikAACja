@@ -124,3 +124,25 @@ def test_sample_index_matches_shared_vector(tmp_path: Path) -> None:
 def test_http_get_refuses_other_schemes() -> None:
     with pytest.raises(ValueError, match="non-https"):
         arasaac.http_get("file:///etc/passwd")
+
+
+def test_sexuality_filter_covers_categories_not_only_the_sex_field() -> None:
+    def entry(_id: int, word: str, **extra: object) -> dict:
+        return {"_id": _id, "keywords": [{"keyword": word, "type": 2}], **extra}
+
+    flags = {
+        p.id: p.flags
+        for p in arasaac.parse_catalog(
+            [
+                entry(1, "penis", sex=True, categories=["reproductive system"]),
+                entry(2, "pochwa", sex=False, categories=["reproductive system"]),
+                entry(3, "antykoncepcja", categories=["contraceptive method", "medicine"]),
+                entry(4, "płeć", categories=["gender identity"]),
+                entry(5, "bić", violence=True, categories=["sexual crime", "verb"]),
+                entry(6, "jabłko", categories=["fruit"]),
+                entry(7, "chleb", categories=None),
+            ]
+        )
+    }
+    assert {i for i, f in flags.items() if f & FLAG_SEX} == {1, 2, 3}
+    assert flags[5] == FLAG_VIOLENCE

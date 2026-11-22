@@ -44,6 +44,21 @@ ATTRIBUTION = (
 # ARASAAC keyword.type → Fitzgerald Key role (PLAN §3.3).
 ROLE_BY_TYPE = {1: "person", 2: "noun", 3: "verb", 4: "descriptor", 5: "social", 6: "misc"}
 
+# Content filter "sexuality" (PLAN §3.3): ARASAAC's own `sex` field marks "penis" but not
+# "vagina", "ovaries", "menstruation" or "pregnancy", so these category subtrees count too
+# (keys of the ARASAAC category tree). "gender identity" (male, female, gender) and
+# "sexual crime" (hit, kick: vocabulary for disclosing harm) deliberately stay outside.
+SEXUAL_CATEGORIES = frozenset(
+    {
+        "sexuality",
+        "sexual orientation",
+        "sexual practice",
+        "contraceptive method",
+        "reproductive system",
+        "human reproduction",
+    }
+)
+
 HEADERS_FILE = """\
 /sym/arasaac/*
   X-Content-Type-Options: nosniff
@@ -92,6 +107,11 @@ class Pictogram:
     updated: str
 
 
+def is_sexual(entry: dict) -> bool:
+    categories = entry.get("categories") or []
+    return any(isinstance(c, str) and c in SEXUAL_CATEGORIES for c in categories)
+
+
 def parse_catalog(catalog: list[dict]) -> list[Pictogram]:
     """Pictograms with at least one Polish keyword (the rest are unsearchable in Polish)."""
     out: list[Pictogram] = []
@@ -109,7 +129,7 @@ def parse_catalog(catalog: list[dict]) -> list[Pictogram]:
             continue
         flags = (
             (FLAG_AAC if entry.get("aac") else 0)
-            | (FLAG_SEX if entry.get("sex") else 0)
+            | (FLAG_SEX if entry.get("sex") or is_sexual(entry) else 0)
             | (FLAG_VIOLENCE if entry.get("violence") else 0)
         )
         out.append(

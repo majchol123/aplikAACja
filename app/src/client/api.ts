@@ -37,13 +37,26 @@ export async function api<T = unknown>(
   return body as T;
 }
 
-export type Session = { kind: 'user'; me: Me } | { kind: 'anon' } | { kind: 'blocked' };
+export type Session =
+  | { kind: 'user'; me: Me }
+  | { kind: 'anon' }
+  | { kind: 'blocked' }
+  | { kind: 'offline' }
+  | { kind: 'unavailable' };
 
+/**
+ * Without a connection (or with the server down) the landing page must not look like a
+ * logout: the service worker can show the cached page, but the session stays unknown.
+ */
 export async function loadSession(): Promise<Session> {
   try {
     return { kind: 'user', me: MeSchema.parse(await api('/api/me')) };
   } catch (err) {
-    if (err instanceof ApiError && err.code === 'blocked') return { kind: 'blocked' };
-    return { kind: 'anon' };
+    if (err instanceof ApiError) {
+      if (err.code === 'blocked') return { kind: 'blocked' };
+      if (err.status >= 500) return { kind: 'unavailable' };
+      return { kind: 'anon' };
+    }
+    return { kind: navigator.onLine ? 'unavailable' : 'offline' };
   }
 }
