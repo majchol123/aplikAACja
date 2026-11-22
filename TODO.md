@@ -22,8 +22,9 @@ Architektura i decyzje: [`docs/PLAN.md`](docs/PLAN.md).
 - [x] Sekrety produkcji ustawione
 - [x] Produkcja wdrożona: https://relaacja.jagiellona.one.pl (migracja D1, smoke test OK; smoke czeka teraz do 3 min na DNS/certyfikat nowej domeny)
 - [x] Logowanie Google zweryfikowane na stagingu (konto superadmina)
-- [ ] Strefa: Configuration Rule (Email Obfuscation off dla `relaacja*`)
-- [ ] Service binding `EXTRA_SET` — przeniesione do F1 (Worker docelowy musi istnieć przed deployem)
+- [x] Strefa: Configuration Rule (Email Obfuscation off dla `relaacja*`; smoke test pilnuje braku `email-protection`)
+- [x] Adres kontaktowy w `/prywatnosc` (zmienna GitHub `CONTACT_EMAIL`, wstawiany przy buildzie)
+- [x] Service binding `EXTRA_SET` (w F1)
 
 ### Utwardzenie z przeglądu bezpieczeństwa (2026-11-22, 0 podatności ≥ 8/10)
 - [x] `deploy.yml` bez `workflow_run` (semgrep `workflow-run-target-code-checkout`): push na `main` → `ci.yml` (`workflow_call`) → staging → produkcja
@@ -32,16 +33,20 @@ Architektura i decyzje: [`docs/PLAN.md`](docs/PLAN.md).
 - [x] CI: `CLOUDFLARE_API_TOKEN` tylko w krokach `wrangler`; sekrety środowisk `staging`/`production` z regułą gałęzi `main`; ochrona `production` i zatwierdzanie PR-ów z zewnątrz ustawione przed pierwszym pushem
 - [x] Odrzucanie żądań z powtórzonym cookie `__Host-relaacja_*` (`400 cookie_conflict`)
 - [x] `/prywatnosc`: adres IP i metadane żądań, logi 3 dni, przetwarzanie przez Cloudflare poza UE (SCC/DPF)
-- [ ] F1: brama `/sym/extra/*` autoryzuje z D1 (`extra_set_enabled`), nigdy z zapisanych `activeSets`
+- [x] F1: brama `/sym/extra/*` autoryzuje z D1 (`extra_set_enabled`), nigdy z zapisanych `activeSets`
 
 ## F1 Zestawy symboli
-- [ ] Wspólna normalizacja TS + Python ze wspólnymi wektorami testowymi
-- [ ] `tools/build_arasaac.py`: katalog `pl`, pobieranie (throttling), WebP, indeks, `_headers`
-- [ ] Worker `relaacja-arasaac` (Route `/sym/arasaac/*` na hostach aplikacji) + `arasaac-refresh.yml` (cron miesięczny, przyrostowo)
-- [ ] Worker `relaacja-extra` (prywatny, tylko service binding; zawartość i deploy poza repo)
-- [ ] Brama `/sym/extra/*` (sesja + flaga + walidacja ścieżki) + testy traversal
-- [ ] `tools/build_lexicon.py`: PoliMorf → `forms.json.gz` (≤ 2 MB)
-- [ ] Wyszukiwanie w kliencie (zestawy aktywne, odmiana, bez polskich znaków, filtr `sex`/`violence`)
+- [x] Wspólna normalizacja TS + Python ze wspólnymi wektorami testowymi (`packages/shared/test-vectors/`)
+- [x] `tools/build_arasaac.py`: katalog `pl`, pobieranie (4 równoległe, ponowienia), WebP bezstratny, indeks, `_headers`, przyrostowo po `lastUpdated`, bezpieczniki przed częściowym mirrorem
+- [x] Worker `relaacja-arasaac` (same assety; Route `/sym/arasaac/*` na obu hostach) — wdrożony, 12 712 piktogramów
+- [x] `arasaac-refresh.yml` (2× w tygodniu, przyrostowo, środowisko `symbols`)
+- [ ] Pierwszy przebieg `arasaac-refresh.yml` na GitHubie (sprawdzi, że WebP z runnera ma te same hashe — wtedy nic się nie wdroży)
+- [x] Worker `relaacja-extra` (prywatny, tylko service binding; zawartość i deploy poza repo) — wdrożony
+- [x] Brama `/sym/extra/*` (sesja + flaga z D1 + whitelist nazw na surowej ścieżce) + testy traversal, macierz autoryzacji z kontem z flagą
+- [x] `tools/build_lexicon.py`: PoliMorf → `forms.{hash}.json` (ARASAAC: 2,6 MB, 0,5 MB po kompresji); każdy zestaw ma własny słownik
+- [x] Wyszukiwanie w kliencie (zestawy aktywne i ich kolejność, odmiana, bez polskich znaków, prefiks w trakcie pisania, filtr `sex`/`violence`)
+- [x] Biblioteka symboli w aplikacji: wybór aktywnych zestawów (zapis na koncie), wyniki z kolorem Fitzgerald, stopka ARASAAC; E2E „jablka” → jabłko
+- [ ] Wdrożenie Workera głównego z bramą (push → staging → produkcja); kryterium F1 na stagingu: „jablka” z ARASAAC i dodatkowego zestawu, bez flagi `403`
 
 ## F2 Tablice
 - [ ] Tryb komunikacji: siatka, pasek zdaniowy (⌫, 🗑, ▶), foldery, okruszki, powrót na pulpit
@@ -55,7 +60,7 @@ Architektura i decyzje: [`docs/PLAN.md`](docs/PLAN.md).
 - [ ] Ustawienia: zestawy + kolejność, głos, zachowanie, motoryka, filtr treści
 - [ ] `tools/template/` + `templates/starter.json` + podgląd HTML; tworzenie przy pierwszym logowaniu
 - [ ] Manifest PWA + Service Worker (powłoka aplikacji i obrazki)
-- [ ] Atrybucja ARASAAC: „O aplikacji”, ekran logowania, stopka biblioteki
+- [ ] Atrybucja: „O aplikacji” (ARASAAC + PoliMorf BSD-2); ekran logowania i stopka biblioteki już są
 
 ## F3 Wyszukiwarka, historia, ulubione
 - [ ] Wyszukiwarka w trybie dziecka: kafelki (ścieżka + podświetlenie) i biblioteka (do paska)

@@ -184,8 +184,8 @@ flowchart LR
 |---|---|---|---|
 | `relaacja` | SPA (assety), API Hono, klasa DO `UserVault`; wiązania: D1 `DB`, DO `USER_VAULT`, service binding `EXTRA_SET` | Custom Domain `relaacja.jagiellona.one.pl` | GitHub Actions |
 | `relaacja-staging` | to samo, osobna baza D1 i przestrzeń DO | Custom Domain `relaacja-staging.jagiellona.one.pl` | GitHub Actions |
-| `relaacja-extra` | assety dodatkowego zestawu + indeks (zawartość poza repozytorium); skrypt sprowadzony do `env.ASSETS.fetch()` | **tylko service binding**; `workers_dev=false`, `preview_urls=false`, brak `routes` | ręcznie, poza CI |
-| `relaacja-arasaac` | ~13 924 WebP + indeks w katalogu `sym/arasaac/` + `_headers` (cache `immutable`) | Route `relaacja.jagiellona.one.pl/sym/arasaac/*` i to samo na stagingu (Route ma pierwszeństwo przed Custom Domain) | GitHub Actions (cron miesięczny) |
+| `relaacja-extra` | assety dodatkowego zestawu + indeks i słownik odmian (zawartość poza repozytorium); skrypt sprowadzony do `env.ASSETS.fetch()` | **tylko service binding**; `workers_dev=false`, `preview_urls=false`, brak `routes` | ręcznie z maszyny operatora (`wrangler deploy --assets <katalog>`), poza CI |
+| `relaacja-arasaac` | sam katalog assetów, bez skryptu (żądania nie są liczone do limitu): 12 712 WebP (~185 MB) + indeks i słownik w `sym/arasaac/` + `_headers` | Route `relaacja.jagiellona.one.pl/sym/arasaac/*` i to samo na stagingu (Route ma pierwszeństwo przed Custom Domain; brakujący plik → `404`, bez przejścia do aplikacji) | GitHub Actions (`arasaac-refresh.yml`, 2× w tygodniu) |
 
 Limit plików na wersję Workera Free to 20 000 — każdy zestaw ma osobny Worker, więc żaden się do niego nie zbliża (największy ok. 15 tys.).
 
@@ -210,15 +210,22 @@ Po przekroczeniu limitu Cloudflare zwraca błędy do 00:00 UTC (bez opłat). Zab
 
 | Zestaw | Źródło | Format docelowy | Rozmiar | Dostęp |
 |---|---|---|---|---|
-| ARASAAC | `api.arasaac.org/v1/pictograms/all/pl` (13 924 piktogramy, 12 712 z polskimi hasłami) + `static.arasaac.org/.../{id}_500.png` | WebP 500 px, nazwa `p/{id}.{hash8}.webp` | ~150 MB | wszyscy |
-| Dodatkowy (opcjonalny) | poza repozytorium | WebP maks. 512 px, nazwa `x/{id}.{hash8}.webp` | — | `users.extra_set_enabled = 1` |
+| ARASAAC | `api.arasaac.org/v1/pictograms/all/pl` (13 924 piktogramy, 12 712 z polskimi hasłami — tylko te trafiają do mirrora) + `static.arasaac.org/.../{id}_500.png` | WebP bezstratny 500 px (dla płaskiej grafiki równie mały jak stratny, bez artefaktów), nazwa `p/{id}.{hash8}.webp` | ~185 MB (śr. 14,5 KB) | wszyscy |
+| Dodatkowy (opcjonalny) | poza repozytorium | WebP bezstratny maks. 512 px, nazwa `x/{id}.{hash8}.webp` | — | `users.extra_set_enabled = 1` |
 | Własne | upload rodzica | WebP ≤ 512 px, BLOB w DO | ~30–80 KB / zdjęcie | tylko właściciel (+ admin) |
 
-**Indeksy** (`index.{hash}.json`, gzip) generowane przez `tools/`: `id`, hasła, forma znormalizowana, kategoria, część mowy (ARASAAC `keyword.type`), flagi `aac`/`sex`/`violence`, numer wariantu, plik. Wyszukiwanie w całości po stronie klienta — zero obciążenia serwera.
+**Pliki zestawu** (katalog `/sym/<zestaw>/`, generowane przez `tools/relaacja_tools/symbolset.py`, czytane przez `packages/shared/src/symbols.ts`; zgodność pilnują wspólne wektory `packages/shared/test-vectors/sample-*.json`):
+- `manifest.json` (`Cache-Control: no-cache`, rewalidacja ETag) — wskazuje bieżący indeks i słownik, liczbę symboli i nazwę zestawu;
+- `index.{hash8}.json` (`immutable`) — pozycje `{id, f: plik, k: hasła, r: rola Fitzgerald, x: flagi aac=1/sex=2/violence=4, c: kategoria}`, posortowane po `id`; formy znormalizowane liczy klient przy wczytaniu (indeks ARASAAC: 1,1 MB, 0,3 MB po kompresji);
+- `forms.{hash8}.json` (`immutable`) — słownik odmian (niżej).
 
-**Normalizacja** (wspólna dla TypeScript i Pythona, ze wspólnymi wektorami testowymi): `ł→l`, NFKD, usunięcie znaków łączących, `lower()`, redukcja spacji.
+Kompresję (brotli/gzip) robi krawędź Cloudflare. Wyszukiwanie w całości po stronie klienta — zero obciążenia serwera.
 
-**Słownik odmian**: PoliMorf (BSD-2, `zil.ipipan.waw.pl/PoliMorf`), przefiltrowany do lematów występujących w słownictwie zestawów → `forms.{hash}.json.gz` (cel ≤ 2 MB, ładowany leniwie przy pierwszym wyszukiwaniu).
+**Normalizacja** (wspólna dla TypeScript i Pythona, ze wspólnymi wektorami testowymi): `lower()`, `ł→l`, NFKD, usunięcie znaków łączących, znaki inne niż litery i cyfry → spacja, redukcja spacji.
+
+**Słownik odmian**: PoliMorf 0.6.7 (BSD-2, `zil.ipipan.waw.pl/PoliMorf`, plik weryfikowany SHA-256) przefiltrowany do lematów osiągalnych ze słownictwa zestawu (słowo hasła jest lematem albo formą lematu, np. „jabłkami” → jabłko) → `forms.{hash8}.json` `{lemat: [formy]}`. ARASAAC: 9 973 lematy, 186 tys. form, 2,6 MB (0,5 MB po kompresji). Każdy zestaw ma własny słownik (dodatkowy zestaw nie ujawnia słownictwa w publicznym), klient je scala.
+
+**Wyszukiwarka** (`packages/shared/src/search.ts`): każde słowo zapytania musi pasować do słowa hasła — dokładnie, przez wspólny lemat albo (ostatnie słowo w trakcie pisania, ≥ 2 znaki) jako prefiks. Kolejność: jakość dopasowania (całe hasło > hasło dłuższe; dokładne > lemat > prefiks; pierwsze hasło symbolu) > kolejność aktywnych zestawów > flaga `aac` > kolejność w indeksie. Filtr `sex`/`violence` z ustawień konta.
 
 **Automatyczne kolory Fitzgerald Key**:
 - ARASAAC `keyword.type`: 1 nazwy własne → żółty, 2 rzeczowniki → pomarańczowy, 3 czasowniki → zielony, 4 określenia → niebieski, 5 zwroty społeczne → różowy, 6 inne → biały.
@@ -331,7 +338,7 @@ CREATE TABLE favorites (id TEXT PRIMARY KEY, name TEXT, items TEXT NOT NULL, pos
 |---|---|
 | **Dostęp do cudzych danych (IDOR)** | Dane użytkownika fizycznie w jego DO; stub DO wyznaczany wyłącznie z `session.userId` — **żaden parametr żądania nie wybiera DO** (poza endpointami admina po sprawdzeniu roli). ID obiektów wewnątrz DO nie mają znaczenia poza nim. |
 | **Enumeracja** | Wszystkie ID losowe 128-bit (base32); identyczna odpowiedź `404` dla „nie istnieje” i „nie twoje”; brak ID użytkowników w URL-ach poza panelem admina; rate limiting `/api/auth/*` regułą strefy (jedyna reguła planu Free — dlatego inne ścieżki API nie zawierają `/auth` ani `/login`) + limit per użytkownik w DO dla zapisów. |
-| **Path traversal** | Brak systemu plików. Media po ID z bazy. Brama dodatkowego zestawu: ścieżka walidowana regexem `^x/[0-9]+\.[0-9a-f]{8}\.webp$` lub `^index\.[0-9a-f]{8}\.json$` **po** dekodowaniu URL, odrzucane `..`, `%2e`, `%2f`, `\`, podwójne kodowanie; binding `ASSETS` serwuje tylko pliki z manifestu. |
+| **Path traversal** | Brak systemu plików. Media po ID z bazy. Brama dodatkowego zestawu: **surowa** ścieżka (bez dekodowania — poprawne nazwy nie wymagają kodowania, więc każde `%..`, `\`, `..` czy znak spoza ASCII odpada) musi pasować do `^/sym/extra/(x/[0-9]{1,10}\.[0-9a-f]{8}\.webp\|(index\|forms)\.[0-9a-f]{8}\.json\|manifest\.json)$`; do Workera prywatnego idzie nowe żądanie bez nagłówków klienta (poza `If-None-Match`), a typ treści i nagłówki odpowiedzi ustawia brama. Binding `ASSETS` serwuje tylko pliki z manifestu wdrożenia. |
 | **Złośliwy upload** | Re-enkodowanie w przeglądarce (usuwa EXIF/GPS); serwer: ≤ 1 MB, sprawdzenie sygnatury (WebP/PNG/JPEG), odczyt wymiarów z nagłówka, **odrzucenie SVG**, typ MIME ustawia serwer, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`, `Content-Security-Policy: default-src 'none'` na odpowiedziach z mediami. |
 | **XSS** | Escapowanie w React, zakaz `dangerouslySetInnerHTML` (reguła ESLint), ścisłe CSP: `default-src 'self'; img-src 'self' blob: data:; connect-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`. |
 | **CSRF** | `one.pl` nie jest na Public Suffix List, więc **każda** domena `*.one.pl` (inne hosty w tej strefie i domeny innych abonentów `one.pl`) jest dla przeglądarki *same-site* i `SameSite=Lax` nie chroni. Dlatego przy każdym zapisie: **dokładne** porównanie `Origin` z originem aplikacji + `Sec-Fetch-Site: same-origin` + wymagany `Content-Type: application/json` i nagłówek `X-Relaacja` (prosty formularz HTML nie może ich wysłać). `SameSite=Lax` zostaje jako dodatkowa warstwa. |
@@ -400,7 +407,9 @@ Strefa `jagiellona.one.pl`: Configuration Rule wyłączająca Email Obfuscation 
   3. migracje i deploy produkcji.
 
   Zero buildów po stronie Cloudflare, więc limit 500 buildów/mies. nie ma znaczenia.
-- `arasaac-refresh.yml`: cron miesięczny — przyrostowo `/pictograms/pl/days/31`, `actions/cache` na obrazki, deploy `relaacja-arasaac`.
+- `arasaac-refresh.yml`: 2× w tygodniu (pon., czw.) i ręcznie — pełny katalog `/pictograms/all/pl` (6 MB) porównany z `lastUpdated` zapisanym przy każdym obrazku w `actions/cache`, pobierane tylko nowe i zmienione piktogramy (bez dziur po nieudanym przebiegu, jak przy `/days/N`); przebieg co kilka dni chroni cache przed wygaśnięciem (7 dni bez użycia). Bezpieczniki: < 10 000 piktogramów albo > 0,5% błędów pobierania → brak publikacji. Deploy `relaacja-arasaac` tylko gdy `manifest.json` różni się od produkcyjnego; środowisko `symbols` (tylko `main`, bez akceptacji — mirror to dane, nie kod aplikacji).
+- `ci.yml` dodatkowo: job `tools` (`ruff check`, `ruff format --check`, `pytest`).
+- Zmienna `CONTACT_EMAIL` (GitHub `vars`) — adres kontaktowy wstawiany przy buildzie do `/prywatnosc`, poza repozytorium.
 - **Sekrety Workerów** (`GOOGLE_CLIENT_*`, `OAUTH_COOKIE_KEY`, `ADMIN_EMAILS`) ustawiane raz z maszyny operatora przez `wrangler secret bulk` (wejście ze `stdin`, bez plików pośrednich); nie trafiają do GitHuba. GitHub ma tylko token Cloudflare do deployu.
 - Wycofanie wersji: `wrangler rollback` (kod); migracje D1 tylko do przodu + D1 Time Travel (przywracanie bazy do stanu z wybranej chwili). Migracje schematu DO wykonywane leniwie przy pierwszym dostępie do obiektu, wstecznie kompatybilne.
 - **Kopie zapasowe** (etap 7): artefakty GitHub Actions w publicznym repo są dostępne dla każdego, więc **nie** trzymamy w nich kopii danych. Wariant docelowy: endpoint eksportu dla superadmina + zaszyfrowana (`age`) kopia pobierana cyklicznie poza Cloudflare — zależność tylko dla kopii, nie dla działania aplikacji.

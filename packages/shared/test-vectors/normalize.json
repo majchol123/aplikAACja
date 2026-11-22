@@ -1,0 +1,29 @@
+{
+  "description": "Shared normalization vectors: packages/shared/src/normalize.ts and tools/relaacja_tools/normalize.py must both pass every case.",
+  "cases": [
+    { "in": "jabłko", "out": "jablko" },
+    { "in": "Jabłka", "out": "jablka" },
+    { "in": "ŁÓDŹ", "out": "lodz" },
+    { "in": "Żółć i gęś", "out": "zolc i ges" },
+    { "in": "zażółć gęślą jaźń", "out": "zazolc gesla jazn" },
+    { "in": "  dzień   dobry  ", "out": "dzien dobry" },
+    { "in": "co?", "out": "co" },
+    { "in": "pa pa!", "out": "pa pa" },
+    { "in": "nos (zwierzę)", "out": "nos zwierze" },
+    { "in": "tik-tak", "out": "tik tak" },
+    { "in": "numer alarmowy 112", "out": "numer alarmowy 112" },
+    { "in": "CO2", "out": "co2" },
+    { "in": "m²", "out": "m2" },
+    { "in": "ﬁlm", "out": "film" },
+    { "in": "é", "out": "e" },
+    { "in": "café crème", "out": "cafe creme" },
+    { "in": "tab\tnowa\nlinia", "out": "tab nowa linia" },
+    { "in": "„cytat”", "out": "cytat" },
+    { "in": "50%", "out": "50" },
+    { "in": "...", "out": "" },
+    { "in": "", "out": "" },
+    { "in": "İstanbul", "out": "istanbul" },
+    { "in": "straße", "out": "straße" },
+    { "in": "ŻÓŁW", "out": "zolw" }
+  ]
+}

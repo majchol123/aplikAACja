@@ -1,0 +1,100 @@
+name: ARASAAC mirror
+
+# Rebuilds the ARASAAC mirror (relaacja-arasaac Worker) from the Polish catalogue and deploys
+# it when the result differs from what is live. Only new or changed pictograms are downloaded:
+# converted images are kept in the Actions cache, and running twice a week keeps that cache
+# from expiring (entries unused for 7 days are evicted). The mirror serves both app hosts, so
+# it has its own environment (`symbols`, main branch only) instead of the app's approval gate.
+on:
+  schedule:
+    - cron: '17 3 * * 1,4'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arasaac-mirror
+  cancel-in-progress: false
+
+env:
+  LIVE_MANIFEST: https://relaacja.jagiellona.one.pl/sym/arasaac/manifest.json
+
+jobs:
+  mirror:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment:
+      name: symbols
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          working-directory: tools
+          enable-cache: false
+      - name: Test the builders
+        working-directory: tools
+        run: uv run --frozen pytest -q
+
+      - name: Restore converted images
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: tools/.cache/arasaac
+          key: arasaac-images-${{ github.run_id }}
+          restore-keys: arasaac-images-
+      - name: Restore PoliMorf
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: tools/.cache/polimorf
+          key: polimorf-0.6.7
+
+      - name: Build mirror and lexicon
+        working-directory: tools
+        run: |
+          uv run --frozen build_arasaac.py --out ../workers/arasaac/dist
+          uv run --frozen build_lexicon.py --set-dir ../workers/arasaac/dist/sym/arasaac
+
+      - name: Save converted images
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: tools/.cache/arasaac
+          key: arasaac-images-${{ hashFiles('tools/.cache/arasaac/state.json') }}
+
+      - name: Compare with the live mirror
+        id: diff
+        run: |
+          built="workers/arasaac/dist/sym/arasaac/manifest.json"
+          if curl -fsS "$LIVE_MANIFEST" -o /tmp/live.json && cmp -s /tmp/live.json "$built"; then
+            echo "Mirror unchanged: $(cat "$built")"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Mirror changed: $(cat "$built")"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        if: steps.diff.outputs.changed == 'true'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.diff.outputs.changed == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: steps.diff.outputs.changed == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Deploy
+        if: steps.diff.outputs.changed == 'true'
+        working-directory: app
+        run: pnpm exec wrangler deploy -c ../workers/arasaac/wrangler.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          built="workers/arasaac/dist/sym/arasaac/manifest.json"
+          for host in relaacja.jagiellona.one.pl relaacja-staging.jagiellona.one.pl; do
+            curl -fsS "https://$host/sym/arasaac/manifest.json" | cmp -s - "$built" ||
+              { echo "::error::$host does not serve the new manifest"; exit 1; }
+          done

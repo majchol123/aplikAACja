@@ -32,8 +32,30 @@ function staticHeaders(): Plugin {
   };
 }
 
+const CONTACT_PLACEHOLDER = /%RELAACJA_CONTACT_EMAIL%/g;
+const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+/**
+ * The operator's contact address is published on /prywatnosc but kept out of the
+ * repository: deploy builds take it from the CONTACT_EMAIL variable (GitHub `vars`).
+ */
+function contactEmail(): Plugin {
+  const deployEnv = process.env.CLOUDFLARE_ENV;
+  const value = process.env.CONTACT_EMAIL?.trim();
+  if (value && !EMAIL_RE.test(value)) throw new Error('CONTACT_EMAIL is not a valid address');
+  if (deployEnv && !value) throw new Error(`CONTACT_EMAIL is required for ${deployEnv} builds`);
+  const email = value ?? 'kontakt@example.invalid';
+  return {
+    name: 'relaacja:contact-email',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html) => html.replace(CONTACT_PLACEHOLDER, email),
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), cloudflare(), staticHeaders()],
+  plugins: [react(), tailwindcss(), cloudflare(), staticHeaders(), contactEmail()],
   server: { port: 5173, strictPort: true },
   preview: { port: 5173, strictPort: true },
   environments: {

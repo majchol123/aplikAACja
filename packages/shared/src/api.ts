@@ -41,5 +41,6 @@ export type ApiErrorCode =
   | 'cookie_conflict'
   | 'invalid_request'
   | 'extra_set_not_enabled'
+  | 'extra_set_unavailable'
   | 'rate_limited'
   | 'internal';
