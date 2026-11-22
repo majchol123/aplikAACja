@@ -1,0 +1,78 @@
+{
+  "v": 1,
+  "set": "arasaac",
+  "name": "ARASAAC",
+  "attribution": "Autor piktogramów: Sergio Palao. Pochodzenie: ARASAAC (https://arasaac.org). Licencja: CC (BY-NC-SA). Właściciel: Rząd Aragonii (Hiszpania).",
+  "items": [
+    {
+      "id": 2462,
+      "f": "p/2462.3a5da7de.webp",
+      "k": ["jabłko"],
+      "r": "noun",
+      "x": 1
+    },
+    {
+      "id": 2727,
+      "f": "p/2727.55198fad.webp",
+      "k": ["nos"],
+      "r": "noun"
+    },
+    {
+      "id": 5000,
+      "f": "p/5000.74c8fcdc.webp",
+      "k": ["całować"],
+      "r": "verb",
+      "x": 2
+    },
+    {
+      "id": 5001,
+      "f": "p/5001.f80fa7f9.webp",
+      "k": ["bić"],
+      "r": "verb",
+      "x": 4
+    },
+    {
+      "id": 6061,
+      "f": "p/6061.88be0fc6.webp",
+      "k": ["pić"],
+      "r": "verb",
+      "x": 1
+    },
+    {
+      "id": 7000,
+      "f": "p/7000.bc98605b.webp",
+      "k": ["dzień dobry"],
+      "r": "social"
+    },
+    {
+      "id": 7001,
+      "f": "p/7001.04f557e9.webp",
+      "k": ["Ola"],
+      "r": "person"
+    },
+    {
+      "id": 7002,
+      "f": "p/7002.c39a0a25.webp",
+      "k": ["co?"],
+      "r": "misc"
+    },
+    {
+      "id": 9057,
+      "f": "p/9057.4e94c0f2.webp",
+      "k": ["ciasto", "ciasto z jabłkami"],
+      "r": "noun"
+    },
+    {
+      "id": 11403,
+      "f": "p/11403.f2980a5b.webp",
+      "k": ["sok jabłkowy"],
+      "r": "noun"
+    },
+    {
+      "id": 30000,
+      "f": "p/30000.934ffa4a.webp",
+      "k": ["nos"],
+      "r": "noun"
+    }
+  ]
+}

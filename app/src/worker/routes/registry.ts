@@ -10,6 +10,8 @@ export type Access =
   | 'user'
   /** Active account with role admin or superadmin. */
   | 'admin'
+  /** Active account with the optional extra symbol set granted (users.extra_set_enabled). */
+  | 'extra'
   /** Fake login for local E2E; 404 everywhere else. */
   | 'dev';
 
@@ -32,6 +34,8 @@ export const ROUTES = {
   getSettings: { method: 'GET', path: '/api/settings', access: 'user' },
   patchSettings: { method: 'PATCH', path: '/api/settings', access: 'user' },
   adminUsers: { method: 'GET', path: '/api/admin/users', access: 'admin' },
+  /** Gate in front of the private extra-set Worker (PLAN D5, §4.1 path traversal). */
+  extraAsset: { method: 'GET', path: '/sym/extra/*', access: 'extra' },
 } as const satisfies Record<string, RouteDef>;
 
 export type RouteName = keyof typeof ROUTES;

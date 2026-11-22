@@ -1,6 +1,7 @@
 packages:
   - app
   - packages/*
+  - workers/extra
 
 allowBuilds:
   esbuild: true

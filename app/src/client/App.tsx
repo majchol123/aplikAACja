@@ -1,6 +1,7 @@
 import type { AdminUser, Me } from '@relaacja/shared';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from './api.ts';
+import { Library } from './library/Library.tsx';
 
 function goHome(): void {
   location.assign('/');
@@ -45,10 +46,12 @@ export function App({ me }: { me: Me }) {
             Witaj{me.displayName ? `, ${me.displayName}` : ''}!
           </h1>
           <p className="mt-2 text-slate-600">
-            Konto jest gotowe. Tablice komunikacyjne, piktogramy i czytanie na głos pojawią się w
-            kolejnych etapach.
+            Konto jest gotowe. Możesz już przeszukiwać bibliotekę symboli; tablice komunikacyjne i
+            czytanie na głos pojawią się w kolejnych etapach.
           </p>
         </section>
+
+        <Library me={me} />
 
         {isAdmin && (
           <section

@@ -6,37 +6,42 @@ import { insertUser, makeApp, sessionCookie, writeHeaders, type TestUser } from 
  * Authorization matrix (PLAN §7): every registered route × every principal, with an
  * explicit expected status. Adding a route without a row here fails the suite.
  */
-type Principal = 'anon' | 'userA' | 'userB' | 'blocked' | 'admin' | 'superadmin';
-const PRINCIPALS: Principal[] = ['anon', 'userA', 'userB', 'blocked', 'admin', 'superadmin'];
+type Principal = 'anon' | 'userA' | 'userB' | 'extra' | 'blocked' | 'admin' | 'superadmin';
+const PRINCIPALS: Principal[] = [
+  'anon',
+  'userA',
+  'userB',
+  'extra',
+  'blocked',
+  'admin',
+  'superadmin',
+];
 
-const userOnly = { anon: 401, userA: 200, userB: 200, blocked: 403, admin: 200, superadmin: 200 };
+const all = (status: number) =>
+  Object.fromEntries(PRINCIPALS.map((p) => [p, status])) as Record<Principal, number>;
+const userOnly = { ...all(200), anon: 401, blocked: 403 };
 
-const EXPECTED: Record<string, { body?: unknown; status: Record<Principal, number> }> = {
-  'GET /api/health': {
-    status: { anon: 200, userA: 200, userB: 200, blocked: 200, admin: 200, superadmin: 200 },
-  },
-  'GET /api/auth/login': {
-    status: { anon: 302, userA: 302, userB: 302, blocked: 302, admin: 302, superadmin: 302 },
-  },
-  'GET /api/auth/callback': {
-    status: { anon: 302, userA: 302, userB: 302, blocked: 302, admin: 302, superadmin: 302 },
-  },
-  'POST /api/auth/logout': {
-    status: { anon: 204, userA: 204, userB: 204, blocked: 204, admin: 204, superadmin: 204 },
-  },
-  'POST /api/auth/logout-all': {
-    status: { ...userOnly, userA: 204, userB: 204, admin: 204, superadmin: 204 },
-  },
+const EXPECTED: Record<
+  string,
+  { body?: unknown; path?: string; status: Record<Principal, number> }
+> = {
+  'GET /api/health': { status: all(200) },
+  'GET /api/auth/login': { status: all(302) },
+  'GET /api/auth/callback': { status: all(302) },
+  'POST /api/auth/logout': { status: all(204) },
+  'POST /api/auth/logout-all': { status: { ...all(204), anon: 401, blocked: 403 } },
   // DEV_AUTH is off in tests: indistinguishable from a missing route.
-  'POST /api/auth/dev-login': {
-    body: { sub: 'x', email: 'x@example.com' },
-    status: { anon: 404, userA: 404, userB: 404, blocked: 404, admin: 404, superadmin: 404 },
-  },
+  'POST /api/auth/dev-login': { body: { sub: 'x', email: 'x@example.com' }, status: all(404) },
   'GET /api/me': { status: userOnly },
   'GET /api/settings': { status: userOnly },
   'PATCH /api/settings': { body: { returnToHome: false }, status: userOnly },
   'GET /api/admin/users': {
-    status: { anon: 401, userA: 403, userB: 403, blocked: 403, admin: 200, superadmin: 200 },
+    status: { ...all(403), anon: 401, admin: 200, superadmin: 200 },
+  },
+  // The flag comes from D1, not from the role: admins without it are refused too.
+  'GET /sym/extra/*': {
+    path: '/sym/extra/manifest.json',
+    status: { ...all(403), anon: 401, extra: 200 },
   },
 };
 
@@ -44,6 +49,7 @@ async function makePrincipals(): Promise<Record<Exclude<Principal, 'anon'>, Test
   return {
     userA: await insertUser(),
     userB: await insertUser(),
+    extra: await insertUser({ extraSet: true }),
     blocked: await insertUser({ status: 'blocked' }),
     admin: await insertUser({ role: 'admin' }),
     // Superadmin is derived from ADMIN_EMAILS on every request (see vitest.config.ts).
@@ -67,8 +73,8 @@ describe('authorization matrix', () => {
   for (const route of Object.keys(EXPECTED)) {
     it(route, async () => {
       const users = await makePrincipals();
-      const [method, path] = route.split(' ') as [string, string];
-      const { body, status } = EXPECTED[route]!;
+      const [method, pattern] = route.split(' ') as [string, string];
+      const { body, path = pattern, status } = EXPECTED[route]!;
       for (const principal of PRINCIPALS) {
         const cookie = principal === 'anon' ? undefined : await sessionCookie(users[principal].id);
         const init: RequestInit =

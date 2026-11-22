@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "lemmas": {
+    "bic": ["bije"],
+    "calowac": ["caluje"],
+    "ciasto": ["ciasta"],
+    "dobry": ["dobrego"],
+    "dzien": ["dnia"],
+    "jablko": ["jablka", "jablkami"],
+    "jablkowy": ["jablkowego"],
+    "nos": ["nosa"],
+    "pic": ["pije", "pilem"]
+  }
+}

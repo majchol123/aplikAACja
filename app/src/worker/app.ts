@@ -33,6 +33,7 @@ import { ROUTES, type RouteDef } from './routes/registry.ts';
 import { cookieConflictGuard } from './security/cookies.ts';
 import { csrfGuard } from './security/csrf.ts';
 import { securityHeaders } from './security/headers.ts';
+import { serveExtraFile } from './symbols/extra-gate.ts';
 import { vaultFor } from './vault/user-vault.ts';
 
 export interface AppDeps {
@@ -92,6 +93,7 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   });
   app.use('*', securityHeaders);
   app.use('/api/*', cookieConflictGuard);
+  app.use('/sym/extra/*', cookieConflictGuard);
   app.use('/api/*', csrfGuard);
 
   app.notFound((c) => c.json({ error: 'not_found' }, 404));
@@ -125,6 +127,12 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
     return next();
   };
 
+  const requireExtraSet: MiddlewareHandler<AppContext> = async (c, next) => {
+    // Always from D1 via the session, never from the user's saved settings (PLAN D5).
+    if (!c.get('user').extraSet) return c.json({ error: 'extra_set_not_enabled' }, 403);
+    return next();
+  };
+
   const devOnly: MiddlewareHandler<AppContext> = async (c, next) => {
     // Three independent conditions; any failure looks exactly like a missing route.
     const enabled =
@@ -139,6 +147,7 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
     public: [],
     user: [authenticate],
     admin: [authenticate, requireAdmin],
+    extra: [authenticate, requireExtraSet],
     dev: [devOnly],
   };
 
@@ -322,6 +331,8 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
     }));
     return c.json({ users });
   });
+
+  defineRoute(ROUTES.extraAsset, serveExtraFile);
 
   return app;
 }

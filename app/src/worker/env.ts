@@ -5,6 +5,8 @@ export interface AppEnv {
   DB: D1Database;
   USER_VAULT: DurableObjectNamespace<UserVault>;
   ASSETS: Fetcher;
+  /** Private assets Worker with the extra symbol set; absent locally unless it runs too. */
+  EXTRA_SET?: Fetcher;
   /** "eu" in deployed environments; unset locally (workerd has no jurisdictions). */
   DO_JURISDICTION?: string;
   /** Exact public origin of this deployment, e.g. https://relaacja.jagiellona.one.pl */

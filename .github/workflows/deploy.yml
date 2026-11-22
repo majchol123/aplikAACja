@@ -55,6 +55,7 @@ jobs:
         run: pnpm build
         env:
           CLOUDFLARE_ENV: staging
+          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
       - name: Deploy
         working-directory: app
         run: pnpm exec wrangler deploy
@@ -93,6 +94,7 @@ jobs:
         run: pnpm build
         env:
           CLOUDFLARE_ENV: production
+          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
       - name: Deploy
         working-directory: app
         run: pnpm exec wrangler deploy

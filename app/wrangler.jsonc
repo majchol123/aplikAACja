@@ -28,6 +28,9 @@
     },
   ],
   "vars": { "APP_ORIGIN": "http://localhost:5173" },
+  // Locally bound only while `pnpm --filter @relaacja/extra dev` runs (dev registry);
+  // otherwise the gate answers 503.
+  "services": [{ "binding": "EXTRA_SET", "service": "relaacja-extra" }],
 
   "env": {
     "staging": {
@@ -51,6 +54,7 @@
         "APP_ORIGIN": "https://relaacja-staging.jagiellona.one.pl",
         "DO_JURISDICTION": "eu",
       },
+      "services": [{ "binding": "EXTRA_SET", "service": "relaacja-extra" }],
     },
     "production": {
       "name": "relaacja",
@@ -70,6 +74,7 @@
         },
       ],
       "vars": { "APP_ORIGIN": "https://relaacja.jagiellona.one.pl", "DO_JURISDICTION": "eu" },
+      "services": [{ "binding": "EXTRA_SET", "service": "relaacja-extra" }],
     },
   },
 }
