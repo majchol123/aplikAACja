@@ -1,5 +1,6 @@
 export * from './api.ts';
 export * from './boards.ts';
+export * from './categories.ts';
 export * from './device.ts';
 export * from './media.ts';
 export * from './normalize.ts';

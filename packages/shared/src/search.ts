@@ -1,12 +1,12 @@
 import { tokenize } from './normalize.ts';
 import {
   FLAG_AAC,
-  FLAG_SEX,
-  FLAG_VIOLENCE,
+  isFiltered,
   SET_BASE,
   type FitzgeraldRole,
   type Lexicon,
   type LibrarySet,
+  type SymbolFilter,
   type SymbolIndex,
 } from './symbols.ts';
 
@@ -19,15 +19,12 @@ export interface SymbolHit {
   label: string;
   role: FitzgeraldRole;
   flags: number;
-  category?: string;
   score: number;
 }
 
-export interface SearchOptions {
+export interface SearchOptions extends SymbolFilter {
   /** Active sets, in the user's priority order (PLAN §2.2). */
   sets: readonly LibrarySet[];
-  hideSexual: boolean;
-  hideViolence: boolean;
   limit?: number;
 }
 
@@ -40,7 +37,6 @@ interface StoredItem {
   keywords: string[];
   role: FitzgeraldRole;
   flags: number;
-  category?: string;
 }
 
 /** A normalized word plus every lemma it can be a form of. */
@@ -100,7 +96,6 @@ export class SymbolSearch {
           keywords: raw.k,
           role: raw.r,
           flags: raw.x ?? 0,
-          ...(raw.c ? { category: raw.c } : {}),
         };
         this.items.push(item);
         raw.k.forEach((keyword, keywordNo) => this.addEntry(item, keywordNo, keyword));
@@ -139,8 +134,7 @@ export class SymbolSearch {
     for (const entry of smallest) {
       const { item } = entry;
       if (!allowed.has(item.set) || !rest.every((found) => found.has(entry))) continue;
-      if (options.hideSexual && item.flags & FLAG_SEX) continue;
-      if (options.hideViolence && item.flags & FLAG_VIOLENCE) continue;
+      if (isFiltered(item.flags, options)) continue;
 
       const matches = words.map((word) => this.match(entry, word));
       if (matches.includes(Match.None)) continue;
@@ -166,7 +160,6 @@ export class SymbolSearch {
         label: item.keywords[keyword] ?? item.keywords[0] ?? '',
         role: item.role,
         flags: item.flags,
-        ...(item.category ? { category: item.category } : {}),
         score,
       }));
   }

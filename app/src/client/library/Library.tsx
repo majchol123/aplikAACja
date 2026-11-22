@@ -1,10 +1,12 @@
-import type { LibrarySet, Me, Settings } from '@relaacja/shared';
+import type { LibrarySet, Me, Settings, SymbolHit } from '@relaacja/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDeferredValue, useId, useMemo, useState } from 'react';
 import { api } from '../api.ts';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { useAccountSettings } from '../settings/account.ts';
+import { ui } from '../edit/ui.ts';
 import { ARASAAC_NOTE } from './attribution.ts';
+import { CategoryBrowser } from './CategoryBrowser.tsx';
 import { ContentFilter } from './ContentFilter.tsx';
 import { useLibrary } from './useLibrary.ts';
 
@@ -13,6 +15,7 @@ export function Library({ me }: { me: Me }) {
   const queryClient = useQueryClient();
   const settings = useAccountSettings();
   const [query, setQuery] = useState('');
+  const [mode, setMode] = useState<'search' | 'browse'>('search');
   const deferredQuery = useDeferredValue(query);
   const inputId = useId();
 
@@ -105,62 +108,103 @@ export function Library({ me }: { me: Me }) {
 
       <ContentFilter />
 
-      <label htmlFor={inputId} className="mt-4 block text-sm font-medium text-slate-700">
-        Szukaj symbolu
-      </label>
-      <input
-        id={inputId}
-        type="search"
-        inputMode="search"
-        autoComplete="off"
-        spellCheck={false}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="np. jabłko, pić, dzień dobry"
-        className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-lg focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/30"
-      />
-
-      <p className="mt-2 min-h-5 text-sm text-slate-600" role="status" aria-live="polite">
-        {library.failed.length
-          ? `Nie udało się wczytać: ${library.failed.join(', ')}.`
-          : library.loading
-            ? 'Wczytywanie biblioteki…'
-            : deferredQuery.trim()
-              ? hits.length
-                ? `Znaleziono: ${hits.length}${hits.length === 60 ? '+' : ''}`
-                : 'Brak wyników.'
-              : `${library.size.toLocaleString('pl-PL')} symboli w aktywnych zestawach.`}
-      </p>
-
-      {hits.length > 0 && (
-        <ul
-          className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-3"
-          data-testid="library-results"
-        >
-          {hits.map((hit) => (
-            <li
-              key={`${hit.set}:${hit.id}`}
-              className={`flex flex-col items-center rounded-xl border-4 bg-white p-2 ${ROLE_COLORS[hit.role].border}`}
-            >
-              <img
-                src={hit.src}
-                alt=""
-                width={96}
-                height={96}
-                loading="lazy"
-                decoding="async"
-                className="size-24 object-contain"
+      <fieldset className="mt-4">
+        <legend className="sr-only">Jak przeglądać bibliotekę</legend>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ['search', 'Szukaj'],
+              ['browse', 'Kategorie'],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value} className={ui.choice}>
+              <input
+                type="radio"
+                name={`${inputId}-mode`}
+                className="sr-only"
+                checked={mode === value}
+                onChange={() => setMode(value)}
               />
-              <span className="mt-1 text-center text-sm font-semibold leading-tight text-slate-800">
-                {hit.label}
-              </span>
-              <span className="text-xs text-slate-500">{library.setNames[hit.set]}</span>
-            </li>
+              {label}
+            </label>
           ))}
-        </ul>
+        </div>
+      </fieldset>
+
+      {mode === 'browse' ? (
+        <CategoryBrowser
+          me={me}
+          active={pendingSets ?? undefined}
+          className="max-h-[32rem]"
+          renderSymbol={(hit, setName) => <LibraryCard hit={hit} setName={setName} />}
+        />
+      ) : (
+        <>
+          <label htmlFor={inputId} className="mt-4 block text-sm font-medium text-slate-700">
+            Szukaj symbolu
+          </label>
+          <input
+            id={inputId}
+            type="search"
+            inputMode="search"
+            autoComplete="off"
+            spellCheck={false}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="np. jabłko, pić, dzień dobry"
+            className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-lg focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/30"
+          />
+
+          <p className="mt-2 min-h-5 text-sm text-slate-600" role="status" aria-live="polite">
+            {library.failed.length
+              ? `Nie udało się wczytać: ${library.failed.join(', ')}.`
+              : library.loading
+                ? 'Wczytywanie biblioteki…'
+                : deferredQuery.trim()
+                  ? hits.length
+                    ? `Znaleziono: ${hits.length}${hits.length === 60 ? '+' : ''}`
+                    : 'Brak wyników.'
+                  : `${library.size.toLocaleString('pl-PL')} symboli w aktywnych zestawach.`}
+          </p>
+
+          {hits.length > 0 && (
+            <ul
+              className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-3"
+              data-testid="library-results"
+            >
+              {hits.map((hit) => (
+                <li key={`${hit.set}:${hit.id}`}>
+                  <LibraryCard hit={hit} setName={library.setNames[hit.set]} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
       {library.usesArasaac && <p className="mt-4 text-xs text-slate-500">{ARASAAC_NOTE}</p>}
     </section>
+  );
+}
+
+function LibraryCard({ hit, setName }: { hit: SymbolHit; setName: string }) {
+  return (
+    <div
+      className={`flex h-full flex-col items-center rounded-xl border-4 bg-white p-2 ${ROLE_COLORS[hit.role].border}`}
+    >
+      <img
+        src={hit.src}
+        alt=""
+        width={96}
+        height={96}
+        loading="lazy"
+        decoding="async"
+        className="size-24 object-contain"
+      />
+      <span className="mt-1 text-center text-sm font-semibold leading-tight text-slate-800">
+        {hit.label}
+      </span>
+      <span className="text-xs text-slate-500">{setName}</span>
+    </div>
   );
 }

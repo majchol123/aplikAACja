@@ -11,7 +11,7 @@ import logging
 import shutil
 import time
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,8 +20,11 @@ from .symbolset import (
     FLAG_AAC,
     FLAG_SEX,
     FLAG_VIOLENCE,
+    MAX_CATEGORY_NAME,
+    Category,
     Item,
     SetMeta,
+    canonical_json,
     encode_webp,
     hash8,
     write_index,
@@ -30,6 +33,11 @@ from .symbolset import (
 log = logging.getLogger(__name__)
 
 CATALOG_URL = "https://api.arasaac.org/v1/pictograms/all/pl"
+# Undocumented: the Polish category tree arasaac.org itself uses (PLAN §3.3). Pictograms
+# name its keys in `categories`; when it fails, the copy from the previous run is used.
+CATEGORIES_URL = "https://privateapi.arasaac.org/api/categories/pl"
+CATEGORY_CACHE = "categories.json"
+MAX_CATEGORY_DEPTH = 12
 IMAGE_URL = "https://static.arasaac.org/pictograms/{id}/{id}_500.png"
 USER_AGENT = "symbol-mirror/1.0"
 IMAGE_SIZE = 500
@@ -72,6 +80,8 @@ HEADERS_FILE = """\
   Cache-Control: public, max-age=31536000, immutable
 /sym/arasaac/forms.*
   Cache-Control: public, max-age=31536000, immutable
+/sym/arasaac/categories.*
+  Cache-Control: public, max-age=31536000, immutable
 """
 
 Fetch = Callable[[str], bytes]
@@ -105,6 +115,7 @@ class Pictogram:
     role: str
     flags: int
     updated: str
+    categories: tuple[str, ...] = ()  # keys of the ARASAAC category tree
 
 
 def is_sexual(entry: dict) -> bool:
@@ -139,10 +150,121 @@ def parse_catalog(catalog: list[dict]) -> list[Pictogram]:
                 role=role,
                 flags=flags,
                 updated=str(entry.get("lastUpdated") or ""),
+                categories=tuple(
+                    dict.fromkeys(c for c in entry.get("categories") or [] if isinstance(c, str))
+                ),
             )
         )
     out.sort(key=lambda p: p.id)
     return out
+
+
+@dataclass(frozen=True)
+class TreeNode:
+    key: str
+    name: str
+    children: tuple[TreeNode, ...]
+
+
+def parse_category_tree(payload: object) -> tuple[TreeNode, ...]:
+    """Check the shape of {locale, data: {key: {text, children: {...}}}}; keys are unique."""
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), dict):
+        raise ValueError("category tree: no data object")
+    seen: set[str] = set()
+
+    def nodes(children: object, depth: int) -> tuple[TreeNode, ...]:
+        if not isinstance(children, dict):
+            raise ValueError("category tree: children is not an object")
+        if depth > MAX_CATEGORY_DEPTH:
+            raise ValueError("category tree: too deep")
+        out: list[TreeNode] = []
+        for key, node in children.items():
+            if not isinstance(node, dict) or not key or key in seen:
+                raise ValueError(f"category tree: bad or repeated node {key!r}")
+            seen.add(key)
+            name = " ".join(str(node.get("text") or "").split()) or key
+            kids = nodes(node.get("children") or {}, depth + 1)
+            out.append(TreeNode(key, name[:MAX_CATEGORY_NAME], kids))
+        return tuple(out)
+
+    roots = nodes(payload["data"], 1)
+    if not roots:
+        raise ValueError("category tree: empty")
+    return roots
+
+
+def load_category_tree(fetch: Fetch, cache_dir: Path) -> tuple[TreeNode, ...]:
+    """The live tree, else the copy kept by the previous run: never a mirror without one."""
+    cached = cache_dir / CATEGORY_CACHE
+    try:
+        payload = json.loads(fetch(CATEGORIES_URL))
+        roots = parse_category_tree(payload)
+    except (OSError, ValueError) as err:
+        if not cached.exists():
+            msg = f"category tree unavailable ({err}) and no copy from a previous run"
+            raise SystemExit(msg) from err
+        log.warning("category tree unavailable (%s); using the copy from the previous run", err)
+        return parse_category_tree(json.loads(cached.read_text("utf-8")))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cached.write_bytes(canonical_json(payload))
+    return roots
+
+
+def pick_icon(name: str, direct: Sequence[Pictogram], members: Sequence[Pictogram]) -> int:
+    """Folder picture: a symbol named like the folder, else one of its own, preferably core
+    vocabulary (`aac`) and never a filtered one while an unfiltered one exists."""
+    clean = [p for p in members if not p.flags & (FLAG_SEX | FLAG_VIOLENCE)] or list(members)
+    wanted = name.casefold()
+    own = {p.id for p in direct}
+    for group in (
+        [p for p in clean if p.keywords[0].casefold() == wanted],
+        [p for p in clean if any(k.casefold() == wanted for k in p.keywords)],
+        [p for p in clean if p.id in own],
+        clean,
+    ):
+        if group:
+            return next((p for p in group if p.flags & FLAG_AAC), group[0]).id
+    raise ValueError(f"category {name!r} has no symbols")
+
+
+def category_tree(
+    roots: Sequence[TreeNode], pictos: Sequence[Pictogram]
+) -> tuple[list[Category], dict[int, tuple[int, ...]]]:
+    """Folders holding at least one pictogram, numbered in tree order, and each pictogram's
+    folders. A pictogram may sit in several folders and in inner folders too."""
+    direct: dict[str, list[Pictogram]] = {}
+    for picto in pictos:
+        for key in picto.categories:
+            direct.setdefault(key, []).append(picto)
+
+    subtree: dict[str, list[Pictogram]] = {}
+
+    def collect(node: TreeNode) -> list[Pictogram]:
+        found = {p.id: p for p in direct.get(node.key, [])}
+        for child in node.children:
+            for picto in collect(child):
+                found.setdefault(picto.id, picto)
+        subtree[node.key] = sorted(found.values(), key=lambda p: p.id)
+        return subtree[node.key]
+
+    nodes: list[Category] = []
+    ids: dict[str, int] = {}
+
+    def emit(node: TreeNode, parent: int | None) -> None:
+        members = subtree[node.key]
+        if not members:
+            return
+        ids[node.key] = node_id = len(nodes) + 1
+        icon = pick_icon(node.name, direct.get(node.key, []), members)
+        nodes.append(Category(id=node_id, name=node.name, parent=parent, icon=icon))
+        for child in node.children:
+            emit(child, node_id)
+
+    for root in roots:
+        collect(root)
+        emit(root, None)
+    membership = {p.id: tuple(ids[k] for k in p.categories if k in ids) for p in pictos}
+    return nodes, {picto_id: g for picto_id, g in membership.items() if g}
 
 
 class ImageCache:
@@ -245,6 +367,7 @@ def build(
         pictos = pictos[:limit]
     if len(pictos) < min_items:
         raise SystemExit(f"catalogue has only {len(pictos)} usable pictograms (< {min_items})")
+    roots = load_category_tree(fetch, cache_dir)
 
     cache = ImageCache(cache_dir)
     files, failed = sync_images(pictos, cache, fetch, workers)
@@ -260,11 +383,11 @@ def build(
     cache.save(keep_ids=keep)
 
     set_dir = prepare_out_dir(out)
+    published = [p for p in pictos if p.id in files]
+    categories, membership = category_tree(roots, published)
     items: list[Item] = []
-    for picto in pictos:
-        name = files.get(picto.id)
-        if not name:
-            continue
+    for picto in published:
+        name = files[picto.id]
         shutil.copyfile(cache.images / name, set_dir / "p" / name)
         items.append(
             Item(
@@ -273,12 +396,20 @@ def build(
                 keywords=list(picto.keywords),
                 role=picto.role,
                 flags=picto.flags,
+                categories=membership.get(picto.id, ()),
             )
         )
     manifest = write_index(
-        set_dir, SetMeta(set="arasaac", name="ARASAAC", attribution=ATTRIBUTION), items
+        set_dir,
+        SetMeta(set="arasaac", name="ARASAAC", attribution=ATTRIBUTION),
+        items,
+        categories,
     )
     log.info(
-        "mirror: %d pictograms, %d failed, index %s", len(items), len(failed), manifest["index"]
+        "mirror: %d pictograms, %d failed, %d categories, index %s",
+        len(items),
+        len(failed),
+        len(categories),
+        manifest["index"],
     )
     return manifest

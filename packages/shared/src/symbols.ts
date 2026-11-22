@@ -40,6 +40,8 @@ export const SetManifestSchema = z.object({
   name: z.string().min(1).max(100),
   index: z.string().regex(hashedJson('index')),
   forms: z.string().regex(hashedJson('forms')).optional(),
+  /** Browsing tree (F2 step 6); sets built before it have none. */
+  categories: z.string().regex(hashedJson('categories')).optional(),
   count: z.number().int().nonnegative(),
 });
 export type SetManifest = z.infer<typeof SetManifestSchema>;
@@ -51,7 +53,8 @@ export const SymbolItemSchema = z.object({
   k: z.array(z.string().min(1).max(200)).min(1).max(20),
   r: FitzgeraldRoleSchema,
   x: z.number().int().min(0).max(7).optional(),
-  c: z.string().max(100).optional(),
+  /** Ids of the category folders listing this symbol (categories.<hash>.json). */
+  g: z.array(z.number().int().nonnegative()).max(20).optional(),
 });
 export type SymbolItem = z.infer<typeof SymbolItemSchema>;
 
@@ -63,6 +66,41 @@ export const SymbolIndexSchema = z.object({
   items: z.array(SymbolItemSchema).max(50_000),
 });
 export type SymbolIndex = z.infer<typeof SymbolIndexSchema>;
+
+export const CategoryNodeSchema = z.object({
+  id: z.number().int().nonnegative(),
+  n: z.string().min(1).max(100),
+  /** Parent folder; it always comes earlier in the file. */
+  p: z.number().int().nonnegative().optional(),
+  /** Folder picture: a symbol of the same set… */
+  i: z.number().int().nonnegative().optional(),
+  /** …or an own icon file. */
+  f: z
+    .string()
+    .regex(/^g\/[0-9]{1,10}\.[0-9a-f]{8}\.webp$/)
+    .optional(),
+});
+export type CategoryNode = z.infer<typeof CategoryNodeSchema>;
+
+export const CategoryFileSchema = z.object({
+  v: z.literal(1),
+  set: LibrarySetSchema,
+  nodes: z.array(CategoryNodeSchema).max(5000),
+});
+export type CategoryFile = z.infer<typeof CategoryFileSchema>;
+
+/** The account's content filter (PLAN §3.3), applied to search and category browsing. */
+export interface SymbolFilter {
+  hideSexual: boolean;
+  hideViolence: boolean;
+}
+
+export function isFiltered(flags: number, filter: SymbolFilter): boolean {
+  return (
+    (filter.hideSexual && (flags & FLAG_SEX) !== 0) ||
+    (filter.hideViolence && (flags & FLAG_VIOLENCE) !== 0)
+  );
+}
 
 /** Normalized lemma → normalized inflected forms (PoliMorf, PLAN D10). */
 export const LexiconSchema = z.object({

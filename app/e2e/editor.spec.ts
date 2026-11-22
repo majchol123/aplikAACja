@@ -148,7 +148,7 @@ test('tiles are dragged, restyled, and the chosen variant of a word is remembere
   await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 5' }).click();
   await dialog(page).getByLabel('Etykieta').fill('nos');
   const first = dialog(page).getByTestId('symbol-results').getByRole('button').first();
-  await expect(first).toHaveAccessibleName(/nr 30000\), ulubiony wariant$/);
+  await expect(first).toHaveAccessibleName(/, ARASAAC, nr 30000, ulubiony wariant$/);
   await dialog(page).getByRole('button', { name: 'Anuluj' }).click();
 
   // Everything above is stored on the server.
@@ -157,6 +157,24 @@ test('tiles are dragged, restyled, and the chosen variant of a word is remembere
   await expect(comm.nth(0)).toHaveText('ty');
   await expect(comm.nth(1)).toHaveText('ja');
   await expect(page.getByRole('button', { name: 'nie', exact: true })).toHaveClass(/bg-red-200/);
+});
+
+test('a symbol is picked from the category folders of the set', async ({ page }) => {
+  await startEditing(page, 'Kategorie w edytorze', 'Pusta tablica');
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 1' }).click();
+  const form = dialog(page);
+  await form.getByText('Kategorie', { exact: true }).click();
+  await form.getByRole('button', { name: /^Komunikacja, kategoria/ }).click();
+  await form.getByRole('button', { name: /^Powitanie, kategoria/ }).click();
+  await form.getByRole('button', { name: /^dzień dobry, ARASAAC, nr 7000/ }).click();
+  await expect(form.getByLabel('Etykieta')).toHaveValue('dzień dobry');
+  await axe(page);
+  await form.getByRole('button', { name: 'Zapisz' }).click();
+  await expect(form).toHaveCount(0);
+  await expect(editTile(page, 'dzień dobry').locator('img')).toHaveAttribute(
+    'src',
+    /^\/sym\/arasaac\/p\/7000\./,
+  );
 });
 
 test('PIN, grid size, moving between boards and deleting', async ({ page }) => {

@@ -108,6 +108,46 @@ test('symbol library finds inflected words typed without Polish letters', async 
   expect((await page.request.get('/sym/extra/manifest.json')).status()).toBe(403);
 });
 
+test('the library is browsed by category; the content filter hides empty folders', async ({
+  page,
+}) => {
+  await mockArasaac(page);
+  await freshLogin(page, 'Kategorie');
+  await page.getByRole('button', { name: 'Ustawienia i konto' }).click();
+  const library = page.getByRole('region', { name: 'Biblioteka symboli' });
+  await library.getByText('Kategorie', { exact: true }).click();
+
+  // Top level in the order of the set; "Seksualność" holds only filtered symbols.
+  const folders = library.getByTestId('category-folders').getByRole('button');
+  await expect(folders).toHaveText([/Odżywianie się/, /Organizmy żywe/, /Komunikacja/]);
+  await library.getByRole('button', { name: /^Odżywianie się, kategoria/ }).click();
+  await expect(library.getByRole('heading', { name: 'Odżywianie się' })).toBeFocused();
+  await library.getByRole('button', { name: 'Jedzenie, kategoria, symboli: 3' }).click();
+  await library.getByRole('button', { name: /^Owoce, kategoria/ }).click();
+  await expect(library.getByTestId('category-symbols').getByRole('listitem')).toHaveText([
+    /jabłko/,
+    /sok jabłkowy/,
+  ]);
+  const path = library.getByRole('navigation', { name: 'Ścieżka kategorii' });
+  await expect(path.getByRole('button')).toHaveText([
+    'Wszystkie kategorie',
+    'Odżywianie się',
+    'Jedzenie',
+  ]);
+  await expect(path.locator('[aria-current="page"]')).toHaveText('Owoce');
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(axe.violations).toEqual([]);
+
+  await path.getByRole('button', { name: 'Wszystkie kategorie' }).click();
+  await library.getByRole('checkbox', { name: /Ukrywaj symbole o seksualności/ }).uncheck();
+  await expect(folders).toHaveText([
+    /Odżywianie się/,
+    /Organizmy żywe/,
+    /Komunikacja/,
+    /Seksualność/,
+  ]);
+});
+
 test('privacy policy shows the contact address', async ({ page }) => {
   await page.goto('/prywatnosc');
   await expect(page.locator('#contact a[href^="mailto:"]')).toHaveCount(1);

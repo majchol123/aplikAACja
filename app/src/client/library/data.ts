@@ -1,4 +1,6 @@
 import {
+  CategoryFileSchema,
+  CategoryTree,
   LexiconSchema,
   SET_BASE,
   SetManifestSchema,
@@ -88,6 +90,40 @@ export function useSymbolSet(manifest: SetManifest | undefined, enabled: boolean
     data,
     isPending: index.isPending || forms.isPending,
     isError: index.isError || forms.isError,
+  };
+}
+
+/**
+ * Index + category tree of a set (F2 step 6). `tree` is null for a set built without
+ * categories and while loading; `isError` covers a tree the client cannot trust.
+ */
+export function useCategoryTree(manifest: SetManifest | undefined, enabled: boolean) {
+  const index = useSymbolIndex(manifest, enabled);
+  const file = useQuery({
+    queryKey: ['symbol-categories', manifest?.set, manifest?.categories],
+    queryFn: () =>
+      manifest?.categories
+        ? getJson(SET_BASE[manifest.set] + manifest.categories, CategoryFileSchema)
+        : Promise.resolve(null),
+    enabled: enabled && manifest !== undefined,
+    staleTime: Infinity,
+    retry: 1,
+  });
+  const built = useMemo(() => {
+    if (!index.data || !file.data) return { tree: null, broken: false };
+    try {
+      return { tree: new CategoryTree(file.data, index.data), broken: false };
+    } catch (err) {
+      console.warn('category tree rejected', err);
+      return { tree: null, broken: true };
+    }
+  }, [index.data, file.data]);
+  return {
+    tree: built.tree,
+    /** The set has no category tree (built before F2 step 6). */
+    missing: file.data === null,
+    isPending: index.isPending || file.isPending,
+    isError: index.isError || file.isError || built.broken,
   };
 }
 

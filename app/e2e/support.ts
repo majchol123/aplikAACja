@@ -87,12 +87,14 @@ export async function mockArasaac(page: Page, { withStarter = false } = {}) {
     ? { ...vectors, items: [...vectors.items, ...starterItems().filter((i) => !known.has(i.id))] }
     : vectors;
   const forms = readFileSync(resolve(VECTORS, 'sample-forms.json'));
+  const categories = readFileSync(resolve(VECTORS, 'sample-categories.json'));
   const manifest = {
     v: 1,
     set: 'arasaac',
     name: 'ARASAAC',
     index: 'index.00000000.json',
     forms: 'forms.00000000.json',
+    categories: 'categories.00000000.json',
     count: index.items.length,
   };
   await page.route('**/sym/arasaac/**', (route) => {
@@ -101,6 +103,8 @@ export async function mockArasaac(page: Page, { withStarter = false } = {}) {
     if (path.endsWith('/index.00000000.json')) return route.fulfill({ json: index });
     if (path.endsWith('/forms.00000000.json'))
       return route.fulfill({ body: forms, contentType: 'application/json' });
+    if (path.endsWith('/categories.00000000.json'))
+      return route.fulfill({ body: categories, contentType: 'application/json' });
     if (path.endsWith('.webp'))
       return route.fulfill({ body: TINY_WEBP, contentType: 'image/webp' });
     return route.fulfill({ status: 404 });

@@ -9,40 +9,46 @@
       "f": "p/2462.3a5da7de.webp",
       "k": ["jabłko"],
       "r": "noun",
-      "x": 1
+      "x": 1,
+      "g": [3]
     },
     {
       "id": 2727,
       "f": "p/2727.55198fad.webp",
       "k": ["nos"],
-      "r": "noun"
+      "r": "noun",
+      "g": [7]
     },
     {
       "id": 5000,
       "f": "p/5000.74c8fcdc.webp",
       "k": ["całować"],
       "r": "verb",
-      "x": 2
+      "x": 2,
+      "g": [11]
     },
     {
       "id": 5001,
       "f": "p/5001.f80fa7f9.webp",
       "k": ["bić"],
       "r": "verb",
-      "x": 4
+      "x": 4,
+      "g": [10]
     },
     {
       "id": 6061,
       "f": "p/6061.88be0fc6.webp",
       "k": ["pić"],
       "r": "verb",
-      "x": 1
+      "x": 1,
+      "g": [5, 10]
     },
     {
       "id": 7000,
       "f": "p/7000.bc98605b.webp",
       "k": ["dzień dobry"],
-      "r": "social"
+      "r": "social",
+      "g": [9]
     },
     {
       "id": 7001,
@@ -60,19 +66,22 @@
       "id": 9057,
       "f": "p/9057.4e94c0f2.webp",
       "k": ["ciasto", "ciasto z jabłkami"],
-      "r": "noun"
+      "r": "noun",
+      "g": [4]
     },
     {
       "id": 11403,
       "f": "p/11403.f2980a5b.webp",
       "k": ["sok jabłkowy"],
-      "r": "noun"
+      "r": "noun",
+      "g": [3, 5]
     },
     {
       "id": 30000,
       "f": "p/30000.934ffa4a.webp",
       "k": ["nos"],
-      "r": "noun"
+      "r": "noun",
+      "g": [7]
     }
   ]
 }

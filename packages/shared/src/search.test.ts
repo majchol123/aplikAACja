@@ -14,7 +14,7 @@ const extra: SymbolIndex = {
   set: 'extra',
   name: 'Dodatkowy',
   items: [
-    { id: 1, f: 'x/1.0000abcd.webp', k: ['jabłko'], r: 'noun', c: 'Jedzenie' },
+    { id: 1, f: 'x/1.0000abcd.webp', k: ['jabłko'], r: 'noun', g: [1] },
     { id: 2, f: 'x/2.0000abcd.webp', k: ['seks'], r: 'noun', x: 2 },
   ],
 };
@@ -116,7 +116,11 @@ describe('SymbolSearch', () => {
     expect(search.search('jab', { ...ALL, limit: 1 })).toHaveLength(1);
   });
 
-  it('carries the extra set category for display', () => {
-    expect(search.search('jablko', { ...ALL, sets: ['extra'] })[0]!.category).toBe('Jedzenie');
+  it('still reads an extra set built before category folders (one category name per item)', () => {
+    const legacy = SymbolIndexSchema.parse({
+      ...extra,
+      items: [{ id: 1, f: 'x/1.0000abcd.webp', k: ['jabłko'], r: 'noun', c: 'Jedzenie' }],
+    });
+    expect(legacy.items[0]).toEqual({ id: 1, f: 'x/1.0000abcd.webp', k: ['jabłko'], r: 'noun' });
   });
 });

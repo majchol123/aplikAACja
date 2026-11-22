@@ -146,9 +146,9 @@ test('a photo is cropped, stored without its GPS position, used, found and delet
   await dialog(page).getByLabel('Etykieta').fill('jablk');
   const results = dialog(page).getByTestId('symbol-results').getByRole('button');
   await expect(results.first()).toHaveAccessibleName(
-    'Jabłko z ogrodu (moje zdjęcie), ulubiony wariant',
+    'Jabłko z ogrodu, Moje zdjęcia, ulubiony wariant',
   );
-  await expect(results.nth(1)).toHaveAccessibleName(/^jabłko \(ARASAAC, nr 2462\)$/);
+  await expect(results.nth(1)).toHaveAccessibleName(/^jabłko, ARASAAC, nr 2462$/);
   await dialog(page).getByRole('button', { name: 'Anuluj' }).click();
 
   // Settings: where it is used; deleting leaves the tile with its label only.

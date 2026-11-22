@@ -115,6 +115,12 @@ describe('/sym/extra/* gate', () => {
     expect(extraFile(`${ORIGIN}/sym/extra/forms.0123abcd.json`)).toBe('forms.0123abcd.json');
     expect(extraFile(`${ORIGIN}/sym/extra/index.0123abcd.json`)).toBe('index.0123abcd.json');
     expect(extraFile(`${ORIGIN}/sym/extra/x/15028.0123abcd.webp`)).toBe('x/15028.0123abcd.webp');
+    expect(extraFile(`${ORIGIN}/sym/extra/categories.0123abcd.json`)).toBe(
+      'categories.0123abcd.json',
+    );
+    expect(extraFile(`${ORIGIN}/sym/extra/g/3.0123abcd.webp`)).toBe('g/3.0123abcd.webp');
+    expect(extraFile(`${ORIGIN}/sym/extra/g/3.0123abcd.json`)).toBeNull();
+    expect(extraFile(`${ORIGIN}/sym/extra/categories.json`)).toBeNull();
     expect(extraFile(`${ORIGIN}/sym/extra/p/1.0123abcd.webp`)).toBeNull();
     expect(extraFile(`${ORIGIN}/sym/arasaac/manifest.json`)).toBeNull();
   });

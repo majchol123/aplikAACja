@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 import pytest
-from conftest import CATALOG, SHARED_VECTORS, FakeHttp
+from conftest import CATALOG, CATEGORY_TREE, SHARED_VECTORS, FakeHttp
 
 from relaacja_tools import arasaac
 from relaacja_tools.symbolset import FLAG_AAC, FLAG_SEX, FLAG_VIOLENCE, load_index, read_manifest
@@ -17,6 +17,11 @@ def build(tmp_path: Path, http: FakeHttp, **kw: object) -> dict:
 
 def set_dir(tmp_path: Path) -> Path:
     return tmp_path / "out" / arasaac.SET_DIR
+
+
+def categories(tmp_path: Path) -> dict:
+    name = read_manifest(set_dir(tmp_path))["categories"]
+    return json.loads((set_dir(tmp_path) / name).read_text("utf-8"))
 
 
 def test_index_contents(tmp_path: Path) -> None:
@@ -119,6 +124,11 @@ def test_sample_index_matches_shared_vector(tmp_path: Path) -> None:
         golden.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", "utf-8")
     assert json.loads(golden.read_text("utf-8")) == index
     assert read_manifest(set_dir(tmp_path))["index"].startswith("index.")
+    tree = categories(tmp_path)
+    golden = SHARED_VECTORS / "sample-categories.json"
+    if os.environ.get("UPDATE_GOLDEN"):
+        golden.write_text(json.dumps(tree, ensure_ascii=False, indent=2) + "\n", "utf-8")
+    assert json.loads(golden.read_text("utf-8")) == tree
 
 
 def test_http_get_refuses_other_schemes() -> None:
@@ -146,3 +156,89 @@ def test_sexuality_filter_covers_categories_not_only_the_sex_field() -> None:
     }
     assert {i for i, f in flags.items() if f & FLAG_SEX} == {1, 2, 3}
     assert flags[5] == FLAG_VIOLENCE
+
+
+def test_category_tree_keeps_order_and_drops_empty_folders(tmp_path: Path) -> None:
+    build(tmp_path, FakeHttp())
+    nodes = categories(tmp_path)["nodes"]
+    by_name = {n["n"]: n for n in nodes}
+    # Tree order, parents first; "Pusta" and its child have no pictograms.
+    assert [n["n"] for n in nodes] == [
+        "Odżywianie się",
+        "Jedzenie",
+        "Owoce",
+        "Deser",
+        "Napój",
+        "Organizmy żywe",
+        "Twarz",
+        "Komunikacja",
+        "Powitanie",
+        "Czasownik",
+        "Seksualność",
+    ]
+    assert [n["id"] for n in nodes] == list(range(1, 12))
+    assert "p" not in by_name["Odżywianie się"]
+    assert by_name["Owoce"]["p"] == by_name["Jedzenie"]["id"]
+    assert by_name["Jedzenie"]["p"] == by_name["Odżywianie się"]["id"]
+
+    items = {i["id"]: i for i in load_index(set_dir(tmp_path))["items"]}
+    ids = {name: n["id"] for name, n in by_name.items()}
+    assert items[11403]["g"] == sorted([ids["Owoce"], ids["Napój"]])
+    assert items[9057]["g"] == [ids["Deser"]]  # repeated key listed once
+    assert "g" not in items[7001]  # no categories
+    assert "g" not in items[7002]  # only a key the tree does not know
+
+
+def test_category_icons_prefer_core_vocabulary_and_skip_filtered_symbols(tmp_path: Path) -> None:
+    build(tmp_path, FakeHttp())
+    icons = {n["n"]: n["i"] for n in categories(tmp_path)["nodes"]}
+    assert icons["Owoce"] == 2462  # aac among the folder's own symbols
+    assert icons["Jedzenie"] == 2462  # inner folder: from its subfolders
+    assert icons["Napój"] == 6061
+    assert icons["Czasownik"] == 6061  # not 5001 "bić" (violence), though its id is lower
+    assert icons["Seksualność"] == 5000  # only filtered symbols: the folder is hidden anyway
+
+
+def test_category_icon_named_like_the_folder_wins() -> None:
+    def picto(_id: int, word: str, flags: int = 0) -> arasaac.Pictogram:
+        return arasaac.Pictogram(_id, (word,), "noun", flags, "", ("fruit",))
+
+    members = [picto(1, "gruszka", FLAG_AAC), picto(2, "Owoce"), picto(3, "owoce", FLAG_AAC)]
+    assert arasaac.pick_icon("Owoce", members, members) == 3
+
+
+def test_category_tree_falls_back_to_the_previous_copy(tmp_path: Path) -> None:
+    build(tmp_path, FakeHttp())
+    before = read_manifest(set_dir(tmp_path))["categories"]
+    for broken in (b"", b"<html>maintenance</html>", b'{"data": []}'):
+        build(tmp_path, FakeHttp(categories=broken))
+        assert read_manifest(set_dir(tmp_path))["categories"] == before
+
+
+def test_refuses_mirror_without_any_category_tree(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="category tree unavailable"):
+        build(tmp_path, FakeHttp(categories=b""))
+    assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"data": {"a": {"text": "A", "children": {"a": {"text": "again"}}}}},  # repeated key
+        {"data": {"a": {"text": "A", "children": ["b"]}}},  # children not an object
+        {"data": {}},
+        {"locale": "pl"},
+    ],
+)
+def test_category_tree_shape_is_checked(payload: dict) -> None:
+    with pytest.raises(ValueError, match="category tree"):
+        arasaac.parse_category_tree(payload)
+
+
+def test_category_tree_depth_is_limited() -> None:
+    tree: dict = {"text": "leaf"}
+    for level in range(arasaac.MAX_CATEGORY_DEPTH + 1):
+        tree = {"text": f"n{level}", "children": {f"k{level}": tree}}
+    with pytest.raises(ValueError, match="too deep"):
+        arasaac.parse_category_tree({"data": {"root": tree}})
+    assert len(CATEGORY_TREE["data"]) == 5
