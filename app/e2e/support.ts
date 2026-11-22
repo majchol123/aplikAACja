@@ -45,7 +45,8 @@ export async function devLogin(page: Page, who: { sub: string; email: string; na
 /** A fresh account per test run and project (tests change saved state). */
 export async function freshLogin(page: Page, name: string): Promise<string> {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const sub = `e2e-${slug}-${test.info().project.name}-${Date.now()}`;
+  // Random part: repeated or parallel runs of one test may start in the same millisecond.
+  const sub = `e2e-${slug}-${test.info().project.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await devLogin(page, { sub, email: `${sub}@example.com`, name });
   return sub;
 }

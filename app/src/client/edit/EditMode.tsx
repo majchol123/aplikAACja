@@ -10,7 +10,7 @@ import { GearIcon, GridIcon, OpenIcon, PlusIcon } from '../comm/icons.tsx';
 import { TileView } from '../comm/TileView.tsx';
 import { useAccountSettings } from '../settings/account.ts';
 import { InboxDialog } from '../shares/InboxDialog.tsx';
-import { SendDialog } from '../shares/SendDialog.tsx';
+import { ShareDialog } from '../shares/ShareDialog.tsx';
 import { useShares } from '../shares/data.ts';
 import { BoardDialog } from './BoardDialog.tsx';
 import { TileEditor } from './TileEditor.tsx';
@@ -98,7 +98,7 @@ export function EditMode({
   const writes = useBoardWrites();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [boardDialog, setBoardDialog] = useState(false);
-  const [sharing, setSharing] = useState<'send' | 'inbox' | null>(null);
+  const [sharing, setSharing] = useState<'share' | 'inbox' | null>(null);
   const shares = useShares();
   const received = shares.data?.received.length ?? 0;
 
@@ -133,11 +133,11 @@ export function EditMode({
           type="button"
           onClick={() => {
             writes.dismiss();
-            setSharing('send');
+            setSharing('share');
           }}
           className="rounded-full border border-brand-700 bg-white px-4 py-2 font-semibold text-brand-800 hover:bg-brand-50"
         >
-          Wyślij kopię
+          Udostępnij
         </button>
         {received > 0 && (
           <button
@@ -216,7 +216,15 @@ export function EditMode({
           onOpenFolder={onBoardChange}
         />
       )}
-      {sharing === 'send' && <SendDialog me={me} board={board} onClose={() => setSharing(null)} />}
+      {sharing === 'share' && (
+        <ShareDialog
+          me={me}
+          tree={tree}
+          board={board}
+          resolve={resolve}
+          onClose={() => setSharing(null)}
+        />
+      )}
       {sharing === 'inbox' && (
         <InboxDialog me={me} board={board} onClose={() => setSharing(null)} />
       )}

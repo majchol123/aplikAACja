@@ -1,4 +1,4 @@
-import { MEDIA_LIMITS } from '@relaacja/shared';
+import { IMPORT_BODY_LIMIT, MEDIA_LIMITS } from '@relaacja/shared';
 
 /**
  * Single source of truth for every API route and who may call it. Routes can only be
@@ -52,6 +52,13 @@ export const ROUTES = {
   patchTile: { method: 'PATCH', path: '/api/tiles/:id', access: 'user' },
   deleteTile: { method: 'DELETE', path: '/api/tiles/:id', access: 'user' },
   moveTile: { method: 'POST', path: '/api/tiles/move', access: 'user' },
+  // A board read from a file (F6): a package of up to SHARE_LIMITS, parsed by the vault.
+  importPackage: {
+    method: 'POST',
+    path: '/api/boards/:id/import',
+    access: 'user',
+    maxBody: IMPORT_BODY_LIMIT,
+  },
   // Preferred variant of a word (PLAN §2.2).
   getPreferredSymbols: { method: 'GET', path: '/api/symbols/preferred', access: 'user' },
   putPreferredSymbol: { method: 'PUT', path: '/api/symbols/preferred', access: 'user' },

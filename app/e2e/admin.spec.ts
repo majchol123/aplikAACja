@@ -49,6 +49,10 @@ test('admin panel: statistics, data view, blocking and hard delete of an account
   const sub = await freshLogin(target, 'Konto testowe');
   const email = `${sub}@example.com`;
   await seedAccount(target);
+  const targetId = await target.evaluate(async () => {
+    const me = (await (await fetch('/api/me')).json()) as { id: string };
+    return me.id;
+  });
   await target.reload();
   await expect(target.getByTestId('board-grid')).toBeVisible();
 
@@ -92,7 +96,9 @@ test('admin panel: statistics, data view, blocking and hard delete of an account
   await preview.getByRole('button', { name: 'Zdjęcia' }).click();
   const photo = preview.getByRole('img', { name: 'Dom' });
   await expect(photo).toBeVisible();
-  expect(await photo.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  await expect
+    .poll(() => photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+    .toBeGreaterThan(0);
   await preview.getByRole('button', { name: 'Ustawienia' }).click();
   await expect(preview).toContainText('ARASAAC, Własne zdjęcia');
   axe = await new AxeBuilder({ page }).include('dialog').analyze();
@@ -122,8 +128,11 @@ test('admin panel: statistics, data view, blocking and hard delete of an account
   await expect(row).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Dziennik zdarzeń' }).click();
+  // The log is shared with tests running at the same time: find this account's entry.
   const log = page.getByRole('table', { name: 'Dziennik zdarzeń' });
-  await expect(log.getByRole('row').nth(1)).toContainText('Usunięcie konta');
-  await expect(log.getByRole('row').nth(1)).toContainText('konto usunięte');
+  const gone = log
+    .getByRole('row')
+    .filter({ hasText: `konto usunięte (${targetId.slice(0, 6)}…)` });
+  await expect(gone.filter({ hasText: 'Usunięcie konta' })).toHaveCount(1);
   await other.close();
 });

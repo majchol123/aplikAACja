@@ -2,6 +2,10 @@ import { DurableObject } from 'cloudflare:workers';
 import {
   BoardPackageSchema,
   DEFAULT_SETTINGS,
+  ImportPackageSchema,
+  treeShape,
+  type ImportPackage,
+  type TemplateBoard,
   SettingsSchema,
   SHARE_LIMITS,
   type SentShare,
@@ -281,6 +285,41 @@ export class UserVault extends DurableObject<AppEnv> {
         },
       };
     });
+  }
+
+  /**
+   * A package read from a file (`body`: ImportPackageSchema as JSON, parsed here rather
+   * than in the Worker, whose CPU time per request is short) becomes a new folder on board
+   * `boardId`. Its photos were uploaded first; own symbols naming no photo of this vault
+   * keep their label only.
+   */
+  importPackage(boardId: string, body: string): Counted<BoardChanges> | BoardError | RateLimited {
+    if (!this.spendWrite()) return RATE_LIMITED;
+    let input: ImportPackage;
+    try {
+      const parsed = ImportPackageSchema.safeParse(JSON.parse(body));
+      if (!parsed.success) return { error: 'invalid_request' };
+      input = parsed.data;
+    } catch {
+      return { error: 'invalid_request' };
+    }
+    const shape = treeShape(input.package.board, input.package.name, { allowOwn: true });
+    if (shape.boards > SHARE_LIMITS.maxBoards || shape.tiles > SHARE_LIMITS.maxTiles) {
+      return { error: 'invalid_request' };
+    }
+    const own = new Set<string>();
+    const collect = (board: TemplateBoard): void => {
+      for (const tile of board.tiles) {
+        if (tile.symbol?.set === 'own') own.add(tile.symbol.ref);
+        if (tile.board) collect(tile.board);
+      }
+    };
+    collect(input.package.board);
+    if (input.package.tile?.symbol?.set === 'own') own.add(input.package.tile.symbol.ref);
+    const result = this.boards.importPackage(boardId, input.rev, input.package, () =>
+      this.media.existing([...own]),
+    );
+    return this.counted(result);
   }
 
   /** A share from another account arrives; false when it was dropped (inbox full). */

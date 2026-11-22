@@ -90,6 +90,14 @@ const EXPECTED: Record<string, Row> = {
     status: ownedByA,
   },
   'DELETE /api/tiles/:id': { path: (f) => `/api/tiles/${f.tileId}?rev=2`, status: ownedByA },
+  'POST /api/boards/:id/import': {
+    path: (f) => `/api/boards/${f.boardId}/import`,
+    body: {
+      rev: 2,
+      package: { v: 1, name: 'Plik', board: { rows: 1, cols: 1, tiles: [] } },
+    },
+    status: ownedByA,
+  },
   'POST /api/tiles/move': {
     body: (f) => ({ tileId: f.tileId, rev: 2, toBoardId: f.boardId, row: 3, col: 4 }),
     status: ownedByA,

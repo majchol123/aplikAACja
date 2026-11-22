@@ -70,8 +70,8 @@ test('a board is sent to another account, looked at and accepted there', async (
   await seed(page);
   await page.reload();
   await holdEditLock(page);
-  await page.getByRole('button', { name: 'Wyślij kopię' }).click();
-  const send = page.getByRole('dialog', { name: 'Wyślij kopię tablicy „Start”' });
+  await page.getByRole('button', { name: 'Udostępnij' }).click();
+  const send = page.getByRole('dialog', { name: 'Udostępnij tablicę „Start”' });
   await send
     .getByRole('textbox', { name: /Adres e-mail konta odbiorcy/ })
     .fill(`${to}@example.com`);
@@ -82,7 +82,7 @@ test('a board is sent to another account, looked at and accepted there', async (
   await send.getByRole('button', { name: 'Wyślij', exact: true }).click();
   await expect(send.getByRole('status')).toContainText('Wysłano na adres nikt@example.com.');
   await expect(send.getByRole('status')).toContainText('Jeśli konto z tym adresem istnieje');
-  await send.getByRole('button', { name: 'Zamknij' }).click();
+  await send.getByRole('button', { name: 'Zamknij', exact: true }).click();
 
   // The recipient finds it in edit mode, looks at it and adds it to the home board.
   await recipient.reload();
@@ -95,9 +95,11 @@ test('a board is sent to another account, looked at and accepted there', async (
   await item.getByRole('button', { name: 'Otwórz folder Jedzenie' }).click();
   const soup = item.getByRole('button', { name: 'zupa' });
   await expect(soup).toBeVisible();
-  expect(
-    await soup.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth),
-  ).toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      soup.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth),
+    )
+    .toBeGreaterThan(0);
   const axe = await new AxeBuilder({ page: recipient }).include('dialog').analyze();
   expect(axe.violations).toEqual([]);
   await item.getByRole('button', { name: 'Dodaj na tablicę „Start”' }).click();
@@ -116,6 +118,58 @@ test('a board is sent to another account, looked at and accepted there', async (
   );
   await expect(sent.getByRole('listitem').filter({ hasText: 'nikt@example.com' })).toContainText(
     'czeka na decyzję',
+  );
+  await other.close();
+});
+
+test('a board is saved to an Open Board file and read back on another account', async ({
+  page,
+  browser,
+}) => {
+  await mockArasaac(page);
+  await freshLogin(page, 'Zapis do pliku');
+  await seed(page);
+  await page.reload();
+  await holdEditLock(page);
+  await page.getByRole('button', { name: 'Udostępnij' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Udostępnij tablicę „Start”' });
+  const saving = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Zapisz tę tablicę do pliku' }).click();
+  const file = await saving;
+  expect(file.suggestedFilename()).toBe('Start.obz');
+  await expect(dialog.getByRole('status')).toHaveText('Zapisano plik Start.obz.');
+  const path = await file.path();
+
+  const other = await browser.newContext({ serviceWorkers: 'block' });
+  const reader = await other.newPage();
+  await mockArasaac(reader);
+  await freshLogin(reader, 'Odczyt z pliku');
+  await seed(reader, { empty: true });
+  await reader.reload();
+  await holdEditLock(reader);
+  await reader.getByRole('button', { name: 'Udostępnij' }).click();
+  const load = reader.getByRole('dialog', { name: 'Udostępnij tablicę „Start”' });
+  await load.locator('input[type="file"]').setInputFiles(path);
+  await expect(load.getByTestId('file-summary')).toHaveText(
+    /„Start”: 2 tablice, 2 kafelki, 1 zdjęcie/,
+  );
+  await load.getByRole('button', { name: 'Dodaj na tablicę „Start”' }).click();
+  await expect(load.getByRole('status')).toHaveText('Dodano folder „Start” na tablicy „Start”.');
+  await load.getByRole('button', { name: 'Zamknij', exact: true }).click();
+  await reader.getByRole('button', { name: 'Otwórz folder Start' }).click();
+  await reader.getByRole('button', { name: 'Otwórz folder Jedzenie' }).click();
+  const soup = reader.getByRole('button', { name: /^Zmień kafelek: zupa$/ });
+  await expect(soup.locator('img')).toHaveAttribute('src', /^\/api\/media\//);
+  // Garbage is refused with a message, nothing changes.
+  await reader.getByRole('button', { name: 'Udostępnij' }).click();
+  const again = reader.getByRole('dialog', { name: 'Udostępnij tablicę „Jedzenie”' });
+  await again.locator('input[type="file"]').setInputFiles({
+    name: 'zly.obz',
+    mimeType: 'application/zip',
+    buffer: Buffer.from('nie zip'),
+  });
+  await expect(again.getByRole('alert')).toHaveText(
+    'To nie jest plik .obz ani .obf (Open Board Format).',
   );
   await other.close();
 });

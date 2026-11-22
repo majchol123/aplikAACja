@@ -11,7 +11,7 @@ import {
 } from '@relaacja/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { vaultFor, type UserVault } from '../src/worker/vault/user-vault.ts';
-import { apiAs, insertUser, makeApp, sessionCookie, uploadAs } from './helpers.ts';
+import { apiAs, insertUser, makeApp, sessionCookie, uploadAs, writeHeaders } from './helpers.ts';
 import { webp } from './images.ts';
 
 const { call } = makeApp();
@@ -353,5 +353,107 @@ describe('sharing: refusals and limits', () => {
     // A call into the wiped vault would have failed in the background and been logged.
     expect(errors).not.toHaveBeenCalled();
     errors.mockRestore();
+  });
+});
+
+describe('a board read from a file (POST /api/boards/:id/import)', () => {
+  const pkg = (symbolRef: string) => ({
+    v: 1,
+    name: 'Z pliku',
+    tile: {
+      labelPosition: 'bottom',
+      fontSize: 'M',
+      colorRole: 'verb',
+      colorMode: 'background',
+      symbol: null,
+    },
+    board: {
+      rows: 1,
+      cols: 2,
+      tiles: [
+        { row: 0, col: 0, label: 'moje', symbol: { set: 'own', ref: symbolRef } },
+        { row: 0, col: 1, label: 'obce', symbol: { set: 'own', ref: 'z'.repeat(26) } },
+      ],
+    },
+  });
+
+  it('becomes a new folder; photos it names must be the account’s own', async () => {
+    const user = await account();
+    const start = await home(user, 1, 2);
+    const photo = await uploadAs(call, user.cookie)<{ media: { id: string } }>('Moje', webp(8, 8));
+    const res = await user.api<BoardChanges>('POST', `/api/boards/${start.id}/import`, {
+      rev: start.rev,
+      package: pkg(photo.body.media.id),
+    });
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty('totals');
+    const tree = (await user.api<BoardTree>('GET', '/api/boards')).body;
+    const folder = tree.boards.find((b) => b.id === start.id)!.tiles[0]!;
+    expect(folder).toMatchObject({ kind: 'folder', label: 'Z pliku', colorRole: 'verb' });
+    const copy = tree.boards.find((b) => b.id === folder.targetBoardId)!;
+    expect(copy.tiles.map((t) => [t.label, t.symbol])).toEqual([
+      ['moje', { set: 'own', ref: photo.body.media.id }],
+      ['obce', null],
+    ]);
+    // Another account's photo ID is as unknown as a made-up one.
+    const other = await account();
+    const otherHome = await home(other);
+    const stolen = await other.api<BoardChanges>('POST', `/api/boards/${otherHome.id}/import`, {
+      rev: otherHome.rev,
+      package: pkg(photo.body.media.id),
+    });
+    const otherTree = (await other.api<BoardTree>('GET', '/api/boards')).body;
+    const otherCopy = otherTree.boards.find((b) => b.parentId === otherHome.id)!;
+    expect(stolen.status).toBe(200);
+    expect(otherCopy.tiles.every((t) => t.symbol === null)).toBe(true);
+  });
+
+  it('refuses malformed, oversized and stale imports', async () => {
+    const user = await account();
+    const start = await home(user, 1, 2);
+    const path = `/api/boards/${start.id}/import`;
+    expect((await user.api('POST', path, { rev: start.rev })).status).toBe(400);
+    expect(
+      (await user.api('POST', path, { rev: start.rev, package: { ...pkg('x'), v: 2 } })).status,
+    ).toBe(400);
+    const wide = {
+      ...pkg('a'.repeat(26)),
+      board: {
+        rows: 12,
+        cols: 12,
+        tiles: Array.from({ length: 144 }, (_, i) => ({
+          row: Math.floor(i / 12),
+          col: i % 12,
+          kind: 'folder',
+          label: `f${i}`,
+          board: {
+            rows: 12,
+            cols: 12,
+            tiles: Array.from({ length: 13 }, (_, j) => ({
+              row: 0,
+              col: j % 12,
+              label: `w${j}`,
+            })),
+          },
+        })),
+      },
+    };
+    // More than 100 boards (and a duplicate cell): refused before anything is written.
+    expect((await user.api('POST', path, { rev: start.rev, package: wide })).status).toBe(400);
+    expect(
+      (await user.api('POST', path, { rev: start.rev + 3, package: pkg('x'.repeat(26)) })).status,
+    ).toBe(409);
+    const res = await call(path, {
+      method: 'POST',
+      headers: { ...writeHeaders(user.cookie) },
+      body: 'x'.repeat(3 * 1024 * 1024),
+    });
+    expect(res.status).toBe(413);
+    const raw = await call(path, {
+      method: 'POST',
+      headers: { ...writeHeaders(user.cookie) },
+      body: '{not json',
+    });
+    expect(raw.status).toBe(400);
   });
 });

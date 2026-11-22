@@ -10,8 +10,8 @@ import {
   type PatchTile,
   type BoardPackage,
   type TemplateBoard,
-  type TemplateTile,
   type Tile,
+  subtreePackage,
   treeShape,
 } from '@relaacja/shared';
 import { newId } from '../lib/crypto.ts';
@@ -643,74 +643,14 @@ export class BoardStore {
   exportPackage(
     boardId: string,
   ): { package: BoardPackage; boards: number; tiles: number; photoIds: string[] } | BoardError {
-    const root = this.board(boardId);
-    if (!root) return { error: 'not_found' };
-    const ids = this.subtree(boardId);
-    const marks = ids.map(() => '?').join(', ');
-    const rows = new Map(
-      this.sql
-        .exec<BoardRow>(`SELECT ${BOARD_COLUMNS} FROM boards WHERE id IN (${marks})`, ...ids)
-        .toArray()
-        .map((b) => [b.id, b]),
-    );
-    const tilesOf = this.tilesByBoard(
-      this.sql
-        .exec<TileRow>(
-          `SELECT ${TILE_COLUMNS} FROM tiles WHERE board_id IN (${marks}) ORDER BY board_id, row, col`,
-          ...ids,
-        )
-        .toArray(),
-    );
-    const photos = new Set<string>();
-    let tiles = 0;
-    const build = (board: BoardRow): TemplateBoard => ({
-      rows: board.rows,
-      cols: board.cols,
-      tiles: (tilesOf.get(board.id) ?? []).map((tile): TemplateTile => {
-        tiles++;
-        if (tile.symbol?.set === 'own') photos.add(tile.symbol.ref);
-        const target = tile.targetBoardId ? rows.get(tile.targetBoardId) : undefined;
-        return {
-          row: tile.row,
-          col: tile.col,
-          kind: tile.kind,
-          label: tile.label,
-          labelPosition: tile.labelPosition,
-          fontSize: tile.fontSize,
-          colorRole: tile.colorRole,
-          colorMode: tile.colorMode,
-          symbol: tile.symbol,
-          ...(target ? { board: build(target) } : {}),
-        };
-      }),
-    });
-    const board = build(root);
+    if (!this.board(boardId)) return { error: 'not_found' };
+    const boards = new Map(this.readBoards(this.subtree(boardId)).map((b) => [b.id, b]));
     const opener = this.sql
       .exec<TileRow>(`SELECT ${TILE_COLUMNS} FROM tiles WHERE target_board_id = ?`, boardId)
       .toArray()[0];
-    const look = opener ? toTile(opener) : undefined;
-    if (look?.symbol?.set === 'own') photos.add(look.symbol.ref);
-    return {
-      package: {
-        v: 1,
-        name: root.name,
-        ...(look
-          ? {
-              tile: {
-                labelPosition: look.labelPosition,
-                fontSize: look.fontSize,
-                colorRole: look.colorRole,
-                colorMode: look.colorMode,
-                symbol: look.symbol,
-              },
-            }
-          : {}),
-        board,
-      },
-      boards: rows.size,
-      tiles,
-      photoIds: [...photos],
-    };
+    return (
+      subtreePackage(boards, boardId, opener ? toTile(opener) : null) ?? { error: 'not_found' }
+    );
   }
 
   /**

@@ -87,6 +87,18 @@ export async function getBoardTree(c: Ctx): Promise<Response> {
   return c.body(json, 200, { 'Content-Type': 'application/json; charset=utf-8', ETag: etag });
 }
 
+/**
+ * POST /api/boards/:id/import `{rev, package}` — a board read from a file. The body is
+ * handed to the vault unparsed (parsing a large package would eat the Worker's CPU time).
+ */
+export async function importPackage(c: Ctx): Promise<Response> {
+  const id = pathId(c);
+  if (!id) return notFound(c);
+  const body = await c.req.text();
+  if (!body) return invalid(c);
+  return answer(c, await vault(c).importPackage(id, body));
+}
+
 export async function createHomeBoard(c: Ctx): Promise<Response> {
   const input = await readBody(c, CreateHomeSchema);
   if (!input) return invalid(c);

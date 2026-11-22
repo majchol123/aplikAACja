@@ -33,8 +33,9 @@ export function SharesPanel() {
         Udostępnione tablice
       </h2>
       <p className="mt-1 text-slate-600">
-        Kopię tablicy wysyłasz w trybie edycji przyciskiem „Wyślij kopię”. Otrzymane tablice
-        dodajesz tam przyciskiem „Otrzymane”, na tablicy, na której mają się pojawić.
+        Kopię tablicy wysyłasz (albo zapisujesz do pliku) w trybie edycji przyciskiem „Udostępnij”.
+        Otrzymane tablice dodajesz tam przyciskiem „Otrzymane”, na tablicy, na której mają się
+        pojawić.
       </p>
 
       <h3 className="mt-4 font-semibold text-slate-800">Otrzymane</h3>

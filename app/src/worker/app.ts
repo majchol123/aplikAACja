@@ -333,6 +333,7 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.patchTile, boards.patchTile);
   defineRoute(ROUTES.deleteTile, boards.deleteTile);
   defineRoute(ROUTES.moveTile, boards.moveTile);
+  defineRoute(ROUTES.importPackage, boards.importPackage);
   defineRoute(ROUTES.getPreferredSymbols, symbols.getPreferredSymbols);
   defineRoute(ROUTES.putPreferredSymbol, symbols.putPreferredSymbol);
   defineRoute(ROUTES.getCategoryIcons, categories.getCategoryIcons);

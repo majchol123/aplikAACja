@@ -158,6 +158,18 @@ export class MediaStore {
       .toArray();
   }
 
+  /** The IDs of `ids` that are photos of this vault, each mapped to itself. */
+  existing(ids: string[]): Map<string, string> {
+    if (ids.length === 0) return new Map();
+    const marks = ids.map(() => '?').join(', ');
+    return new Map(
+      this.sql
+        .exec<{ id: string }>(`SELECT id FROM media WHERE id IN (${marks})`, ...ids)
+        .toArray()
+        .map((r) => [r.id, r.id]),
+    );
+  }
+
   /**
    * Stores the photos of an accepted package (inside the caller's transaction) and maps
    * their keys to media IDs here. A photo this vault already has (same bytes) is reused

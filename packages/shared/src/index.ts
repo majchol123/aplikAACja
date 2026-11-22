@@ -5,6 +5,7 @@ export * from './categories.ts';
 export * from './device.ts';
 export * from './media.ts';
 export * from './normalize.ts';
+export * from './obf.ts';
 export * from './preferred.ts';
 export * from './search.ts';
 export * from './settings.ts';

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ObjectIdSchema, type BoardPackage } from './boards.ts';
+import { BoardPackageSchema, ObjectIdSchema, type BoardPackage } from './boards.ts';
 import type { MediaType } from './media.ts';
 
 /**
@@ -32,6 +32,21 @@ export const AcceptShareSchema = z
   .object({ boardId: ObjectIdSchema, rev: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER) })
   .strict();
 export type AcceptShare = z.infer<typeof AcceptShareSchema>;
+
+/**
+ * POST /api/boards/:id/import: a package read from a file (obf.ts), its photos already
+ * uploaded (own symbols carry their media IDs), placed like an accepted share.
+ */
+export const ImportPackageSchema = z
+  .object({
+    rev: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+    package: BoardPackageSchema,
+  })
+  .strict();
+export type ImportPackage = z.infer<typeof ImportPackageSchema>;
+
+/** Body cap of that route: a package at SHARE_LIMITS is well below it. */
+export const IMPORT_BODY_LIMIT = 2 * 1024 * 1024;
 
 export type ShareStatus = 'pending' | 'accepted' | 'rejected' | 'expired';
 
