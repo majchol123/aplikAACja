@@ -112,3 +112,39 @@ export function apiAs(call: ReturnType<typeof makeApp>['call'], cookie: string) 
     return { status: res.status, body: (text ? JSON.parse(text) : null) as T, res };
   };
 }
+
+/** Write headers for a multipart body: the form sets Content-Type (with its boundary). */
+export function formHeaders(cookie?: string): Record<string, string> {
+  const headers = writeHeaders(cookie);
+  delete headers['Content-Type'];
+  return headers;
+}
+
+/** Multipart form of a photo upload, as the SPA builds it. */
+export function photoForm(
+  label: string | undefined,
+  image: Uint8Array | string,
+  type = 'image/webp',
+) {
+  const form = new FormData();
+  if (label !== undefined) form.set('label', label);
+  form.set('image', new File([image], 'zdjecie', { type }));
+  return form;
+}
+
+/** Photo upload for one session: CSRF headers, Content-Type (with boundary) from the form. */
+export function uploadAs(call: ReturnType<typeof makeApp>['call'], cookie: string) {
+  return async function upload<T = unknown>(
+    label: string | undefined,
+    image: Uint8Array | string,
+    type?: string,
+  ): Promise<{ status: number; body: T; res: Response }> {
+    const res = await call('/api/media', {
+      method: 'POST',
+      headers: formHeaders(cookie),
+      body: photoForm(label, image, type),
+    });
+    const text = await res.text();
+    return { status: res.status, body: (text ? JSON.parse(text) : null) as T, res };
+  };
+}

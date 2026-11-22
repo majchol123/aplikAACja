@@ -8,7 +8,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.ts';
 
-const KEY = ['preferred-symbols'] as const;
+export const PREFERRED_KEY = ['preferred-symbols'] as const;
+const KEY = PREFERRED_KEY;
 
 const toMap = (data: PreferredSymbols) =>
   new Map<string, SymbolRef>(data.items.map((i) => [i.word, i.symbol]));

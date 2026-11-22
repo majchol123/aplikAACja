@@ -1,6 +1,7 @@
 import { CSRF_HEADER } from '@relaacja/shared';
 import type { MiddlewareHandler } from 'hono';
 import type { AppContext } from '../context.ts';
+import { MULTIPART_ROUTES } from '../routes/registry.ts';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -11,7 +12,8 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  *  - exact Origin match (no prefix/suffix logic),
  *  - Sec-Fetch-Site, when the browser sends it, must be "same-origin",
  *  - custom header (forces a CORS preflight cross-origin, which we never grant),
- *  - JSON or image content type (or none for empty bodies).
+ *  - JSON content type (or none for empty bodies); multipart/form-data only on the
+ *    photo upload route (RouteDef.multipart).
  */
 export const csrfGuard: MiddlewareHandler<AppContext> = async (c, next) => {
   if (SAFE_METHODS.has(c.req.method)) return next();
@@ -23,7 +25,8 @@ export const csrfGuard: MiddlewareHandler<AppContext> = async (c, next) => {
   const bodyTypeOk =
     contentType === '' ||
     /^application\/json(;|$)/i.test(contentType) ||
-    /^image\/(webp|png|jpeg)$/i.test(contentType);
+    (MULTIPART_ROUTES.has(`${c.req.method} ${c.req.path}`) &&
+      /^multipart\/form-data;/i.test(contentType));
 
   if (
     origin !== c.env.APP_ORIGIN ||

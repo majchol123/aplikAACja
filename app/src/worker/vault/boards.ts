@@ -598,6 +598,36 @@ export class BoardStore {
     });
   }
 
+  /**
+   * Deletes an own photo. Tiles showing it keep their label only (their boards get a new
+   * revision); preferred variants pointing to it are forgotten.
+   */
+  removeMedia(mediaId: string): BoardChanges | BoardError {
+    return this.write((changes, now) => {
+      if (this.sql.exec('SELECT 1 FROM media WHERE id = ?', mediaId).toArray().length === 0) {
+        throw new Abort('not_found');
+      }
+      const boards = this.sql
+        .exec<{ board_id: string }>(
+          "SELECT DISTINCT board_id FROM tiles WHERE symbol_set = 'own' AND symbol_ref = ?",
+          mediaId,
+        )
+        .toArray();
+      for (const { board_id } of boards) changes.bumped.add(board_id);
+      this.sql.exec(
+        `UPDATE tiles SET symbol_set = NULL, symbol_ref = NULL, updated_at = ?
+          WHERE symbol_set = 'own' AND symbol_ref = ?`,
+        now,
+        mediaId,
+      );
+      this.sql.exec(
+        "DELETE FROM preferred_symbols WHERE symbol_set = 'own' AND symbol_ref = ?",
+        mediaId,
+      );
+      this.sql.exec('DELETE FROM media WHERE id = ?', mediaId);
+    });
+  }
+
   /** Invariant violations (empty when healthy). Used by tests and future admin checks. */
   integrity(): string[] {
     const problems: string[] = [];

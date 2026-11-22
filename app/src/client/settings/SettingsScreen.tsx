@@ -4,6 +4,7 @@ import { api } from '../api.ts';
 import { Library } from '../library/Library.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
 import { LockPanel } from './LockPanel.tsx';
+import { PhotosPanel } from './PhotosPanel.tsx';
 
 function goHome(): void {
   location.assign('/');
@@ -65,6 +66,7 @@ export function SettingsScreen({
         <DevicePanel />
         <LockPanel />
         <Library me={me} />
+        <PhotosPanel />
 
         {isAdmin && (
           <section

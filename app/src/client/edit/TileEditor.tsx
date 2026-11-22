@@ -11,19 +11,20 @@ import {
   type FontSize,
   type LabelPosition,
   type Me,
-  type SymbolHit,
   type SymbolRef,
   type Tile,
   type TileKind,
 } from '@relaacja/shared';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { useSetPreferred } from '../boards/preferred.ts';
 import type { BoardWrite } from '../boards/writes.ts';
 import { TileView } from '../comm/TileView.tsx';
+import { photoProblem, useUploadPhoto } from '../media/data.ts';
+import { PhotoCropper } from '../media/PhotoCropper.tsx';
 import { Dialog } from './Dialog.tsx';
 import { MovePanel } from './MovePanel.tsx';
-import { hitSymbol, SymbolPicker } from './SymbolPicker.tsx';
+import { SymbolPicker, type PickerItem } from './SymbolPicker.tsx';
 import { ui } from './ui.ts';
 
 export const ROLE_NAMES: Record<FitzgeraldRole, string> = {
@@ -163,20 +164,40 @@ export function TileEditor({
   const [query, setQuery] = useState<string | null>(null);
   // Keyword of the symbol picked from the search: becomes the word's preferred variant.
   const [picked, setPicked] = useState<{ word: string; symbol: SymbolRef } | null>(null);
-  const [step, setStep] = useState<'edit' | 'move' | 'confirm-delete' | 'confirm-word'>('edit');
+  const [step, setStep] = useState<'edit' | 'move' | 'photo' | 'confirm-delete' | 'confirm-word'>(
+    'edit',
+  );
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const upload = useUploadPhoto();
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  // Tablets and phones: the camera can be opened directly.
+  const touch = useMemo(() => matchMedia('(pointer: coarse)').matches, []);
   const [busy, setBusy] = useState(false);
   const [missingLabel, setMissingLabel] = useState(false);
 
   const change = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
-  const pick = (hit: SymbolHit) => {
-    const symbol = hitSymbol(hit);
-    setPicked({ word: hit.label, symbol });
+  const pick = (item: Pick<PickerItem, 'symbol' | 'word' | 'role'>) => {
+    setPicked({ word: item.word, symbol: item.symbol });
     setDraft((d) => ({
       ...d,
-      symbol,
-      label: d.label.trim() ? d.label : hit.label,
-      colorRole: autoColor ? hit.role : d.colorRole,
+      symbol: item.symbol,
+      label: d.label.trim() ? d.label : item.word,
+      colorRole: autoColor && item.role ? item.role : d.colorRole,
     }));
+  };
+
+  const choosePhoto = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // the same file can be picked again
+    if (!file) return;
+    upload.reset();
+    setPhotoFile(file);
+    setStep('photo');
+  };
+  const closePhoto = () => {
+    setPhotoFile(null);
+    setStep('edit');
   };
 
   const folderBoard = tile?.targetBoardId ? boards.get(tile.targetBoardId) : undefined;
@@ -264,6 +285,31 @@ export function TileEditor({
           }}
         />
         {errorBox}
+      </Dialog>
+    );
+  }
+
+  if (step === 'photo' && photoFile) {
+    return (
+      <Dialog title="Zdjęcie na kafelek" onClose={onClose} wide>
+        <PhotoCropper
+          file={photoFile}
+          initialLabel={draft.label.trim()}
+          busy={upload.isPending}
+          problem={upload.isError ? photoProblem(upload.error) : null}
+          onBack={closePhoto}
+          onUse={(label, image) =>
+            upload.mutate(
+              { label, image },
+              {
+                onSuccess: ({ media }) => {
+                  pick({ symbol: { set: 'own', ref: media.id }, word: media.label, role: null });
+                  closePhoto();
+                },
+              },
+            )
+          }
+        />
       </Dialog>
     );
   }
@@ -370,6 +416,33 @@ export function TileEditor({
                   Usuń obrazek
                 </button>
               )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {touch && (
+                <button
+                  type="button"
+                  className={ui.secondary}
+                  onClick={() => cameraRef.current?.click()}
+                >
+                  Zrób zdjęcie
+                </button>
+              )}
+              <button
+                type="button"
+                className={ui.secondary}
+                onClick={() => galleryRef.current?.click()}
+              >
+                Wybierz zdjęcie
+              </button>
+              <input
+                ref={cameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                onChange={choosePhoto}
+              />
+              <input ref={galleryRef} type="file" accept="image/*" hidden onChange={choosePhoto} />
             </div>
             <SymbolPicker
               me={me}

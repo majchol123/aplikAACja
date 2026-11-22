@@ -1,19 +1,40 @@
-import type { Me, SymbolHit, SymbolRef } from '@relaacja/shared';
+import {
+  labelMatches,
+  mediaUrl,
+  type FitzgeraldRole,
+  type Me,
+  type SymbolHit,
+  type SymbolRef,
+} from '@relaacja/shared';
 import { useDeferredValue, useId, useMemo } from 'react';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { isPreferred, usePreferredSymbols } from '../boards/preferred.ts';
 import { StarIcon } from '../comm/icons.tsx';
 import { ARASAAC_NOTE } from '../library/attribution.ts';
 import { useLibrary } from '../library/useLibrary.ts';
+import { useMediaList } from '../media/data.ts';
 import { ui } from './ui.ts';
 
 const LIMIT = 48;
 
-export const hitSymbol = (hit: SymbolHit): SymbolRef => ({ set: hit.set, ref: String(hit.id) });
+/** One picture to choose from: a library symbol or an own photo. */
+export interface PickerItem {
+  symbol: SymbolRef;
+  /** Keyword of the symbol or name of the photo: the word its preferred variant is for. */
+  word: string;
+  /** Part of speech (library symbols only). */
+  role: FitzgeraldRole | null;
+  src: string;
+  source: string;
+  description: string;
+}
+
+const key = (s: SymbolRef) => `${s.set}:${s.ref}`;
 
 /**
- * Library search showing every graphic variant of a word side by side (PLAN §2.2); the
- * variant picked last for a word comes first, marked with a star.
+ * Library search showing every graphic variant of a word side by side, own photos among
+ * them (PLAN §2.2); the variant picked last for a word comes first, marked with a star.
+ * With no query, the newest own photos are shown.
  */
 export function SymbolPicker({
   me,
@@ -26,29 +47,53 @@ export function SymbolPicker({
   query: string;
   onQuery: (query: string) => void;
   selected: SymbolRef | null;
-  onPick: (hit: SymbolHit) => void;
+  onPick: (item: PickerItem) => void;
 }) {
   const library = useLibrary(me);
+  const photos = useMediaList();
   const preferred = usePreferredSymbols();
   const deferred = useDeferredValue(query);
   const id = useId();
-  const { search } = library;
+  const { search, setNames } = library;
+  const typed = deferred.trim() !== '';
 
-  const hits = useMemo(() => {
-    const found = search(deferred, LIMIT);
-    const first = found.filter((h) => isPreferred(preferred.data, h.label, hitSymbol(h)));
-    return first.length ? [...first, ...found.filter((h) => !first.includes(h))] : found;
-  }, [search, deferred, preferred.data]);
+  const items = useMemo(() => {
+    const own: PickerItem[] = (photos.data?.items ?? [])
+      .filter((p) => !typed || labelMatches(p.label, deferred))
+      .slice(0, LIMIT)
+      .map((p) => ({
+        symbol: { set: 'own', ref: p.id },
+        word: p.label,
+        role: null,
+        src: mediaUrl(p.id),
+        source: 'Moje zdjęcia',
+        description: `${p.label} (moje zdjęcie)`,
+      }));
+    const found: PickerItem[] = (typed ? search(deferred, LIMIT) : []).map((h: SymbolHit) => ({
+      symbol: { set: h.set, ref: String(h.id) },
+      word: h.label,
+      role: h.role,
+      src: h.src,
+      source: setNames[h.set],
+      description: `${h.label} (${setNames[h.set]}, nr ${h.id})`,
+    }));
+    const all = [...own, ...found];
+    const first = all.filter((i) => isPreferred(preferred.data, i.word, i.symbol));
+    return first.length ? [...first, ...all.filter((i) => !first.includes(i))] : all;
+  }, [photos.data, typed, deferred, search, setNames, preferred.data]);
 
+  const libraryCount = items.filter((i) => i.symbol.set !== 'own').length;
   const status = library.failed.length
     ? `Nie udało się wczytać: ${library.failed.join(', ')}.`
     : library.loading
       ? 'Wczytywanie biblioteki…'
-      : deferred.trim()
-        ? hits.length
-          ? `Wariantów: ${hits.length}${hits.length === LIMIT ? '+' : ''}`
+      : typed
+        ? items.length
+          ? `Wariantów: ${items.length}${libraryCount === LIMIT ? '+' : ''}`
           : 'Brak symboli dla tego słowa.'
-        : 'Wpisz słowo, aby zobaczyć symbole.';
+        : items.length
+          ? 'Twoje zdjęcia. Wpisz słowo, aby zobaczyć też symbole.'
+          : 'Wpisz słowo, aby zobaczyć symbole.';
 
   return (
     <div>
@@ -69,25 +114,24 @@ export function SymbolPicker({
       <p className="mt-1 min-h-5 text-sm text-slate-600" role="status" aria-live="polite">
         {status}
       </p>
-      {hits.length > 0 && (
+      {items.length > 0 && (
         <ul
           className="mt-2 grid max-h-72 grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2 overflow-y-auto p-1"
           aria-label="Symbole"
           data-testid="symbol-results"
         >
-          {hits.map((hit) => {
-            const symbol = hitSymbol(hit);
-            const chosen = selected?.set === symbol.set && selected.ref === symbol.ref;
-            const star = isPreferred(preferred.data, hit.label, symbol);
+          {items.map((item) => {
+            const chosen = selected !== null && key(selected) === key(item.symbol);
+            const star = isPreferred(preferred.data, item.word, item.symbol);
             return (
-              <li key={`${hit.set}:${hit.id}`}>
+              <li key={key(item.symbol)}>
                 <button
                   type="button"
                   aria-pressed={chosen}
-                  aria-label={`${hit.label} (${library.setNames[hit.set]}, nr ${hit.id})${star ? ', ulubiony wariant' : ''}`}
-                  onClick={() => onPick(hit)}
+                  aria-label={`${item.description}${star ? ', ulubiony wariant' : ''}`}
+                  onClick={() => onPick(item)}
                   className={`relative flex w-full flex-col items-center rounded-xl border-4 bg-white p-1.5 ${
-                    ROLE_COLORS[hit.role].border
+                    ROLE_COLORS[item.role ?? 'none'].border
                   } ${chosen ? 'outline-4 outline-offset-2 outline-brand-700' : ''}`}
                 >
                   {star && (
@@ -96,18 +140,18 @@ export function SymbolPicker({
                     </span>
                   )}
                   <img
-                    src={hit.src}
+                    src={item.src}
                     alt=""
                     width={80}
                     height={80}
                     loading="lazy"
                     decoding="async"
-                    className="size-20 object-contain"
+                    className="size-20 rounded-md object-contain"
                   />
                   <span className="mt-1 line-clamp-2 text-center text-sm font-semibold leading-tight text-slate-800">
-                    {hit.label}
+                    {item.word}
                   </span>
-                  <span className="text-xs text-slate-500">{library.setNames[hit.set]}</span>
+                  <span className="text-xs text-slate-500">{item.source}</span>
                 </button>
               </li>
             );

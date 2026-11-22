@@ -6,7 +6,7 @@ import {
   type PutPreferred,
 } from '@relaacja/shared';
 
-export type PreferredError = { error: 'quota_exceeded' };
+export type PreferredError = { error: 'quota_exceeded' | 'unknown_symbol' };
 
 /** Preferred symbol variants (PLAN §2.2) in the vault's preferred_symbols table. */
 export class PreferredStore {
@@ -31,6 +31,12 @@ export class PreferredStore {
     const sql = this.storage.sql;
     const word = preferredKey(input.word);
     return this.storage.transactionSync(() => {
+      if (
+        input.symbol.set === 'own' &&
+        sql.exec('SELECT 1 FROM media WHERE id = ?', input.symbol.ref).toArray().length === 0
+      ) {
+        return { error: 'unknown_symbol' } as const;
+      }
       const exists = sql
         .exec('SELECT 1 FROM preferred_symbols WHERE word_norm = ?', word)
         .toArray().length;

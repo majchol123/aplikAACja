@@ -5,10 +5,14 @@ import {
   apiAs,
   insertUser,
   makeApp,
+  formHeaders,
+  photoForm,
   sessionCookie,
+  uploadAs,
   writeHeaders,
   type TestUser,
 } from './helpers.ts';
+import { webp } from './images.ts';
 
 /**
  * Authorization matrix (PLAN §7): every registered route × every principal, with an
@@ -31,14 +35,17 @@ const userOnly = { ...all(200), anon: 401, blocked: 403 };
 /** Objects in user A's vault: everybody else gets the same 404 as for a missing ID. */
 const ownedByA = { ...all(404), anon: 401, blocked: 403, userA: 200 };
 
-/** IDs of a home board with one word tile, created in user A's vault before the round. */
+/** IDs of a home board with one word tile and of a photo, created in user A's vault. */
 interface Fixture {
   boardId: string;
   tileId: string;
+  mediaId: string;
 }
 
 type Row = {
   body?: Record<string, unknown> | ((f: Fixture) => Record<string, unknown>);
+  /** Multipart upload instead of a JSON body. */
+  form?: () => FormData;
   path?: string | ((f: Fixture) => string);
   status: Record<Principal, number>;
 };
@@ -85,6 +92,18 @@ const EXPECTED: Record<string, Row> = {
     body: { word: 'chleb', symbol: { set: 'arasaac', ref: '2494' } },
     status: userOnly,
   },
+  'GET /api/media': { status: userOnly },
+  'POST /api/media': {
+    form: () => photoForm('Mama', webp(64, 64)),
+    status: { ...all(201), anon: 401, blocked: 403 },
+  },
+  'GET /api/media/:id': { path: (f) => `/api/media/${f.mediaId}`, status: ownedByA },
+  'PATCH /api/media/:id': {
+    path: (f) => `/api/media/${f.mediaId}`,
+    body: { label: 'Tata' },
+    status: ownedByA,
+  },
+  'DELETE /api/media/:id': { path: (f) => `/api/media/${f.mediaId}`, status: ownedByA },
   'GET /api/admin/users': {
     status: { ...all(403), anon: 401, admin: 200, superadmin: 200 },
   },
@@ -110,8 +129,16 @@ async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: Tes
     kind: 'word',
     label: 'jeść',
   });
+  const photo = await uploadAs(call, await sessionCookie(owner.id))<{ media: { id: string } }>(
+    'Dom',
+    webp(32, 32),
+  );
   // Board revision is 2 after the tile was added.
-  return { boardId, tileId: tile.body.boards[0]!.tiles[0]!.id } satisfies Fixture;
+  return {
+    boardId,
+    tileId: tile.body.boards[0]!.tiles[0]!.id,
+    mediaId: photo.body.media.id,
+  } satisfies Fixture;
 }
 
 async function makePrincipals(): Promise<Record<Exclude<Principal, 'anon'>, TestUser>> {
@@ -150,10 +177,13 @@ describe('authorization matrix', () => {
       const body = typeof row.body === 'function' ? row.body(fixture) : row.body;
       for (const principal of PRINCIPALS) {
         const cookie = principal === 'anon' ? undefined : await sessionCookie(users[principal].id);
+        const multipart = formHeaders(cookie);
         const init: RequestInit =
           method === 'GET'
             ? { headers: cookie ? { Cookie: cookie } : {} }
-            : { method, headers: writeHeaders(cookie), body: JSON.stringify(body ?? {}) };
+            : row.form
+              ? { method, headers: multipart, body: row.form() }
+              : { method, headers: writeHeaders(cookie), body: JSON.stringify(body ?? {}) };
         const res = await call(path, init);
         expect(res.status, `${route} as ${principal}`).toBe(status[principal]);
       }

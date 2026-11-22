@@ -1,4 +1,5 @@
 import {
+  mediaUrl,
   SET_BASE,
   type BoardChanges,
   type BoardTree,
@@ -75,7 +76,8 @@ export function useCreateHome() {
 
 /**
  * Tile symbol → image URL. Library sets resolve through their index (file names carry a
- * content hash that changes when the mirror updates); null = show the label only.
+ * content hash that changes when the mirror updates), own photos by their ID; null = show
+ * the label only.
  */
 export function useSymbolResolver(me: Me, tiles: readonly Tile[]) {
   const needs = useMemo(() => {
@@ -103,7 +105,8 @@ export function useSymbolResolver(me: Me, tiles: readonly Tile[]) {
 
   return useCallback(
     (symbol: Tile['symbol']): string | null => {
-      if (!symbol || symbol.set === 'own') return null; // own photos: F2 step 4
+      if (!symbol) return null;
+      if (symbol.set === 'own') return mediaUrl(symbol.ref);
       return files.get(`${symbol.set}:${symbol.ref}`) ?? null;
     },
     [files],

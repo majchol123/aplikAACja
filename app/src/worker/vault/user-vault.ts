@@ -5,6 +5,10 @@ import {
   type BoardChanges,
   type CreateHome,
   type CreateTile,
+  type MediaDeleted,
+  type MediaList,
+  type MediaSaved,
+  type MediaType,
   type MoveTile,
   type PatchBoard,
   type PatchTile,
@@ -14,7 +18,9 @@ import {
   type SettingsPatch,
 } from '@relaacja/shared';
 import type { AppEnv } from '../env.ts';
+import type { CleanImage } from '../media/image.ts';
 import { BoardStore, type BoardError } from './boards.ts';
+import { MediaStore, type MediaError } from './media.ts';
 import { PreferredStore, type PreferredError } from './preferred.ts';
 import { migrateVault } from './schema.ts';
 
@@ -38,6 +44,7 @@ export class UserVault extends DurableObject<AppEnv> {
   private refilledAt = Date.now();
   private readonly boards: BoardStore;
   private readonly preferred: PreferredStore;
+  private readonly media: MediaStore;
 
   constructor(ctx: DurableObjectState, env: AppEnv) {
     super(ctx, env);
@@ -46,6 +53,7 @@ export class UserVault extends DurableObject<AppEnv> {
     });
     this.boards = new BoardStore(ctx.storage);
     this.preferred = new PreferredStore(ctx.storage);
+    this.media = new MediaStore(ctx.storage);
   }
 
   private spendWrite(cost = 1): boolean {
@@ -133,6 +141,31 @@ export class UserVault extends DurableObject<AppEnv> {
   /** `input` must already be validated with PutPreferredSchema by the caller. */
   putPreferredSymbol(input: PutPreferred): PreferredSymbol | PreferredError | RateLimited {
     return this.spendWrite() ? this.preferred.put(input) : RATE_LIMITED;
+  }
+
+  // --- own photos -------------------------------------------------------------------
+
+  getMediaList(): MediaList {
+    return { items: this.media.list(), usage: this.media.usage() };
+  }
+
+  getMedia(id: string): { mime: MediaType; data: ArrayBuffer } | null {
+    return this.media.get(id);
+  }
+
+  /** `image` must come from cleanImage, `label` from MediaLabelSchema. */
+  async putMedia(label: string, image: CleanImage): Promise<MediaSaved | MediaError | RateLimited> {
+    return this.spendWrite() ? this.media.put(label, image) : RATE_LIMITED;
+  }
+
+  renameMedia(id: string, label: string): MediaSaved | MediaError | RateLimited {
+    return this.spendWrite() ? this.media.rename(id, label) : RATE_LIMITED;
+  }
+
+  deleteMedia(id: string): MediaDeleted | BoardError | RateLimited {
+    if (!this.spendWrite()) return RATE_LIMITED;
+    const result = this.boards.removeMedia(id);
+    return 'error' in result ? result : { ...result, usage: this.media.usage() };
   }
 
   /** Hard delete of everything the user owns (PLAN §4.3). Idempotent. */

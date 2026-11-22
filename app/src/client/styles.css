@@ -210,3 +210,10 @@ html[data-state='anon'] .landing-reveal {
   width: 60%;
   height: 60%;
 }
+
+/* Photo crop (media/PhotoCropper.tsx): the finger moves and pinches the picture, not the page. */
+.photo-crop {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

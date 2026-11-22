@@ -44,10 +44,11 @@ export function useLibrary(me: Me, active?: Settings['activeSets']) {
     [index, filter, librarySets],
   );
 
-  const setNames: Record<LibrarySet, string> = {
-    arasaac: 'ARASAAC',
-    extra: extraManifest.data?.name ?? 'Dodatkowy zestaw',
-  };
+  const extraName = extraManifest.data?.name ?? 'Dodatkowy zestaw';
+  const setNames = useMemo<Record<LibrarySet, string>>(
+    () => ({ arasaac: 'ARASAAC', extra: extraName }),
+    [extraName],
+  );
   const failed = [
     wantsArasaac && (arasaacManifest.isError || arasaac.isError) && setNames.arasaac,
     wantsExtra && (extraManifest.isError || extra.isError) && setNames.extra,

@@ -1,3 +1,5 @@
+import { MEDIA_LIMITS } from '@relaacja/shared';
+
 /**
  * Single source of truth for every API route and who may call it. Routes can only be
  * registered through `defineRoute` (app.ts), which attaches the matching guard. The
@@ -23,9 +25,14 @@ export interface RouteDef {
   access: Access;
   /** Request body cap in bytes for non-GET routes (default JSON_BODY_LIMIT). */
   maxBody?: number;
+  /** File upload (static paths only): the only routes where the CSRF guard lets
+   * multipart/form-data through; every other write must be JSON or empty. */
+  multipart?: true;
 }
 
 export const JSON_BODY_LIMIT = 16 * 1024;
+/** One photo plus the multipart framing and its name. */
+export const MEDIA_BODY_LIMIT = MEDIA_LIMITS.maxFileBytes + 16 * 1024;
 
 export const ROUTES = {
   health: { method: 'GET', path: '/api/health', access: 'public' },
@@ -48,9 +55,31 @@ export const ROUTES = {
   // Preferred variant of a word (PLAN §2.2).
   getPreferredSymbols: { method: 'GET', path: '/api/symbols/preferred', access: 'user' },
   putPreferredSymbol: { method: 'PUT', path: '/api/symbols/preferred', access: 'user' },
+  // Own photos (PLAN §2.2); IDs are only looked up inside the caller's own vault.
+  listMedia: { method: 'GET', path: '/api/media', access: 'user' },
+  uploadMedia: {
+    method: 'POST',
+    path: '/api/media',
+    access: 'user',
+    maxBody: MEDIA_BODY_LIMIT,
+    multipart: true,
+  },
+  getMedia: { method: 'GET', path: '/api/media/:id', access: 'user' },
+  renameMedia: { method: 'PATCH', path: '/api/media/:id', access: 'user' },
+  deleteMedia: { method: 'DELETE', path: '/api/media/:id', access: 'user' },
   adminUsers: { method: 'GET', path: '/api/admin/users', access: 'admin' },
   /** Gate in front of the private extra-set Worker (PLAN D5, §4.1 path traversal). */
   extraAsset: { method: 'GET', path: '/sym/extra/*', access: 'extra' },
 } as const satisfies Record<string, RouteDef>;
 
 export type RouteName = keyof typeof ROUTES;
+
+/** `METHOD /path` of the upload routes (see RouteDef.multipart). */
+export const MULTIPART_ROUTES: ReadonlySet<string> = new Set(
+  Object.values(ROUTES as Record<string, RouteDef>)
+    .filter((r) => r.multipart)
+    .map((r) => {
+      if (r.path.includes(':') || r.path.includes('*')) throw new Error(`${r.path}: static only`);
+      return `${r.method} ${r.path}`;
+    }),
+);

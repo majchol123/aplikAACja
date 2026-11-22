@@ -30,7 +30,9 @@ import {
 import { effectiveRole, parseAdminEmails, upsertGoogleUser, type UserRow } from './auth/users.ts';
 import type { AppContext } from './context.ts';
 import { newToken, sha256Hex } from './lib/crypto.ts';
+import { defer } from './lib/defer.ts';
 import * as boards from './routes/boards.ts';
+import * as media from './routes/media.ts';
 import * as symbols from './routes/symbols.ts';
 import { JSON_BODY_LIMIT, ROUTES, type RouteDef } from './routes/registry.ts';
 import { cookieConflictGuard } from './security/cookies.ts';
@@ -58,19 +60,6 @@ type Ctx = Context<AppContext>;
 function isLocalhost(origin: string): boolean {
   const host = new URL(origin).hostname;
   return host === 'localhost' || host === '127.0.0.1';
-}
-
-function defer(c: Ctx): (p: Promise<unknown>) => void {
-  return (p) => {
-    const guarded = p.catch((err: unknown) =>
-      console.error(JSON.stringify({ msg: 'deferred task failed', err: String(err) })),
-    );
-    try {
-      c.executionCtx.waitUntil(guarded);
-    } catch {
-      // No ExecutionContext (unit tests calling app.request without one).
-    }
-  };
 }
 
 export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
@@ -270,16 +259,21 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
     }
   });
 
+  // Own photos and extra-set images are cached privately by the browser: a logout clears
+  // that cache, so the next person on a shared tablet cannot reopen them (best effort,
+  // only browsers supporting Clear-Site-Data). Local storage (device settings) stays.
+  const CLEAR_CACHE = { 'Clear-Site-Data': '"cache"' };
+
   defineRoute(ROUTES.logout, async (c) => {
     await deleteSessionByToken(c.env.DB, getCookie(c, SID, 'host'));
     deleteCookie(c, SID, { prefix: 'host' });
-    return c.body(null, 204);
+    return c.body(null, 204, CLEAR_CACHE);
   });
 
   defineRoute(ROUTES.logoutAll, async (c) => {
     await deleteAllSessions(c.env.DB, c.get('user').userId);
     deleteCookie(c, SID, { prefix: 'host' });
-    return c.body(null, 204);
+    return c.body(null, 204, CLEAR_CACHE);
   });
 
   const DevLoginSchema = z
@@ -338,6 +332,11 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.moveTile, boards.moveTile);
   defineRoute(ROUTES.getPreferredSymbols, symbols.getPreferredSymbols);
   defineRoute(ROUTES.putPreferredSymbol, symbols.putPreferredSymbol);
+  defineRoute(ROUTES.listMedia, media.listMedia);
+  defineRoute(ROUTES.uploadMedia, media.uploadMedia);
+  defineRoute(ROUTES.getMedia, media.getMedia);
+  defineRoute(ROUTES.renameMedia, media.renameMedia);
+  defineRoute(ROUTES.deleteMedia, media.deleteMedia);
 
   defineRoute(ROUTES.adminUsers, async (c) => {
     const { results } = await c.env.DB.prepare(

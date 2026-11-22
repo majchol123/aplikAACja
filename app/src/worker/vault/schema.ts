@@ -122,6 +122,35 @@ export const VAULT_MIGRATIONS: readonly string[] = [
      BEGIN UPDATE vault_meta SET preferred = preferred + 1 WHERE id = 1; END;
    CREATE TRIGGER preferred_uncounted AFTER DELETE ON preferred_symbols
      BEGIN UPDATE vault_meta SET preferred = preferred - 1 WHERE id = 1; END;`,
+
+  // v4 — own photos (F2 step 4). No code before v4 wrote media, so the v1 table is empty
+  // and is recreated with the picture bytes in a table of their own: listing photos then
+  // never walks through BLOB overflow pages. Count and bytes kept by triggers for the
+  // quota check; partial indexes find the tiles and preferred variants showing a photo.
+  `DROP TABLE media;
+   CREATE TABLE media (
+     id TEXT PRIMARY KEY,
+     label TEXT NOT NULL,
+     mime TEXT NOT NULL CHECK (mime IN ('image/webp', 'image/jpeg', 'image/png')),
+     width INTEGER NOT NULL CHECK (width BETWEEN 1 AND 512),
+     height INTEGER NOT NULL CHECK (height BETWEEN 1 AND 512),
+     bytes INTEGER NOT NULL CHECK (bytes > 0),
+     sha256 TEXT NOT NULL,
+     created_at INTEGER NOT NULL
+   );
+   CREATE INDEX idx_media_created ON media (created_at);
+   CREATE TABLE media_data (
+     id TEXT PRIMARY KEY REFERENCES media (id) ON DELETE CASCADE,
+     data BLOB NOT NULL
+   );
+   ALTER TABLE vault_meta ADD COLUMN media INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE vault_meta ADD COLUMN media_bytes INTEGER NOT NULL DEFAULT 0;
+   CREATE TRIGGER media_counted AFTER INSERT ON media
+     BEGIN UPDATE vault_meta SET media = media + 1, media_bytes = media_bytes + NEW.bytes WHERE id = 1; END;
+   CREATE TRIGGER media_uncounted AFTER DELETE ON media
+     BEGIN UPDATE vault_meta SET media = media - 1, media_bytes = media_bytes - OLD.bytes WHERE id = 1; END;
+   CREATE INDEX idx_tiles_own ON tiles (symbol_ref) WHERE symbol_set = 'own';
+   CREATE INDEX idx_preferred_own ON preferred_symbols (symbol_ref) WHERE symbol_set = 'own';`,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {

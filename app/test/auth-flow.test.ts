@@ -147,6 +147,8 @@ describe('Google login flow', () => {
       headers: writeHeaders(`__Host-relaacja_sid=${a}`),
     });
     expect(out.status).toBe(204);
+    // Privately cached photos go too (a tablet may be shared); local storage stays.
+    expect(out.headers.get('Clear-Site-Data')).toBe('"cache"');
     expect(
       (await t.call('/api/me', { headers: { Cookie: `__Host-relaacja_sid=${a}` } })).status,
     ).toBe(401);
@@ -159,6 +161,7 @@ describe('Google login flow', () => {
       headers: writeHeaders(`__Host-relaacja_sid=${b}`),
     });
     expect(all.status).toBe(204);
+    expect(all.headers.get('Clear-Site-Data')).toBe('"cache"');
     expect(
       (await t.call('/api/me', { headers: { Cookie: `__Host-relaacja_sid=${c}` } })).status,
     ).toBe(401);
