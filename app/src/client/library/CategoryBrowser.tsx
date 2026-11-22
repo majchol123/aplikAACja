@@ -2,7 +2,8 @@ import type { LibrarySet, Me, Settings, SymbolHit } from '@relaacja/shared';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FolderIcon } from '../comm/icons.tsx';
 import { ui } from '../edit/ui.ts';
-import { useCategories } from './useCategories.ts';
+import { FolderIconEditor, IconChoice } from './FolderIconEditor.tsx';
+import { useCategories, useSetFolderIcon } from './useCategories.ts';
 
 /** Symbols shown at once; "Pokaż więcej" adds as many (Czasownik alone has 2457). */
 const PAGE = 60;
@@ -16,9 +17,12 @@ export function CategoryBrowser({
   active,
   renderSymbol,
   className = '',
+  canEditIcons = false,
 }: {
   me: Me;
   active?: Settings['activeSets'];
+  /** Admins: folder pictures can be changed for every account. */
+  canEditIcons?: boolean;
   /** Content of one symbol cell (a pick button in the editor, a plain card elsewhere). */
   renderSymbol: (hit: SymbolHit, setName: string) => ReactNode;
   /** Classes of the scrolling area with the folders and symbols. */
@@ -32,12 +36,17 @@ export function CategoryBrowser({
   const area = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
+  const [editing, setEditing] = useState(false);
+  const [notice, setNotice] = useState('');
+  const setIcon = useSetFolderIcon();
 
   const current = categories.sets.find((s) => s.set === chosen) ?? categories.sets[0];
   const { filter } = categories;
   const view = useMemo(() => {
     if (!current || !filter) return null;
-    return current.tree.view(at, filter) ?? current.tree.view(null, filter);
+    return (
+      current.tree.view(at, filter, current.icons) ?? current.tree.view(null, filter, current.icons)
+    );
   }, [current, at, filter]);
 
   // After opening a folder: back to the top of the list, focus on its name.
@@ -50,6 +59,7 @@ export function CategoryBrowser({
 
   function open(folder: number | null): void {
     moved.current = true;
+    setNotice('');
     setAt(folder);
     setShown(PAGE);
   }
@@ -84,6 +94,22 @@ export function CategoryBrowser({
   }
 
   const name = view.path.at(-1)?.name ?? `Kategorie: ${current.name}`;
+  const editable = canEditIcons && editing && view.folder?.key ? view.folder : null;
+  const choose = (symbol: SymbolHit | null) => {
+    if (!editable?.key) return;
+    setNotice('');
+    setIcon.mutate(
+      { set: current.set, key: editable.key, symbol: symbol ? symbol.id : null },
+      {
+        onSuccess: () =>
+          setNotice(
+            symbol
+              ? `Zapisano obrazek folderu „${editable.name}”: ${symbol.label}.`
+              : `Przywrócono automatyczny obrazek folderu „${editable.name}”.`,
+          ),
+      },
+    );
+  };
   const symbols = view.symbols.slice(0, shown);
   const more = view.symbols.length - symbols.length;
   const summary = [
@@ -166,6 +192,45 @@ export function CategoryBrowser({
         {summary || 'Pusta kategoria — filtr treści ukrywa jej symbole.'}
       </p>
 
+      {canEditIcons && (
+        <label className="mt-2 flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            className="size-5 accent-brand-700"
+            checked={editing}
+            onChange={(e) => {
+              setEditing(e.target.checked);
+              setNotice('');
+            }}
+          />
+          Zmieniaj obrazki folderów (administrator, dla wszystkich kont)
+        </label>
+      )}
+      {canEditIcons && editing && !editable && (
+        <p className="mt-1 text-sm text-slate-600">
+          Otwórz folder, którego obrazek chcesz zmienić.
+        </p>
+      )}
+      {editable && (
+        <FolderIconEditor
+          me={me}
+          active={active}
+          set={current.set}
+          folder={editable}
+          busy={setIcon.isPending}
+          onChoose={choose}
+          onReset={() => choose(null)}
+        />
+      )}
+      <p className="mt-1 min-h-5 text-sm text-brand-800" role="status" aria-live="polite">
+        {notice}
+      </p>
+      {setIcon.isError && (
+        <p className="mt-1 text-sm text-red-800" role="alert">
+          Nie udało się zapisać obrazka folderu. Spróbuj ponownie.
+        </p>
+      )}
+
       <div ref={area} className={`mt-2 overflow-y-auto p-1 ${className}`}>
         {view.folders.length > 0 && (
           <ul
@@ -174,12 +239,12 @@ export function CategoryBrowser({
             data-testid="category-folders"
           >
             {view.folders.map((folder) => (
-              <li key={folder.id}>
+              <li key={folder.id} className="relative">
                 <button
                   type="button"
                   aria-label={`${folder.name}, kategoria, symboli: ${folder.count}`}
                   onClick={() => open(folder.id)}
-                  className="relative flex w-full flex-col items-center rounded-xl border-4 border-brand-300 bg-brand-50 p-1.5 hover:bg-brand-100"
+                  className="relative flex w-full flex-col items-center rounded-xl border-4 border-brand-300 bg-brand-50 p-1.5 pb-5 hover:bg-brand-100"
                 >
                   {!folder.ownIcon && (
                     <span className="absolute left-1 top-1 text-brand-700">
@@ -202,8 +267,14 @@ export function CategoryBrowser({
                   <span className="mt-1 line-clamp-2 text-center text-sm font-semibold leading-tight text-slate-800">
                     {folder.name}
                   </span>
-                  <span className="text-xs tabular-nums text-slate-500">{folder.count}</span>
                 </button>
+                {/* Outside the button: its visible text stays a part of its name (WCAG 2.5.3). */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 bottom-1.5 text-center text-xs tabular-nums text-slate-500"
+                >
+                  {folder.count}
+                </span>
               </li>
             ))}
           </ul>
@@ -218,7 +289,18 @@ export function CategoryBrowser({
             data-testid="category-symbols"
           >
             {symbols.map((hit) => (
-              <li key={`${hit.set}:${hit.id}`}>{renderSymbol(hit, current.name)}</li>
+              <li key={`${hit.set}:${hit.id}`}>
+                {editable ? (
+                  <IconChoice
+                    hit={hit}
+                    folder={editable.name}
+                    disabled={setIcon.isPending}
+                    onChoose={choose}
+                  />
+                ) : (
+                  renderSymbol(hit, current.name)
+                )}
+              </li>
             ))}
           </ul>
         )}

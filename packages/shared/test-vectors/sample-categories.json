@@ -5,63 +5,74 @@
     {
       "id": 1,
       "n": "Odżywianie się",
+      "k": "feeding",
       "i": 2462
     },
     {
       "id": 2,
       "n": "Jedzenie",
+      "k": "food",
       "p": 1,
       "i": 2462
     },
     {
       "id": 3,
       "n": "Owoce",
+      "k": "fruit",
       "p": 2,
       "i": 2462
     },
     {
       "id": 4,
       "n": "Deser",
+      "k": "dessert",
       "p": 2,
       "i": 9057
     },
     {
       "id": 5,
       "n": "Napój",
+      "k": "drink",
       "p": 1,
       "i": 6061
     },
     {
       "id": 6,
       "n": "Organizmy żywe",
+      "k": "living being",
       "i": 2727
     },
     {
       "id": 7,
       "n": "Twarz",
+      "k": "face",
       "p": 6,
       "i": 2727
     },
     {
       "id": 8,
       "n": "Komunikacja",
+      "k": "communication",
       "i": 6061
     },
     {
       "id": 9,
       "n": "Powitanie",
+      "k": "greeting",
       "p": 8,
       "i": 7000
     },
     {
       "id": 10,
       "n": "Czasownik",
+      "k": "verb",
       "p": 8,
       "i": 6061
     },
     {
       "id": 11,
       "n": "Seksualność",
+      "k": "sexuality",
       "i": 5000
     }
   ]

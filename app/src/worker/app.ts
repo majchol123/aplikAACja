@@ -32,6 +32,7 @@ import type { AppContext } from './context.ts';
 import { newToken, sha256Hex } from './lib/crypto.ts';
 import { defer } from './lib/defer.ts';
 import * as boards from './routes/boards.ts';
+import * as categories from './routes/categories.ts';
 import * as media from './routes/media.ts';
 import * as symbols from './routes/symbols.ts';
 import { JSON_BODY_LIMIT, ROUTES, type RouteDef } from './routes/registry.ts';
@@ -332,6 +333,8 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.moveTile, boards.moveTile);
   defineRoute(ROUTES.getPreferredSymbols, symbols.getPreferredSymbols);
   defineRoute(ROUTES.putPreferredSymbol, symbols.putPreferredSymbol);
+  defineRoute(ROUTES.getCategoryIcons, categories.getCategoryIcons);
+  defineRoute(ROUTES.putCategoryIcon, categories.putCategoryIcon(deps.now));
   defineRoute(ROUTES.listMedia, media.listMedia);
   defineRoute(ROUTES.uploadMedia, media.uploadMedia);
   defineRoute(ROUTES.getMedia, media.getMedia);

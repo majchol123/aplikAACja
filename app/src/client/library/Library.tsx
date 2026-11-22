@@ -136,6 +136,7 @@ export function Library({ me }: { me: Me }) {
           me={me}
           active={pendingSets ?? undefined}
           className="max-h-[32rem]"
+          canEditIcons={me.role === 'admin' || me.role === 'superadmin'}
           renderSymbol={(hit, setName) => <LibraryCard hit={hit} setName={setName} />}
         />
       ) : (

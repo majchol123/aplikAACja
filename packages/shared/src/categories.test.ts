@@ -88,11 +88,36 @@ describe('CategoryTree', () => {
       extra,
     );
     expect(extraTree.view(null, DEFAULT)?.folders).toEqual([
-      { id: 7, name: 'Owoce', icon: '/sym/extra/g/7.0000abcd.webp', ownIcon: true, count: 2 },
+      {
+        id: 7,
+        key: null,
+        name: 'Owoce',
+        icon: '/sym/extra/g/7.0000abcd.webp',
+        ownIcon: true,
+        custom: false,
+        count: 2,
+      },
     ]);
     expect(extraTree.view(7, DEFAULT)?.symbols.map((s) => s.label)).toEqual(['banan', 'jabłko']);
     expect(extraTree.view(99, DEFAULT)).toBeNull();
     expect(extraTree.has(7)).toBe(true);
+  });
+
+  it("uses an admin's folder picture unless the filter hides it or the set lost it", () => {
+    const verbs = idOf('Czasownik');
+    const folder = (icons: Map<string, number>, filter = DEFAULT) =>
+      tree.view(idOf('Komunikacja'), filter, icons)?.folders.find((f) => f.id === verbs);
+    expect(folder(new Map())).toMatchObject({ key: 'verb', custom: false });
+    expect(folder(new Map([['verb', 5001]]))).toMatchObject({ custom: true });
+    expect(folder(new Map([['verb', 5001]]))?.icon).toMatch(/\/p\/5001\./);
+    // "bić" is hidden by the violence filter, 424242 is not in the set: automatic picture.
+    expect(folder(new Map([['verb', 5001]]), BOTH)).toMatchObject({ custom: false });
+    expect(folder(new Map([['verb', 424242]]))).toMatchObject({ custom: false });
+    expect(folder(new Map([['verb', 424242]]))?.icon).toMatch(/\/p\/6061\./);
+
+    const open = tree.view(verbs, DEFAULT, new Map([['verb', 5001]]));
+    expect(open?.folder).toMatchObject({ id: verbs, key: 'verb', name: 'Czasownik', custom: true });
+    expect(tree.view(null, DEFAULT)?.folder).toBeNull();
   });
 
   it('rejects trees whose parents come late, repeat ids or belong to another set', () => {

@@ -10,6 +10,7 @@ from relaacja_tools.symbolset import FLAG_AAC, FLAG_SEX, FLAG_VIOLENCE, load_ind
 
 
 def build(tmp_path: Path, http: FakeHttp, **kw: object) -> dict:
+    kw.setdefault("category_names", {})  # the shipped corrections have their own test
     return arasaac.build(
         tmp_path / "out", tmp_path / "cache", fetch=http, workers=2, min_items=0, **kw
     )
@@ -242,3 +243,25 @@ def test_category_tree_depth_is_limited() -> None:
     with pytest.raises(ValueError, match="too deep"):
         arasaac.parse_category_tree({"data": {"root": tree}})
     assert len(CATEGORY_TREE["data"]) == 5
+
+
+def test_category_names_table_replaces_names_and_reports_stale_keys(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    build(tmp_path, FakeHttp(), category_names={"fruit": "Owoce i jagody", "gone": "Nie ma"})
+    nodes = categories(tmp_path)["nodes"]
+    fruit = next(n for n in nodes if n["k"] == "fruit")
+    assert fruit["n"] == "Owoce i jagody"
+    assert {n["k"] for n in nodes} >= {"feeding", "food", "drink", "sexuality"}
+    assert "keys no longer in the ARASAAC tree: ['gone']" in caplog.text
+
+
+def test_shipped_category_names_are_valid(tmp_path: Path) -> None:
+    names = arasaac.load_category_names()
+    assert len(names) > 100
+    assert names["professional"] == "Zawody"
+    assert names["core vocabulary-object"] == "Słownictwo rdzeniowe"
+    bad = tmp_path / "names.toml"
+    bad.write_text('[names]\n"fruit" = "   "\n', "utf-8")
+    with pytest.raises(ValueError, match="bad name"):
+        arasaac.load_category_names(bad)

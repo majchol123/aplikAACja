@@ -11,14 +11,22 @@ import {
 
 export interface CategoryFolder {
   id: number;
+  /** Stable key (survives rebuilds); null for sets built without one. */
+  key: string | null;
   name: string;
   /** Same-origin picture URL; null when no visible symbol can stand for the folder. */
   icon: string | null;
   /** The icon is the set's own folder picture (drawn as a folder already), not a symbol. */
   ownIcon: boolean;
+  /** The icon is the symbol an admin chose for the folder. */
+  custom: boolean;
   /** Visible symbols in the folder and its subfolders, each counted once. */
   count: number;
 }
+
+/** Folder pictures chosen by admins: category key → symbol id (CategoryIcons of the set). */
+export type FolderIcons = ReadonlyMap<string, number>;
+const NO_ICONS: FolderIcons = new Map();
 
 export interface CategoryView {
   set: LibrarySet;
@@ -26,6 +34,8 @@ export interface CategoryView {
   id: number | null;
   /** From the top-level folder down to this one; empty at the top level. */
   path: { id: number; name: string }[];
+  /** The open folder itself (null at the top level). */
+  folder: CategoryFolder | null;
   /** Subfolders with at least one visible symbol, in the order of the set. */
   folders: CategoryFolder[];
   /** Visible symbols listed in this folder itself, alphabetically. */
@@ -42,6 +52,7 @@ interface Item {
 
 interface Node {
   id: number;
+  key: string | null;
   name: string;
   parent: number | null;
   icon: number | null;
@@ -83,6 +94,7 @@ export class CategoryTree {
       if (above === undefined) throw new Error(`category ${raw.id} comes before its parent`);
       this.nodes.set(raw.id, {
         id: raw.id,
+        key: raw.k ?? null,
         name: raw.n,
         parent,
         icon: raw.i ?? null,
@@ -113,23 +125,29 @@ export class CategoryTree {
   }
 
   /** The top level (id null) or one folder; null for an id the tree does not know. */
-  view(id: number | null, filter: SymbolFilter): CategoryView | null {
+  view(
+    id: number | null,
+    filter: SymbolFilter,
+    icons: FolderIcons = NO_ICONS,
+  ): CategoryView | null {
     const node = id === null ? null : this.nodes.get(id);
     if (node === undefined) return null;
     const visible = this.visible(filter);
-    const folders = (node ? node.children : this.roots).flatMap((childId): CategoryFolder[] => {
+    const summary = (folder: Node): CategoryFolder | null => {
+      const stats = visible.get(folder.id);
+      if (!stats) return null;
+      return {
+        id: folder.id,
+        key: folder.key,
+        name: folder.name,
+        ...this.icon(folder, stats, filter, icons),
+        count: stats.count,
+      };
+    };
+    const folders = (node ? node.children : this.roots).flatMap((childId) => {
       const child = this.nodes.get(childId);
-      const stats = visible.get(childId);
-      if (!child || !stats?.count) return [];
-      return [
-        {
-          id: child.id,
-          name: child.name,
-          icon: this.icon(child, stats, filter),
-          ownIcon: child.file !== null,
-          count: stats.count,
-        },
-      ];
+      const folder = child ? summary(child) : null;
+      return folder?.count ? [folder] : [];
     });
 
     const path: CategoryView['path'] = [];
@@ -150,7 +168,14 @@ export class CategoryTree {
           : [];
       });
     }
-    return { set: this.set, id: node ? node.id : null, path, folders, symbols };
+    return {
+      set: this.set,
+      id: node ? node.id : null,
+      path,
+      folder: node ? summary(node) : null,
+      folders,
+      symbols,
+    };
   }
 
   private compare(a: number, b: number): number {
@@ -159,12 +184,25 @@ export class CategoryTree {
     return x && y ? collator.compare(x.label, y.label) || x.id - y.id : 0;
   }
 
-  private icon(node: Node, stats: Visible, filter: SymbolFilter): string | null {
-    if (node.file) return SET_BASE[this.set] + node.file;
-    const chosen = node.icon === null ? undefined : this.byId.get(node.icon);
-    const item = chosen === undefined ? undefined : this.items[chosen];
-    if (item && !isFiltered(item.flags, filter)) return item.src;
-    return stats.first === null ? null : (this.items[stats.first]?.src ?? null);
+  private icon(
+    node: Node,
+    stats: Visible,
+    filter: SymbolFilter,
+    icons: FolderIcons,
+  ): Pick<CategoryFolder, 'icon' | 'ownIcon' | 'custom'> {
+    const visibleSrc = (symbolId: number | null | undefined) => {
+      const position = symbolId == null ? undefined : this.byId.get(symbolId);
+      const item = position === undefined ? undefined : this.items[position];
+      return item && !isFiltered(item.flags, filter) ? item.src : null;
+    };
+    // An admin's choice first, unless the content filter hides it or the set lost it.
+    const chosen = visibleSrc(node.key === null ? null : icons.get(node.key));
+    if (chosen) return { icon: chosen, ownIcon: false, custom: true };
+    if (node.file) return { icon: SET_BASE[this.set] + node.file, ownIcon: true, custom: false };
+    const icon =
+      visibleSrc(node.icon) ??
+      (stats.first === null ? null : (this.items[stats.first]?.src ?? null));
+    return { icon, ownIcon: false, custom: false };
   }
 
   /** Visible symbols of every subtree (distinct, so a symbol in two subfolders counts once). */

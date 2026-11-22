@@ -92,6 +92,7 @@ const EXPECTED: Record<string, Row> = {
     body: { word: 'chleb', symbol: { set: 'arasaac', ref: '2494' } },
     status: userOnly,
   },
+  'GET /api/symbols/category-icons': { status: userOnly },
   'GET /api/media': { status: userOnly },
   'POST /api/media': {
     form: () => photoForm('Mama', webp(64, 64)),
@@ -105,6 +106,10 @@ const EXPECTED: Record<string, Row> = {
   },
   'DELETE /api/media/:id': { path: (f) => `/api/media/${f.mediaId}`, status: ownedByA },
   'GET /api/admin/users': {
+    status: { ...all(403), anon: 401, admin: 200, superadmin: 200 },
+  },
+  'PUT /api/admin/category-icons': {
+    body: { set: 'arasaac', key: 'verb', symbol: 6061 },
     status: { ...all(403), anon: 401, admin: 200, superadmin: 200 },
   },
   // The flag comes from D1, not from the role: admins without it are refused too.

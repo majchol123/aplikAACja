@@ -55,6 +55,8 @@ export const ROUTES = {
   // Preferred variant of a word (PLAN §2.2).
   getPreferredSymbols: { method: 'GET', path: '/api/symbols/preferred', access: 'user' },
   putPreferredSymbol: { method: 'PUT', path: '/api/symbols/preferred', access: 'user' },
+  // Folder pictures of the category browser (F2 step 6): read by all, chosen by admins.
+  getCategoryIcons: { method: 'GET', path: '/api/symbols/category-icons', access: 'user' },
   // Own photos (PLAN §2.2); IDs are only looked up inside the caller's own vault.
   listMedia: { method: 'GET', path: '/api/media', access: 'user' },
   uploadMedia: {
@@ -68,6 +70,7 @@ export const ROUTES = {
   renameMedia: { method: 'PATCH', path: '/api/media/:id', access: 'user' },
   deleteMedia: { method: 'DELETE', path: '/api/media/:id', access: 'user' },
   adminUsers: { method: 'GET', path: '/api/admin/users', access: 'admin' },
+  putCategoryIcon: { method: 'PUT', path: '/api/admin/category-icons', access: 'admin' },
   /** Gate in front of the private extra-set Worker (PLAN D5, §4.1 path traversal). */
   extraAsset: { method: 'GET', path: '/sym/extra/*', access: 'extra' },
 } as const satisfies Record<string, RouteDef>;

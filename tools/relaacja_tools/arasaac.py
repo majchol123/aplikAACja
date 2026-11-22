@@ -10,13 +10,15 @@ import json
 import logging
 import shutil
 import time
+import tomllib
 import urllib.request
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
 from .symbolset import (
+    CATEGORY_KEY_RE,
     FLAG_AAC,
     FLAG_SEX,
     FLAG_VIOLENCE,
@@ -38,6 +40,8 @@ CATALOG_URL = "https://api.arasaac.org/v1/pictograms/all/pl"
 CATEGORIES_URL = "https://privateapi.arasaac.org/api/categories/pl"
 CATEGORY_CACHE = "categories.json"
 MAX_CATEGORY_DEPTH = 12
+# Our corrections of untranslated or mistranslated folder names, by category key.
+CATEGORY_NAMES = Path(__file__).parents[1] / "arasaac" / "category-names.toml"
 IMAGE_URL = "https://static.arasaac.org/pictograms/{id}/{id}_500.png"
 USER_AGENT = "symbol-mirror/1.0"
 IMAGE_SIZE = 500
@@ -210,6 +214,24 @@ def load_category_tree(fetch: Fetch, cache_dir: Path) -> tuple[TreeNode, ...]:
     return roots
 
 
+def load_category_names(path: Path = CATEGORY_NAMES) -> dict[str, str]:
+    """The [names] table of category-names.toml: category key → folder name."""
+    names = tomllib.loads(path.read_text("utf-8")).get("names", {})
+    out: dict[str, str] = {}
+    for key, name in names.items():
+        clean = " ".join(name.split()) if isinstance(name, str) else ""
+        if not clean or len(clean) > MAX_CATEGORY_NAME:
+            raise ValueError(f"{path.name}: bad name for {key!r}")
+        out[key] = clean
+    return out
+
+
+def tree_keys(roots: Sequence[TreeNode]) -> Iterator[str]:
+    for node in roots:
+        yield node.key
+        yield from tree_keys(node.children)
+
+
 def pick_icon(name: str, direct: Sequence[Pictogram], members: Sequence[Pictogram]) -> int:
     """Folder picture: a symbol named like the folder, else one of its own, preferably core
     vocabulary (`aac`) and never a filtered one while an unfiltered one exists."""
@@ -228,10 +250,14 @@ def pick_icon(name: str, direct: Sequence[Pictogram], members: Sequence[Pictogra
 
 
 def category_tree(
-    roots: Sequence[TreeNode], pictos: Sequence[Pictogram]
+    roots: Sequence[TreeNode],
+    pictos: Sequence[Pictogram],
+    names: Mapping[str, str] | None = None,
 ) -> tuple[list[Category], dict[int, tuple[int, ...]]]:
     """Folders holding at least one pictogram, numbered in tree order, and each pictogram's
-    folders. A pictogram may sit in several folders and in inner folders too."""
+    folders. A pictogram may sit in several folders and in inner folders too. `names`
+    replaces folder names by category key (category-names.toml)."""
+    names = names or {}
     direct: dict[str, list[Pictogram]] = {}
     for picto in pictos:
         for key in picto.categories:
@@ -255,8 +281,13 @@ def category_tree(
         if not members:
             return
         ids[node.key] = node_id = len(nodes) + 1
-        icon = pick_icon(node.name, direct.get(node.key, []), members)
-        nodes.append(Category(id=node_id, name=node.name, parent=parent, icon=icon))
+        name = names.get(node.key, node.name)
+        icon = pick_icon(name, direct.get(node.key, []), members)
+        # A key the client would reject only loses the admin's folder picture.
+        key = node.key if CATEGORY_KEY_RE.match(node.key) else None
+        if key is None:
+            log.warning("category key %r has unexpected characters; no stable key", node.key)
+        nodes.append(Category(id=node_id, name=name, parent=parent, icon=icon, key=key))
         for child in node.children:
             emit(child, node_id)
 
@@ -359,6 +390,7 @@ def build(
     workers: int = 4,
     min_items: int = 10_000,
     limit: int | None = None,
+    category_names: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
     if catalog is None:
         catalog = json.loads(fetch(CATALOG_URL))
@@ -368,6 +400,10 @@ def build(
     if len(pictos) < min_items:
         raise SystemExit(f"catalogue has only {len(pictos)} usable pictograms (< {min_items})")
     roots = load_category_tree(fetch, cache_dir)
+    names = load_category_names() if category_names is None else dict(category_names)
+    stale = sorted(set(names) - set(tree_keys(roots)))
+    if stale:
+        log.warning("category-names.toml: keys no longer in the ARASAAC tree: %s", stale)
 
     cache = ImageCache(cache_dir)
     files, failed = sync_images(pictos, cache, fetch, workers)
@@ -384,7 +420,7 @@ def build(
 
     set_dir = prepare_out_dir(out)
     published = [p for p in pictos if p.id in files]
-    categories, membership = category_tree(roots, published)
+    categories, membership = category_tree(roots, published, names)
     items: list[Item] = []
     for picto in published:
         name = files[picto.id]

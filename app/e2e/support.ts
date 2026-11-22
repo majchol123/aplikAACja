@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -42,10 +43,33 @@ export async function devLogin(page: Page, who: { sub: string; email: string; na
 }
 
 /** A fresh account per test run and project (tests change saved state). */
-export async function freshLogin(page: Page, name: string) {
+export async function freshLogin(page: Page, name: string): Promise<string> {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const sub = `e2e-${slug}-${test.info().project.name}-${Date.now()}`;
   await devLogin(page, { sub, email: `${sub}@example.com`, name });
+  return sub;
+}
+
+/**
+ * Gives an account created by freshLogin the stored role `admin` in the local D1 of the
+ * preview server (superadmin comes from ADMIN_EMAILS, which differs between machines).
+ */
+export function promoteToAdmin(sub: string): void {
+  if (!/^e2e-[a-z0-9-]+$/.test(sub)) throw new Error(`not a test account: ${sub}`);
+  execFileSync(
+    'pnpm',
+    [
+      'exec',
+      'wrangler',
+      'd1',
+      'execute',
+      'DB',
+      '--local',
+      '--command',
+      `UPDATE users SET role = 'admin' WHERE google_sub = 'dev:${sub}'`,
+    ],
+    { cwd: resolve(import.meta.dirname, '..'), stdio: 'ignore' },
+  );
 }
 
 const ROOT = resolve(import.meta.dirname, '../..');

@@ -1,6 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { devLogin, failOnConsoleErrors, freshLogin, mockArasaac } from './support.ts';
+import {
+  devLogin,
+  failOnConsoleErrors,
+  freshLogin,
+  mockArasaac,
+  promoteToAdmin,
+} from './support.ts';
 
 failOnConsoleErrors();
 
@@ -146,6 +152,73 @@ test('the library is browsed by category; the content filter hides empty folders
     /Komunikacja/,
     /Seksualność/,
   ]);
+});
+
+test('an admin changes the picture of a folder for every account', async ({ page, browser }) => {
+  // The two projects may run at the same time: each changes its own folder.
+  const desktop = test.info().project.name === 'desktop';
+  const folder = desktop ? 'Odżywianie się' : 'Organizmy żywe';
+  const key = desktop ? 'feeding' : 'living being';
+  const auto = folder === 'Odżywianie się' ? /\/p\/2462\./ : /\/p\/2727\./;
+  const picture = (where: typeof page) =>
+    where
+      .getByRole('region', { name: 'Biblioteka symboli' })
+      .getByRole('button', { name: new RegExp(`^${folder}, kategoria`) })
+      .locator('img');
+  const openCategories = async (where: typeof page) => {
+    await where.getByRole('button', { name: 'Ustawienia i konto' }).click();
+    await where
+      .getByRole('region', { name: 'Biblioteka symboli' })
+      .getByText('Kategorie', { exact: true })
+      .click();
+  };
+
+  await mockArasaac(page);
+  promoteToAdmin(await freshLogin(page, 'Admin obrazki'));
+  await page.reload();
+  // A run that failed half-way may have left its choice behind (the table is global).
+  const reset = await page.evaluate(async (key) => {
+    const res = await fetch('/api/admin/category-icons', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Relaacja': '1' },
+      body: JSON.stringify({ set: 'arasaac', key, symbol: null }),
+    });
+    return res.status;
+  }, key);
+  expect(reset).toBe(200);
+  await openCategories(page);
+  const library = page.getByRole('region', { name: 'Biblioteka symboli' });
+  await expect(picture(page)).toHaveAttribute('src', auto);
+
+  await library.getByRole('checkbox', { name: /Zmieniaj obrazki folderów/ }).check();
+  await expect(library.getByText('Otwórz folder, którego obrazek chcesz zmienić.')).toBeVisible();
+  await library.getByRole('button', { name: new RegExp(`^${folder}, kategoria`) }).click();
+  const editor = library.getByRole('region', { name: `Obrazek folderu „${folder}”` });
+  await expect(editor).toContainText('Automatyczny');
+  await editor.getByRole('searchbox', { name: 'Szukaj obrazka w zestawie' }).fill('dzien dobry');
+  await editor.getByRole('button', { name: /: dzień dobry$/ }).click();
+  await expect(
+    library.getByText(`Zapisano obrazek folderu „${folder}”: dzień dobry.`),
+  ).toBeVisible();
+  await expect(editor).toContainText('Wybrany przez administratora');
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(axe.violations).toEqual([]);
+
+  // Another account sees the new picture.
+  const other = await browser.newContext({ serviceWorkers: 'block' });
+  const reader = await other.newPage();
+  await mockArasaac(reader);
+  await freshLogin(reader, 'Czytelnik obrazkow');
+  await openCategories(reader);
+  await expect(picture(reader)).toHaveAttribute('src', /\/p\/7000\./);
+  await other.close();
+
+  await editor.getByRole('button', { name: 'Przywróć automatyczny' }).click();
+  await expect(
+    library.getByText(`Przywrócono automatyczny obrazek folderu „${folder}”.`),
+  ).toBeVisible();
+  await library.getByRole('button', { name: 'Wszystkie kategorie' }).click();
+  await expect(picture(page)).toHaveAttribute('src', auto);
 });
 
 test('privacy policy shows the contact address', async ({ page }) => {

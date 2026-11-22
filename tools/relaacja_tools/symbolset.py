@@ -34,6 +34,8 @@ FLAG_VIOLENCE = 4
 MANIFEST = "manifest.json"
 HASHED_JSON_RE = re.compile(r"^(index|forms|categories)\.[0-9a-f]{8}\.json$")
 CATEGORY_ICON_RE = re.compile(r"^g/[0-9]{1,10}\.[0-9a-f]{8}\.webp$")
+# Same pattern as CATEGORY_KEY in packages/shared/src/symbols.ts.
+CATEGORY_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9 _-]{0,99}$")
 MAX_ITEM_CATEGORIES = 20
 MAX_CATEGORY_NAME = 100
 
@@ -96,9 +98,13 @@ class Category:
     parent: int | None = None
     icon: int | None = None  # id of a symbol of the same set shown on the folder
     file: str | None = None  # or an own icon image, e.g. "g/3.ab12cd34.webp"
+    # Survives rebuilds (ids may not): what admins' folder pictures are keyed by.
+    key: str | None = None
 
     def to_json(self) -> dict[str, object]:
         out: dict[str, object] = {"id": self.id, "n": self.name}
+        if self.key is not None:
+            out["k"] = self.key
         if self.parent is not None:
             out["p"] = self.parent
         if self.icon is not None:
@@ -160,6 +166,7 @@ def category_file(
     """The browsing tree, checked so that the client can trust ids, parents and icons."""
     symbols = {item.id for item in items}
     seen: set[int] = set()
+    keys: set[str] = set()
     for node in categories:
         if node.id < 0 or node.id in seen:
             raise ValueError(f"category id {node.id} is negative or repeated")
@@ -171,6 +178,10 @@ def category_file(
             raise ValueError(f"category {node.id} icon {node.icon} is not in the index")
         if node.file is not None and not CATEGORY_ICON_RE.match(node.file):
             raise ValueError(f"category {node.id} icon file {node.file!r} has a bad name")
+        if node.key is not None:
+            if not CATEGORY_KEY_RE.match(node.key) or node.key in keys:
+                raise ValueError(f"category {node.id} key {node.key!r} is malformed or repeated")
+            keys.add(node.key)
         seen.add(node.id)
     for item in items:
         unknown = set(item.categories) - seen

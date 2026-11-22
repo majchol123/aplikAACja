@@ -67,9 +67,14 @@ export const SymbolIndexSchema = z.object({
 });
 export type SymbolIndex = z.infer<typeof SymbolIndexSchema>;
 
+/** Stable folder key (ARASAAC category key, id of an extra-set category). */
+export const CATEGORY_KEY = /^[a-z0-9][a-z0-9 _-]{0,99}$/;
+
 export const CategoryNodeSchema = z.object({
   id: z.number().int().nonnegative(),
   n: z.string().min(1).max(100),
+  /** Survives rebuilds of the set (ids may not): admins' folder pictures use it. */
+  k: z.string().regex(CATEGORY_KEY).optional(),
   /** Parent folder; it always comes earlier in the file. */
   p: z.number().int().nonnegative().optional(),
   /** Folder picture: a symbol of the same set… */
@@ -88,6 +93,26 @@ export const CategoryFileSchema = z.object({
   nodes: z.array(CategoryNodeSchema).max(5000),
 });
 export type CategoryFile = z.infer<typeof CategoryFileSchema>;
+
+const SymbolIdSchema = z.number().int().min(0).max(9_999_999_999);
+
+/** Folder pictures chosen by admins: category key → symbol id of the same set. */
+export const CategoryIconsSchema = z.object({
+  arasaac: z.record(z.string().regex(CATEGORY_KEY), SymbolIdSchema),
+  /** Only for accounts granted the extra set. */
+  extra: z.record(z.string().regex(CATEGORY_KEY), SymbolIdSchema).optional(),
+});
+export type CategoryIcons = z.infer<typeof CategoryIconsSchema>;
+
+/** PUT /api/admin/category-icons; `symbol: null` returns the folder to the automatic one. */
+export const PutCategoryIconSchema = z
+  .object({
+    set: LibrarySetSchema,
+    key: z.string().regex(CATEGORY_KEY),
+    symbol: SymbolIdSchema.nullable(),
+  })
+  .strict();
+export type PutCategoryIcon = z.infer<typeof PutCategoryIconSchema>;
 
 /** The account's content filter (PLAN §3.3), applied to search and category browsing. */
 export interface SymbolFilter {
