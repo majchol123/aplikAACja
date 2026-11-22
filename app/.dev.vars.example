@@ -1,0 +1,8 @@
+# Copy to .dev.vars (gitignored). Local development only — never used by deployed Workers.
+GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=xxxxxxxx
+# python3 -c "import secrets,base64;print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
+OAUTH_COOKIE_KEY=
+ADMIN_EMAILS=you@example.com
+# Fake login for Playwright; the Worker honours it only on localhost.
+DEV_AUTH=1

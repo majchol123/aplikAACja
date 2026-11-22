@@ -1,0 +1,75 @@
+// Main relAACja Worker: SPA assets + Hono API + UserVault Durable Object.
+// Top level = local development only (never deployed: no routes, workers.dev disabled).
+// Deploy: CLOUDFLARE_ENV=<staging|production> vite build && wrangler deploy (see docs/PLAN.md §6).
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "relaacja-local",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2026-11-15",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "html_handling": "auto-trailing-slash",
+    "run_worker_first": ["/api/*", "/sym/extra/*"],
+  },
+  "observability": { "enabled": true },
+  "durable_objects": {
+    "bindings": [{ "name": "USER_VAULT", "class_name": "UserVault" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserVault"] }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "relaacja-core-local",
+      "database_id": "00000000-0000-4000-8000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "vars": { "APP_ORIGIN": "http://localhost:5173" },
+
+  "env": {
+    "staging": {
+      "name": "relaacja-staging",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [{ "pattern": "relaacja-staging.jagiellona.one.pl", "custom_domain": true }],
+      "observability": { "enabled": true },
+      "durable_objects": {
+        "bindings": [{ "name": "USER_VAULT", "class_name": "UserVault" }],
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "relaacja-core-staging",
+          "database_id": "11f4fceb-81c0-40a1-8a01-18a5e3900391",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "vars": {
+        "APP_ORIGIN": "https://relaacja-staging.jagiellona.one.pl",
+        "DO_JURISDICTION": "eu",
+      },
+    },
+    "production": {
+      "name": "relaacja",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [{ "pattern": "relaacja.jagiellona.one.pl", "custom_domain": true }],
+      "observability": { "enabled": true },
+      "durable_objects": {
+        "bindings": [{ "name": "USER_VAULT", "class_name": "UserVault" }],
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "relaacja-core",
+          "database_id": "8f0d0e8c-9ea4-4f75-a806-08a1c0584b18",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "vars": { "APP_ORIGIN": "https://relaacja.jagiellona.one.pl", "DO_JURISDICTION": "eu" },
+    },
+  },
+}

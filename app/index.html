@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="relAACja — bezpłatne tablice komunikacyjne AAC z piktogramami dla dzieci z trudnościami w mówieniu."
+    />
+    <meta name="theme-color" content="#0f766e" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/client/styles.css" />
+    <title>relAACja — tablice komunikacyjne AAC</title>
+    <script type="module" src="/src/client/main.tsx"></script>
+  </head>
+  <body class="min-h-dvh bg-brand-50 text-slate-800 antialiased">
+    <main id="landing" class="landing-reveal mx-auto flex min-h-dvh max-w-3xl flex-col px-6 py-8">
+      <header class="flex items-center gap-3">
+        <img src="/favicon.svg" alt="" class="size-10" />
+        <span class="text-2xl font-bold tracking-tight text-brand-800">relAACja</span>
+      </header>
+
+      <section class="mt-12 flex-1">
+        <h1 class="text-4xl font-extrabold leading-tight tracking-tight text-brand-900 sm:text-5xl">
+          Tablice komunikacyjne dla dzieci, które mówią obrazkami
+        </h1>
+        <p class="mt-6 text-lg leading-relaxed text-slate-700">
+          relAACja to bezpłatna aplikacja do komunikacji wspomagającej i alternatywnej (AAC). Rodzic
+          układa tablice z piktogramów i własnych zdjęć, a dziecko dotyka symboli, buduje z nich
+          zdanie i słyszy je na głos.
+        </p>
+
+        <ul class="mt-8 grid gap-4 sm:grid-cols-2">
+          <li class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-brand-100">
+            <p class="font-semibold text-brand-800">Tablice i foldery</p>
+            <p class="mt-1 text-slate-600">
+              Kategorie dowolnej głębokości: Jedzenie → Śniadanie → chleb.
+            </p>
+          </li>
+          <li class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-brand-100">
+            <p class="font-semibold text-brand-800">Czytanie na głos</p>
+            <p class="mt-1 text-slate-600">
+              Zdanie z symboli odczytywane głosem syntezatora urządzenia.
+            </p>
+          </li>
+          <li class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-brand-100">
+            <p class="font-semibold text-brand-800">Piktogramy i własne zdjęcia</p>
+            <p class="mt-1 text-slate-600">
+              Tysiące piktogramów ARASAAC oraz zdjęcia z aparatu lub galerii.
+            </p>
+          </li>
+          <li class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-brand-100">
+            <p class="font-semibold text-brand-800">Bez reklam i opłat</p>
+            <p class="mt-1 text-slate-600">
+              Projekt niekomercyjny. Dane każdego konta są oddzielone od innych.
+            </p>
+          </li>
+        </ul>
+
+        <div class="mt-10 flex flex-col items-start gap-4">
+          <p
+            id="login-error"
+            role="alert"
+            class="hidden rounded-xl bg-amber-100 px-4 py-3 text-amber-900"
+          ></p>
+          <a
+            href="/api/auth/login"
+            class="inline-flex items-center gap-3 rounded-full bg-brand-700 px-7 py-4 text-lg font-semibold text-white shadow-md transition hover:bg-brand-800 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+          >
+            Zaloguj się przez Google
+          </a>
+          <p class="text-sm text-slate-600">
+            Konto zakłada rodzic lub opiekun. Logując się, akceptujesz
+            <a href="/prywatnosc" class="font-medium text-brand-700 underline underline-offset-2"
+              >politykę prywatności</a
+            >.
+          </p>
+        </div>
+      </section>
+
+      <footer class="mt-12 border-t border-brand-100 pt-6 text-sm text-slate-500">
+        <nav class="flex flex-wrap gap-x-6 gap-y-2">
+          <a href="/prywatnosc" class="font-medium text-brand-700 underline underline-offset-2"
+            >Polityka prywatności</a
+          >
+        </nav>
+        <p class="mt-3">
+          Autor piktogramów: Sergio Palao. Pochodzenie: ARASAAC (<a
+            href="https://arasaac.org"
+            class="underline"
+            rel="noopener"
+            >arasaac.org</a
+          >). Licencja: CC (BY-NC-SA). Właściciel: Rząd Aragonii (Hiszpania).
+        </p>
+      </footer>
+    </main>
+    <div id="app"></div>
+  </body>
+</html>
