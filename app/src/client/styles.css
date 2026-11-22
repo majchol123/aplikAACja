@@ -12,6 +12,13 @@
   --color-brand-900: #134e4a;
 }
 
+/* Phones in landscape: the bars of the communication view share one compact row. */
+@custom-variant short {
+  @media (max-height: 32rem) {
+    @slot;
+  }
+}
+
 /*
  * The static landing page in index.html is what crawlers and no-JS clients see.
  * With JS it stays hidden until boot decides (logged-out → shown, logged-in → removed),
@@ -33,15 +40,68 @@ html[data-state='anon'] .landing-reveal {
 }
 
 /*
- * Communication grid. Each cell is a size container, so tiles, borders and labels scale
- * with the cell (cqmin = 1% of the cell's smaller side) whatever the grid and the screen.
+ * Communication view: sentence bar on top, navigation and the edit lock below it, the
+ * board under both. Phones in landscape put the three in one row to leave the height
+ * to the board.
  */
 .comm-root {
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas: 'bar bar' 'nav lock' 'board board';
 }
+@media (min-width: 40rem) and (min-height: 32.01rem) {
+  .comm-root {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+}
+@media (max-height: 32rem) {
+  .comm-root {
+    grid-template-columns: fit-content(35%) minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: 'nav bar lock' 'board board board';
+  }
+}
+
+/*
+ * Board grid (communication and edit mode). The space left by the bars is a size
+ * container; cells get the largest size that fits, kept between 3:1 (wide) and 1:1.3
+ * (tall) so tiles never turn into strips, and the grid is centred in that space.
+ */
+.board-area {
+  container-type: size;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 0;
+  align-items: flex-start;
+  justify-content: center;
+}
+.board-grid {
+  --gap: 0.5rem;
+  --cell-w: calc((100cqw - (var(--cols) - 1) * var(--gap)) / var(--cols));
+  --cell-h: calc((100cqh - (var(--rows) - 1) * var(--gap)) / var(--rows));
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: repeat(var(--cols), min(var(--cell-w), 3 * var(--cell-h)));
+  grid-template-rows: repeat(var(--rows), min(var(--cell-h), 1.3 * var(--cell-w)));
+}
+@media (min-width: 40rem) and (min-height: 32.01rem) {
+  .board-grid {
+    --gap: 0.75rem;
+  }
+}
+
+/*
+ * Each cell is a size container, so tiles, borders and labels scale with the cell
+ * (cqmin = 1% of the cell's smaller side) whatever the grid and the screen.
+ */
 .tile-cell {
   container-type: size;
   min-width: 0;
@@ -58,9 +118,15 @@ html[data-state='anon'] .landing-reveal {
   overflow: hidden;
   border-style: solid;
   border-radius: 9cqmin;
-  padding: 4cqmin;
+  padding: max(2px, 4cqmin);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
   cursor: pointer;
+}
+.tile-img {
+  min-height: 0;
+  width: 100%;
+  flex: 1 1 0;
+  object-fit: contain;
 }
 .tile:active {
   filter: brightness(0.93);
@@ -78,25 +144,70 @@ html[data-state='anon'] .landing-reveal {
 .tile-folder {
   border-top-right-radius: 2cqmin;
 }
+/*
+ * Label size: the chosen size relative to the cell, at least --min, but never more than
+ * lets the widest word fit the tile's inner width (--word: its width in em, measured by
+ * TileView), so small tiles shrink a long word instead of breaking it.
+ */
 .tile-label {
+  --inner: calc(100cqw - 2 * max(3px, 5cqmin) - 2 * max(2px, 4cqmin));
+  --fit: calc(0.94 * var(--inner) / var(--word, 4.5));
   max-width: 100%;
+  min-width: 0;
   overflow-wrap: anywhere;
   text-align: center;
+  font-size: min(var(--fit), max(var(--min), var(--size)));
   font-weight: 700;
   line-height: 1.1;
   color: #1e293b;
 }
 .tile-label-s {
-  font-size: 10cqmin;
+  --size: 10cqmin;
+  --min: 10px;
 }
 .tile-label-m {
-  font-size: 13cqmin;
+  --size: 13cqmin;
+  --min: 12px;
 }
 .tile-label-l {
-  font-size: 16cqmin;
+  --size: 16cqmin;
+  --min: 14px;
 }
 .tile-label-xl {
-  font-size: 20cqmin;
+  --size: 20cqmin;
+  --min: 16px;
+}
+/* Wide cells (phones in landscape): symbol on the left, label beside it. */
+@container (min-aspect-ratio: 19 / 10) {
+  .tile {
+    flex-direction: row;
+    justify-content: center;
+    gap: 6cqh;
+  }
+  .tile-img {
+    width: auto;
+    max-width: 50%;
+    height: 100%;
+    flex: 0 1 auto;
+    aspect-ratio: 1;
+  }
+  .tile-label {
+    /* Beside the symbol (as wide as the tile is high) and the gap. */
+    --inner: calc(100cqw - 106cqh - var(--reserve, 0px));
+    text-align: left;
+  }
+  .tile-label-s {
+    --size: 20cqh;
+  }
+  .tile-label-m {
+    --size: 26cqh;
+  }
+  .tile-label-l {
+    --size: 32cqh;
+  }
+  .tile-label-xl {
+    --size: 38cqh;
+  }
 }
 .tile-badge {
   position: absolute;
@@ -210,6 +321,21 @@ html[data-state='anon'] .landing-reveal {
 .edit-open-icon {
   width: 60%;
   height: 60%;
+}
+/* Wide cells (symbol beside the label): the button gets its own space at the right end. */
+@container (min-aspect-ratio: 19 / 10) {
+  .edit-open {
+    top: 50%;
+    right: 3cqmin;
+    left: auto;
+    transform: translateY(-50%);
+  }
+  .edit-tile:has(.edit-open) {
+    --reserve: calc(max(36px, 22cqmin) + 6cqmin);
+  }
+  .edit-tile:has(.edit-open) .tile {
+    padding-right: var(--reserve);
+  }
 }
 
 /* Photo crop (media/PhotoCropper.tsx): the finger moves and pinches the picture, not the page. */

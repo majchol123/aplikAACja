@@ -1,5 +1,5 @@
 import type { Tile } from '@relaacja/shared';
-import type { Ref } from 'react';
+import { useMemo, type CSSProperties, type Ref } from 'react';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { FolderIcon } from './icons.tsx';
 
@@ -9,6 +9,28 @@ const LABEL_SIZE: Record<Tile['fontSize'], string> = {
   L: 'tile-label-l',
   XL: 'tile-label-xl',
 };
+
+let measure: CanvasRenderingContext2D | null | undefined;
+
+/**
+ * Width of the label's widest word in em, bold in the app's font: the label shrinks to fit
+ * it instead of breaking the word (styles.css, --word).
+ */
+function widestWord(label: string, uppercase: boolean): number {
+  const words = label.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 1;
+  if (measure === undefined) {
+    measure = document.createElement('canvas').getContext('2d');
+    if (measure)
+      measure.font = `700 100px ${getComputedStyle(document.documentElement).fontFamily}`;
+  }
+  const ctx = measure;
+  const shown = (word: string) => (uppercase ? word.toLocaleUpperCase('pl') : word);
+  // Without a canvas: a generous average glyph width.
+  const width = (word: string) =>
+    ctx ? ctx.measureText(shown(word)).width / 100 : [...word].length * (uppercase ? 0.8 : 0.7);
+  return Math.max(...words.map(width));
+}
 
 /**
  * One tile. Sizes are relative to its grid cell (container query units, styles.css), so
@@ -42,9 +64,12 @@ export function TileView({
       ? `tile-filled ${colors.background} ${colors.border}`
       : `tile-outline bg-white ${colors.border}`;
   const folder = tile.kind === 'folder';
+  const word = useMemo(() => widestWord(tile.label, uppercase), [tile.label, uppercase]);
+  const fit = { '--word': word.toFixed(3) };
   const label = (
     <span
       className={`tile-label ${LABEL_SIZE[tile.fontSize]} ${src ? '' : 'my-auto'} ${uppercase ? 'uppercase' : ''}`}
+      style={fit as CSSProperties}
     >
       {tile.label}
     </span>
@@ -59,15 +84,7 @@ export function TileView({
       className={`tile ${style} ${folder ? 'tile-folder' : ''} ${flash ? 'tile-flash' : ''}`}
     >
       {tile.labelPosition === 'top' && label}
-      {src && (
-        <img
-          src={src}
-          alt=""
-          draggable={false}
-          decoding="async"
-          className="min-h-0 w-full flex-1 object-contain"
-        />
-      )}
+      {src && <img src={src} alt="" draggable={false} decoding="async" className="tile-img" />}
       {tile.labelPosition === 'bottom' && label}
       {holdMs > 0 && (
         <svg className="hold-ring" viewBox="0 0 100 100" aria-hidden="true">

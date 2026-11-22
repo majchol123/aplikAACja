@@ -2,7 +2,7 @@ import { DragDropProvider, useDraggable, useDroppable } from '@dnd-kit/react';
 import type { ComponentProps } from 'react';
 import { Accessibility, Feedback, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
 import type { Board, BoardTree, Me, Tile } from '@relaacja/shared';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
 import { useBoardWrites } from '../boards/writes.ts';
@@ -150,7 +150,7 @@ export function EditMode({
         </div>
       )}
       <BoardNav boards={boards} board={board} homeId={homeId} onOpen={onBoardChange} />
-      <p className="text-sm text-slate-700">
+      <p className="text-sm text-slate-700 short:hidden">
         Dotknij kafelka, aby go zmienić, albo pustego pola, aby dodać nowy. Przytrzymaj kafelek i
         przeciągnij, aby go przenieść.
       </p>
@@ -241,43 +241,42 @@ function EditGrid({
         if (row !== tile.row || col !== tile.col) onMove(tile, row, col);
       }}
     >
-      <div
-        className="grid min-h-0 flex-1 gap-2 sm:gap-3"
-        style={{
-          gridTemplateColumns: `repeat(${board.cols}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${board.rows}, minmax(0, 1fr))`,
-        }}
-        onContextMenu={(e) => e.preventDefault()}
-        data-testid="edit-grid"
-      >
-        {Array.from({ length: board.rows * board.cols }, (_, i) => {
-          const row = Math.floor(i / board.cols);
-          const col = i % board.cols;
-          const tile = at.get(`${row},${col}`);
-          return (
-            <EditCell key={`${board.id}:${i}`} row={row} col={col}>
-              {tile ? (
-                <EditTile
-                  key={tile.id}
-                  tile={tile}
-                  src={resolve(tile.symbol)}
-                  uppercase={uppercase}
-                  onEdit={() => !dragging.current && onEdit(tile)}
-                  onOpen={onOpen}
-                />
-              ) : (
-                <button
-                  type="button"
-                  aria-label={`Dodaj kafelek: wiersz ${row + 1}, kolumna ${col + 1}`}
-                  onClick={() => onAdd(row, col)}
-                  className="edit-empty"
-                >
-                  <PlusIcon className="edit-empty-icon" />
-                </button>
-              )}
-            </EditCell>
-          );
-        })}
+      <div className="board-area">
+        <div
+          className="board-grid"
+          style={{ '--cols': board.cols, '--rows': board.rows } as CSSProperties}
+          onContextMenu={(e) => e.preventDefault()}
+          data-testid="edit-grid"
+        >
+          {Array.from({ length: board.rows * board.cols }, (_, i) => {
+            const row = Math.floor(i / board.cols);
+            const col = i % board.cols;
+            const tile = at.get(`${row},${col}`);
+            return (
+              <EditCell key={`${board.id}:${i}`} row={row} col={col}>
+                {tile ? (
+                  <EditTile
+                    key={tile.id}
+                    tile={tile}
+                    src={resolve(tile.symbol)}
+                    uppercase={uppercase}
+                    onEdit={() => !dragging.current && onEdit(tile)}
+                    onOpen={onOpen}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`Dodaj kafelek: wiersz ${row + 1}, kolumna ${col + 1}`}
+                    onClick={() => onAdd(row, col)}
+                    className="edit-empty"
+                  >
+                    <PlusIcon className="edit-empty-icon" />
+                  </button>
+                )}
+              </EditCell>
+            );
+          })}
+        </div>
       </div>
     </DragDropProvider>
   );

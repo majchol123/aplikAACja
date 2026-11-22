@@ -137,3 +137,46 @@ test('edit mode needs a 2-second hold; settings keep device and account values',
   await page.getByRole('button', { name: 'Pulpit' }).click();
   await expect(current(page)).toHaveText('Start');
 });
+
+test('on a phone, upright and sideways, tiles keep their shape and whole-word labels', async ({
+  page,
+}) => {
+  await starterBoard(page, 'Telefon');
+  for (const viewport of [
+    { width: 412, height: 765 },
+    { width: 842, height: 314 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(tile(page, 'dziękuję')).toBeVisible();
+    const tiles = await page.getByTestId('board-grid').evaluate((grid) =>
+      [...grid.querySelectorAll<HTMLElement>('[data-tile]')].map((el) => {
+        const box = el.getBoundingClientRect();
+        const label = el.querySelector<HTMLElement>('.tile-label')!;
+        const style = getComputedStyle(label);
+        return {
+          label: label.textContent!,
+          width: box.width,
+          height: box.height,
+          bottom: box.bottom,
+          font: parseFloat(style.fontSize),
+          lines: Math.round(label.getBoundingClientRect().height / parseFloat(style.lineHeight)),
+        };
+      }),
+    );
+    expect(tiles).toHaveLength(17);
+    for (const t of tiles) {
+      const where = `${t.label} at ${viewport.width}×${viewport.height}`;
+      // The whole board fits the screen, tiles are neither strips nor towers.
+      expect(t.bottom, where).toBeLessThanOrEqual(viewport.height);
+      expect(t.width / t.height, where).toBeGreaterThan(1 / 1.35);
+      expect(t.width / t.height, where).toBeLessThan(3.05);
+      expect(t.height, where).toBeGreaterThanOrEqual(40);
+      // Readable, and a word is never broken across lines.
+      expect(t.font, where).toBeGreaterThanOrEqual(8);
+      expect(t.lines, where).toBeLessThanOrEqual(t.label.split(' ').length);
+    }
+  }
+  // Sideways, the bars share one row: the board starts high on the screen.
+  const grid = (await page.getByTestId('board-grid').boundingBox())!;
+  expect(grid.y).toBeLessThan(90);
+});

@@ -1,5 +1,13 @@
 import { TapFilter, type Board, type BoardTree, type Me, type Tile } from '@relaacja/shared';
-import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
 import { useDeviceSettings } from '../device.ts';
@@ -63,7 +71,7 @@ export function Communication({
   const speakSentence = () => speak(sentence.map((i) => i.label).join(' '));
 
   return (
-    <main className="comm-root flex h-dvh flex-col gap-2 bg-slate-100 p-2 sm:gap-3 sm:p-3">
+    <main className="comm-root h-dvh bg-slate-100">
       <h1 className="sr-only">Tablica: {board.name}</h1>
       <SentenceBar
         items={sentence}
@@ -71,9 +79,14 @@ export function Communication({
         onBackspace={() => setSentence((items) => items.slice(0, -1))}
         onClear={() => setSentence([])}
       />
-      <BoardNav boards={boards} board={board} homeId={homeId} onOpen={onBoardChange}>
-        <EditLock onUnlock={onEditMode} />
-      </BoardNav>
+      <BoardNav
+        boards={boards}
+        board={board}
+        homeId={homeId}
+        onOpen={onBoardChange}
+        className="[grid-area:nav]"
+      />
+      <EditLock onUnlock={onEditMode} />
       <BoardGrid
         board={board}
         resolve={resolve}
@@ -101,7 +114,7 @@ function SentenceBar({
   }, [items.length]);
   const empty = items.length === 0;
   return (
-    <div className="flex h-24 shrink-0 items-stretch gap-2 sm:h-28">
+    <div className="flex h-24 shrink-0 items-stretch gap-2 [grid-area:bar] sm:h-28 short:h-14">
       <div
         ref={scroller}
         role="button"
@@ -117,7 +130,7 @@ function SentenceBar({
         {items.map((item) => (
           <span
             key={item.key}
-            className="flex h-full max-h-24 shrink-0 flex-col items-center justify-center py-1"
+            className="flex h-full max-h-24 shrink-0 flex-col items-center justify-center py-1 short:py-0.5"
             data-testid="sentence-item"
           >
             {item.src && (
@@ -125,10 +138,12 @@ function SentenceBar({
                 src={item.src}
                 alt=""
                 draggable={false}
-                className="min-h-0 w-16 flex-1 object-contain"
+                className="min-h-0 w-16 flex-1 object-contain short:w-10"
               />
             )}
-            <span className="text-base font-bold leading-tight text-slate-800">{item.label}</span>
+            <span className="text-base font-bold leading-tight text-slate-800 short:text-sm">
+              {item.label}
+            </span>
           </span>
         ))}
       </div>
@@ -164,7 +179,7 @@ function BarButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`flex w-16 shrink-0 items-center justify-center rounded-2xl shadow-sm sm:w-20 disabled:opacity-35 ${
+      className={`flex w-16 shrink-0 items-center justify-center rounded-2xl shadow-sm sm:w-20 short:w-14 disabled:opacity-35 ${
         primary ? 'bg-brand-700 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'
       }`}
     >
@@ -250,37 +265,36 @@ function BoardGrid({
   };
 
   return (
-    <div
-      className="grid min-h-0 flex-1 gap-2 sm:gap-3"
-      style={{
-        gridTemplateColumns: `repeat(${board.cols}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${board.rows}, minmax(0, 1fr))`,
-      }}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onContextMenu={(e) => e.preventDefault()}
-      // Keyboard and switch access: a click without a pointer (detail 0) activates directly.
-      onClick={(e) => {
-        if (e.detail !== 0) return;
-        const id = (e.target as HTMLElement).closest<HTMLElement>('[data-tile]')?.dataset.tile;
-        fire(id ?? null);
-      }}
-      data-testid="board-grid"
-    >
-      {cells.map(({ key, tile }) => (
-        <div key={key} className="tile-cell">
-          {tile && (
-            <TileView
-              tile={tile}
-              src={resolve(tile.symbol)}
-              uppercase={uppercase}
-              flash={flash === tile.id}
-              holdMs={held === tile.id ? holdMs : 0}
-            />
-          )}
-        </div>
-      ))}
+    <div className="board-area [grid-area:board]">
+      <div
+        className="board-grid"
+        style={{ '--cols': board.cols, '--rows': board.rows } as CSSProperties}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onContextMenu={(e) => e.preventDefault()}
+        // Keyboard and switch access: a click without a pointer (detail 0) activates directly.
+        onClick={(e) => {
+          if (e.detail !== 0) return;
+          const id = (e.target as HTMLElement).closest<HTMLElement>('[data-tile]')?.dataset.tile;
+          fire(id ?? null);
+        }}
+        data-testid="board-grid"
+      >
+        {cells.map(({ key, tile }) => (
+          <div key={key} className="tile-cell">
+            {tile && (
+              <TileView
+                tile={tile}
+                src={resolve(tile.symbol)}
+                uppercase={uppercase}
+                flash={flash === tile.id}
+                holdMs={held === tile.id ? holdMs : 0}
+              />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -310,7 +324,7 @@ function EditLock({ onUnlock }: { onUnlock: () => void }) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative self-center [grid-area:lock]">
       <button
         type="button"
         aria-label="Tryb edycji (przytrzymaj 2 sekundy)"

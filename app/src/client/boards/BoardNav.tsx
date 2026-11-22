@@ -42,17 +42,22 @@ export function BoardNav({
   board,
   homeId,
   onOpen,
+  className = '',
   children,
 }: {
   boards: Map<string, Board>;
   board: Board;
   homeId: string;
   onOpen: (boardId: string) => void;
+  className?: string;
   children?: ReactNode;
 }) {
   const path = boardPath(boards, board);
   return (
-    <nav className="flex items-center gap-2" aria-label="Nawigacja po tablicach">
+    <nav
+      className={`flex min-w-0 items-center gap-2 ${className}`}
+      aria-label="Nawigacja po tablicach"
+    >
       <NavButton label="Pulpit" disabled={!board.parentId} onClick={() => onOpen(homeId)}>
         <HomeIcon />
       </NavButton>
