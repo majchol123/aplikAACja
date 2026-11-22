@@ -5,6 +5,14 @@ origin="${1:?usage: smoke.sh https://host}"
 fail() { echo "SMOKE FAIL: $*" >&2; exit 1; }
 
 status() { curl -sS -o /dev/null -w '%{http_code}' "$origin$1"; }
+
+# A freshly attached Custom Domain needs a moment for DNS and the edge certificate.
+for attempt in $(seq 1 18); do
+  code="$(curl -sS -o /dev/null -w '%{http_code}' "$origin/api/health" 2>/dev/null || true)"
+  [[ "$code" == 200 ]] && break
+  echo "waiting for $origin ($attempt/18, got ${code:-no response})"
+  sleep 10
+done
 [[ "$(status /api/health)" == 200 ]] || fail "/api/health"
 [[ "$(status /)" == 200 ]] || fail "/"
 [[ "$(status /prywatnosc)" == 200 ]] || fail "/prywatnosc"

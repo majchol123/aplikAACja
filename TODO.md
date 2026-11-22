@@ -18,8 +18,10 @@ Architektura i decyzje: [`docs/PLAN.md`](docs/PLAN.md).
 - [x] Workflowy: `ci.yml`, `deploy.yml` (staging → akceptacja → produkcja), `codeql.yml`, Dependabot; akcje przypięte do SHA
 - [x] Środowiska GitHub `staging`/`production` (wymagany recenzent, tylko `main`) + sekrety środowisk
 - [x] Publiczne repo bez danych prywatnych (zestawy spoza repo, konfiguracja operatora)
-- [ ] Pierwszy push na GitHub
-- [ ] Sekrety produkcji + migracja D1 produkcji + pierwszy deploy produkcji (po teście stagingu)
+- [x] Pierwszy push na GitHub (`ebb110c`): CI, CodeQL i deploy stagingu zielone; alerty Dependabot, secret scanning i push protection włączone
+- [x] Sekrety produkcji ustawione
+- [x] Produkcja wdrożona: https://relaacja.jagiellona.one.pl (migracja D1, smoke test OK; smoke czeka teraz do 3 min na DNS/certyfikat nowej domeny)
+- [x] Logowanie Google zweryfikowane na stagingu (konto superadmina)
 - [ ] Strefa: Configuration Rule (Email Obfuscation off dla `relaacja*`)
 - [ ] Service binding `EXTRA_SET` — przeniesione do F1 (Worker docelowy musi istnieć przed deployem)
 

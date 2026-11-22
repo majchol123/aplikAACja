@@ -7,6 +7,12 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # Documentation-only changes do not need a deploy (or a production approval).
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - 'NOTICE'
 
 permissions:
   contents: read
