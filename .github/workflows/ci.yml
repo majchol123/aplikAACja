@@ -1,0 +1,52 @@
+name: CI
+
+# Pull requests run here directly; pushes to main run it through deploy.yml (workflow_call),
+# so a deploy can never start without this exact commit passing CI.
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm audit --prod --audit-level high
+
+      - name: Prepare local secrets for E2E (dummy values, fake login)
+        working-directory: app
+        run: |
+          cp .dev.vars.example .dev.vars
+          key="$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")"
+          sed -i "s/^OAUTH_COOKIE_KEY=.*/OAUTH_COOKIE_KEY=${key}/" .dev.vars
+      - name: Install Playwright Chromium
+        working-directory: app
+        run: pnpm exec playwright install --with-deps chromium
+      - name: E2E
+        working-directory: app
+        run: pnpm e2e
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-report
+          path: app/playwright-report
+          retention-days: 7

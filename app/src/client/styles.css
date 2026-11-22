@@ -1,0 +1,32 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+  --color-brand-900: #134e4a;
+}
+
+/*
+ * The static landing page in index.html is what crawlers and no-JS clients see.
+ * With JS it stays hidden until boot decides (logged-out → shown, logged-in → removed),
+ * so signed-in users never see it flash. Without JS it appears after a short delay.
+ */
+@keyframes reveal {
+  from {
+    visibility: hidden;
+  }
+  to {
+    visibility: visible;
+  }
+}
+.landing-reveal {
+  animation: reveal 0s linear 1.5s both;
+}
+html[data-state='anon'] .landing-reveal {
+  animation: none;
+}
