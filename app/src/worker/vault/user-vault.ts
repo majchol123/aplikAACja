@@ -1,7 +1,11 @@
 import { DurableObject } from 'cloudflare:workers';
 import {
+  BoardPackageSchema,
   DEFAULT_SETTINGS,
   SettingsSchema,
+  SHARE_LIMITS,
+  type SentShare,
+  type SharePhoto,
   type BoardChanges,
   type CreateHome,
   type CreateTile,
@@ -23,6 +27,7 @@ import { BoardStore, type BoardError } from './boards.ts';
 import { MediaStore, type MediaError } from './media.ts';
 import { PreferredStore, type PreferredError } from './preferred.ts';
 import { migrateVault } from './schema.ts';
+import { ShareStore, type Delivery, type InboxEntry } from './shares.ts';
 
 /** Per-user write budget (token bucket, in memory; resets on eviction, which is acceptable). */
 const WRITE_BURST = 120;
@@ -50,6 +55,12 @@ type WithTotals<R> = R extends { error: string } ? R : Counted<R>;
 
 export type BoardResult = Counted<BoardChanges> | BoardError | RateLimited;
 
+/** Refusals of a share before anything is sent. */
+export type ShareRefusal = { error: 'too_large' | 'daily_limit' };
+
+/** Who sent a received share, so the Worker can tell them the decision. */
+export type ShareSender = { senderId: string; shareId: string };
+
 /** Read-only copy of a whole account for the admin data view (PLAN §2.6). */
 export interface VaultSnapshot {
   tree: string;
@@ -69,6 +80,7 @@ export class UserVault extends DurableObject<AppEnv> {
   private readonly boards: BoardStore;
   private readonly preferred: PreferredStore;
   private readonly media: MediaStore;
+  private readonly shares: ShareStore;
 
   constructor(ctx: DurableObjectState, env: AppEnv) {
     super(ctx, env);
@@ -78,6 +90,7 @@ export class UserVault extends DurableObject<AppEnv> {
     this.boards = new BoardStore(ctx.storage);
     this.preferred = new PreferredStore(ctx.storage);
     this.media = new MediaStore(ctx.storage);
+    this.shares = new ShareStore(ctx.storage);
   }
 
   private totals(): VaultTotals {
@@ -216,6 +229,128 @@ export class UserVault extends DurableObject<AppEnv> {
       settings: this.getSettings(),
       totals: this.totals(),
     };
+  }
+
+  // --- sharing boards (F6, PLAN §2.8) -------------------------------------------------
+
+  /**
+   * Copies board `boardId` with its sub-boards and photos into a delivery for `recipient`
+   * and records it in the outbox (counted against today's sends). Delivering it is the
+   * Worker's job, after the response.
+   */
+  prepareShare(
+    boardId: string,
+    recipient: string,
+  ):
+    | { share: SentShare; delivery: Omit<Delivery, 'senderId'> }
+    | BoardError
+    | ShareRefusal
+    | RateLimited {
+    if (!this.spendWrite()) return RATE_LIMITED;
+    const exported = this.boards.exportPackage(boardId);
+    if ('error' in exported) return exported;
+    const photos = this.media.forPackage(exported.photoIds);
+    const counts = {
+      boards: exported.boards,
+      tiles: exported.tiles,
+      photos: photos.length,
+      bytes: photos.reduce((sum, p) => sum + p.bytes, 0),
+    };
+    if (
+      counts.boards > SHARE_LIMITS.maxBoards ||
+      counts.tiles > SHARE_LIMITS.maxTiles ||
+      counts.photos > SHARE_LIMITS.maxPhotos ||
+      counts.bytes > SHARE_LIMITS.maxPhotoBytes
+    ) {
+      return { error: 'too_large' };
+    }
+    const now = Date.now();
+    return this.ctx.storage.transactionSync(() => {
+      if (!this.shares.spendSend(now)) return { error: 'daily_limit' } as const;
+      const name = exported.package.name;
+      const share = this.shares.recordSent({ ...counts, recipient, name }, now);
+      return {
+        share,
+        delivery: {
+          ...counts,
+          shareId: share.id,
+          name,
+          package: JSON.stringify(exported.package),
+          files: photos,
+          expiresAt: share.expiresAt,
+        },
+      };
+    });
+  }
+
+  /** A share from another account arrives; false when it was dropped (inbox full). */
+  deliverShare(delivery: Delivery): boolean {
+    return this.shares.deliver(delivery, Date.now());
+  }
+
+  listShares(): { received: InboxEntry[]; sent: SentShare[] } {
+    const now = Date.now();
+    return { received: this.shares.received(now), sent: this.shares.sent(now) };
+  }
+
+  receivedShare(id: string): { entry: InboxEntry; package: string; photos: SharePhoto[] } | null {
+    const item = this.shares.inboxItem(id, Date.now());
+    if (!item) return null;
+    const entry: InboxEntry = {
+      id: item.id,
+      senderId: item.senderId,
+      name: item.name,
+      boards: item.boards,
+      tiles: item.tiles,
+      photos: item.photos,
+      bytes: item.bytes,
+      createdAt: item.createdAt,
+      expiresAt: item.expiresAt,
+    };
+    return { entry, package: item.package, photos: this.shares.photoInfo(id) };
+  }
+
+  receivedSharePhoto(id: string, key: string): { mime: MediaType; data: ArrayBuffer } | null {
+    return this.shares.photo(id, key, Date.now());
+  }
+
+  /** Copies a received package into a new folder on board `boardId`; the entry is gone after. */
+  acceptShare(
+    id: string,
+    boardId: string,
+    rev: number,
+  ): (Counted<BoardChanges> & { sender: ShareSender }) | BoardError | RateLimited {
+    if (!this.spendWrite()) return RATE_LIMITED;
+    const item = this.shares.inboxItem(id, Date.now());
+    if (!item) return { error: 'not_found' };
+    const parsed = BoardPackageSchema.safeParse(JSON.parse(item.package));
+    if (!parsed.success) return { error: 'invalid_request' };
+    const result = this.boards.importPackage(boardId, rev, parsed.data, () => {
+      const ids = this.media.addFromPackage(this.shares.photos(id));
+      if (ids) this.shares.remove(id);
+      return ids;
+    });
+    if ('error' in result) return result;
+    return {
+      ...result,
+      totals: this.totals(),
+      sender: { senderId: item.senderId, shareId: item.shareId },
+    };
+  }
+
+  rejectShare(id: string): ShareSender | BoardError | RateLimited {
+    if (!this.spendWrite()) return RATE_LIMITED;
+    return this.shares.remove(id) ?? { error: 'not_found' };
+  }
+
+  /** The recipient of share `shareId` (sent from this vault) decided. */
+  shareDecided(shareId: string, status: 'accepted' | 'rejected'): void {
+    this.shares.decided(shareId, status, Date.now());
+  }
+
+  removeSentShare(id: string): boolean | RateLimited {
+    if (!this.spendWrite()) return RATE_LIMITED;
+    return this.shares.removeSent(id);
   }
 
   /** Hard delete of everything the user owns (PLAN §4.3). Idempotent. */

@@ -9,6 +9,9 @@ import { useBoardWrites } from '../boards/writes.ts';
 import { GearIcon, GridIcon, OpenIcon, PlusIcon } from '../comm/icons.tsx';
 import { TileView } from '../comm/TileView.tsx';
 import { useAccountSettings } from '../settings/account.ts';
+import { InboxDialog } from '../shares/InboxDialog.tsx';
+import { SendDialog } from '../shares/SendDialog.tsx';
+import { useShares } from '../shares/data.ts';
 import { BoardDialog } from './BoardDialog.tsx';
 import { TileEditor } from './TileEditor.tsx';
 
@@ -95,6 +98,9 @@ export function EditMode({
   const writes = useBoardWrites();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [boardDialog, setBoardDialog] = useState(false);
+  const [sharing, setSharing] = useState<'send' | 'inbox' | null>(null);
+  const shares = useShares();
+  const received = shares.data?.received.length ?? 0;
 
   if (!board) return null;
   const editedTile = editing?.tileId ? board.tiles.find((t) => t.id === editing.tileId) : undefined;
@@ -123,6 +129,28 @@ export function EditMode({
         >
           <GridIcon /> Nazwa i siatka
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            writes.dismiss();
+            setSharing('send');
+          }}
+          className="rounded-full border border-brand-700 bg-white px-4 py-2 font-semibold text-brand-800 hover:bg-brand-50"
+        >
+          Wyślij kopię
+        </button>
+        {received > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              writes.dismiss();
+              setSharing('inbox');
+            }}
+            className="rounded-full bg-amber-300 px-4 py-2 font-semibold text-amber-950 ring-1 ring-amber-500 hover:bg-amber-200"
+          >
+            Otrzymane ({received})
+          </button>
+        )}
         <button
           type="button"
           onClick={onSettings}
@@ -187,6 +215,10 @@ export function EditMode({
           onClose={() => setEditing(null)}
           onOpenFolder={onBoardChange}
         />
+      )}
+      {sharing === 'send' && <SendDialog me={me} board={board} onClose={() => setSharing(null)} />}
+      {sharing === 'inbox' && (
+        <InboxDialog me={me} board={board} onClose={() => setSharing(null)} />
       )}
       {boardDialog && (
         <BoardDialog

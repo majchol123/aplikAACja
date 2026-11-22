@@ -8,6 +8,7 @@ export * from './normalize.ts';
 export * from './preferred.ts';
 export * from './search.ts';
 export * from './settings.ts';
+export * from './share.ts';
 export * from './speech.ts';
 export * from './symbols.ts';
 export * from './tap.ts';

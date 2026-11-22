@@ -8,8 +8,11 @@ import {
   type MoveTile,
   type PatchBoard,
   type PatchTile,
+  type BoardPackage,
   type TemplateBoard,
+  type TemplateTile,
   type Tile,
+  treeShape,
 } from '@relaacja/shared';
 import { newId } from '../lib/crypto.ts';
 import { loadTemplate } from './templates.ts';
@@ -24,7 +27,9 @@ export type BoardErrorCode =
   | 'too_deep'
   | 'quota_exceeded'
   | 'unknown_symbol'
-  | 'invalid_request';
+  | 'invalid_request'
+  /** A package needs one free cell on the board it is placed on (F6). */
+  | 'board_full';
 
 export interface BoardError {
   error: BoardErrorCode;
@@ -625,6 +630,160 @@ export class BoardStore {
         mediaId,
       );
       this.sql.exec('DELETE FROM media WHERE id = ?', mediaId);
+    });
+  }
+
+  // --- packages (F6, PLAN §2.8): a board with its sub-boards as one copyable unit ---------
+
+  /**
+   * The board `boardId` and everything below it as a package; `own` symbols keep the media
+   * IDs of this vault (the caller attaches those photos). The look of the folder opening it
+   * travels along (a home board has none).
+   */
+  exportPackage(
+    boardId: string,
+  ): { package: BoardPackage; boards: number; tiles: number; photoIds: string[] } | BoardError {
+    const root = this.board(boardId);
+    if (!root) return { error: 'not_found' };
+    const ids = this.subtree(boardId);
+    const marks = ids.map(() => '?').join(', ');
+    const rows = new Map(
+      this.sql
+        .exec<BoardRow>(`SELECT ${BOARD_COLUMNS} FROM boards WHERE id IN (${marks})`, ...ids)
+        .toArray()
+        .map((b) => [b.id, b]),
+    );
+    const tilesOf = this.tilesByBoard(
+      this.sql
+        .exec<TileRow>(
+          `SELECT ${TILE_COLUMNS} FROM tiles WHERE board_id IN (${marks}) ORDER BY board_id, row, col`,
+          ...ids,
+        )
+        .toArray(),
+    );
+    const photos = new Set<string>();
+    let tiles = 0;
+    const build = (board: BoardRow): TemplateBoard => ({
+      rows: board.rows,
+      cols: board.cols,
+      tiles: (tilesOf.get(board.id) ?? []).map((tile): TemplateTile => {
+        tiles++;
+        if (tile.symbol?.set === 'own') photos.add(tile.symbol.ref);
+        const target = tile.targetBoardId ? rows.get(tile.targetBoardId) : undefined;
+        return {
+          row: tile.row,
+          col: tile.col,
+          kind: tile.kind,
+          label: tile.label,
+          labelPosition: tile.labelPosition,
+          fontSize: tile.fontSize,
+          colorRole: tile.colorRole,
+          colorMode: tile.colorMode,
+          symbol: tile.symbol,
+          ...(target ? { board: build(target) } : {}),
+        };
+      }),
+    });
+    const board = build(root);
+    const opener = this.sql
+      .exec<TileRow>(`SELECT ${TILE_COLUMNS} FROM tiles WHERE target_board_id = ?`, boardId)
+      .toArray()[0];
+    const look = opener ? toTile(opener) : undefined;
+    if (look?.symbol?.set === 'own') photos.add(look.symbol.ref);
+    return {
+      package: {
+        v: 1,
+        name: root.name,
+        ...(look
+          ? {
+              tile: {
+                labelPosition: look.labelPosition,
+                fontSize: look.fontSize,
+                colorRole: look.colorRole,
+                colorMode: look.colorMode,
+                symbol: look.symbol,
+              },
+            }
+          : {}),
+        board,
+      },
+      boards: rows.size,
+      tiles,
+      photoIds: [...photos],
+    };
+  }
+
+  /**
+   * Places a copy of `pkg` as a new folder in the first free cell of board `boardId`, in
+   * one transaction. `addPhotos` runs inside that transaction before the tiles are written:
+   * it stores the package's photos and maps their keys to media IDs of this vault, or
+   * returns null when the photo quota is exceeded (everything is rolled back). A photo
+   * key it did not map leaves its tiles with their label only.
+   */
+  importPackage(
+    boardId: string,
+    rev: number,
+    pkg: BoardPackage,
+    addPhotos: () => Map<string, string> | null,
+  ): BoardChanges | BoardError {
+    return this.write((changes, now) => {
+      const board = this.boardAt(boardId, rev);
+      const shape = treeShape(pkg.board, pkg.name, { allowOwn: true });
+      if (shape.problems.length > 0) throw new Abort('invalid_request');
+      const taken = new Set(
+        this.sql
+          .exec<{ row: number; col: number }>(
+            'SELECT row, col FROM tiles WHERE board_id = ?',
+            board.id,
+          )
+          .toArray()
+          .map((t) => `${t.row},${t.col}`),
+      );
+      let cell: { row: number; col: number } | undefined;
+      for (let i = 0; i < board.rows * board.cols && !cell; i++) {
+        const row = Math.floor(i / board.cols);
+        const col = i % board.cols;
+        if (!taken.has(`${row},${col}`)) cell = { row, col };
+      }
+      if (!cell) throw new Abort('board_full');
+      // The folder and the package's root board, then everything below it.
+      this.assertQuota(shape.boards, shape.tiles + 1);
+      if (this.depth(board.id) + 1 + shape.depth > BOARD_LIMITS.maxDepth) {
+        throw new Abort('too_deep');
+      }
+      const ownIds = addPhotos();
+      if (!ownIds) throw new Abort('quota_exceeded');
+      const mapSymbol = (symbol: Tile['symbol'] | undefined): Tile['symbol'] => {
+        if (symbol?.set !== 'own') return symbol ?? null;
+        const id = ownIds.get(symbol.ref);
+        return id ? { set: 'own', ref: id } : null;
+      };
+      const mapBoard = (b: TemplateBoard): TemplateBoard => ({
+        rows: b.rows,
+        cols: b.cols,
+        tiles: b.tiles.map((t) => ({
+          ...t,
+          symbol: mapSymbol(t.symbol),
+          ...(t.board ? { board: mapBoard(t.board) } : {}),
+        })),
+      });
+      const tree = mapBoard(pkg.board);
+      const target = this.insertBoard(changes, now, pkg.name, board.id, tree);
+      this.insertTile(
+        board.id,
+        {
+          row: cell.row,
+          col: cell.col,
+          kind: 'folder',
+          label: pkg.name,
+          ...pkg.tile,
+          symbol: mapSymbol(pkg.tile?.symbol),
+        },
+        target,
+        now,
+      );
+      this.seed(changes, now, target, tree);
+      changes.bumped.add(board.id);
     });
   }
 

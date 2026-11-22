@@ -35,6 +35,7 @@ import * as admin from './routes/admin.ts';
 import * as boards from './routes/boards.ts';
 import * as categories from './routes/categories.ts';
 import * as media from './routes/media.ts';
+import * as shares from './routes/shares.ts';
 import * as symbols from './routes/symbols.ts';
 import { JSON_BODY_LIMIT, ROUTES, type RouteDef } from './routes/registry.ts';
 import { cookieConflictGuard } from './security/cookies.ts';
@@ -342,6 +343,13 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.renameMedia, media.renameMedia);
   defineRoute(ROUTES.deleteMedia, media.deleteMedia);
 
+  defineRoute(ROUTES.sendShare, shares.sendShare);
+  defineRoute(ROUTES.listShares, shares.listShares);
+  defineRoute(ROUTES.getReceivedShare, shares.getReceivedShare);
+  defineRoute(ROUTES.getReceivedSharePhoto, shares.getReceivedSharePhoto);
+  defineRoute(ROUTES.acceptShare, shares.acceptShare);
+  defineRoute(ROUTES.rejectShare, shares.rejectShare);
+  defineRoute(ROUTES.removeSentShare, shares.removeSentShare);
   defineRoute(ROUTES.adminUsers, admin.listUsers);
   defineRoute(ROUTES.adminBlock, admin.blockUser(deps.now));
   defineRoute(ROUTES.adminUnblock, admin.unblockUser(deps.now));

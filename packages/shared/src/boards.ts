@@ -122,6 +122,33 @@ export const TemplateSchema = z
   .strict();
 export type Template = z.infer<typeof TemplateSchema>;
 export type TemplateBoard = z.infer<typeof TemplateBoardSchema>;
+export type TemplateTile = z.infer<typeof TemplateTileSchema>;
+
+/**
+ * A board with all its sub-boards as one copyable unit (PLAN §2.8): what is shared with
+ * another account, published in the catalogue or saved to a file. The tree has the shape
+ * of a template; `tile` is the look of the folder that opened it (none for a home board),
+ * and `own` symbols point at photos travelling with the package, by key.
+ */
+export const BoardPackageSchema = z
+  .object({
+    v: z.literal(1),
+    /** Name of the board, which is also the label of its folder (up to a label's length). */
+    name: TileLabelSchema,
+    tile: z
+      .object({
+        labelPosition: tileStyle.labelPosition,
+        fontSize: tileStyle.fontSize,
+        colorRole: tileStyle.colorRole,
+        colorMode: tileStyle.colorMode,
+        symbol: tileStyle.symbol,
+      })
+      .strict()
+      .optional(),
+    board: TemplateBoardSchema,
+  })
+  .strict();
+export type BoardPackage = z.infer<typeof BoardPackageSchema>;
 
 /** `rev` is the board's current revision; a stale one is refused with 409 (PLAN §3.5). */
 export const PatchBoardSchema = z
@@ -230,15 +257,60 @@ export interface BoardChanges {
   removed: string[];
 }
 
+/**
+ * A package as a read-only board tree (to look at before accepting it), with IDs made up
+ * for this view only; `own` symbols keep the package's photo keys.
+ */
+export function packageTree(pkg: BoardPackage): BoardTree {
+  const boards: Board[] = [];
+  const add = (board: TemplateBoard, name: string, parentId: string | null): string => {
+    const id = `pkg${boards.length}`;
+    const entry: Board = {
+      id,
+      name,
+      parentId,
+      rows: board.rows,
+      cols: board.cols,
+      rev: 1,
+      tiles: [],
+    };
+    boards.push(entry);
+    entry.tiles = board.tiles.map((t, i) => ({
+      id: `${id}-${i}`,
+      row: t.row,
+      col: t.col,
+      kind: t.kind ?? 'word',
+      targetBoardId: t.board ? add(t.board, t.label, id) : null,
+      label: t.label,
+      labelPosition: t.labelPosition ?? 'bottom',
+      fontSize: t.fontSize ?? 'M',
+      colorRole: t.colorRole ?? null,
+      colorMode: t.colorMode ?? 'border',
+      symbol: t.symbol ?? null,
+    }));
+    return id;
+  };
+  return { homeId: add(pkg.board, pkg.name, null), boards };
+}
+
 /** Structural problems of a template (empty when it can be created as is). */
-export function templateProblems(template: Template): string[] {
+/** Shape of a template-like tree: its problems, size and nesting (root board = depth 0). */
+export function treeShape(
+  root: TemplateBoard,
+  name: string,
+  { allowOwn }: { allowOwn: boolean },
+): { problems: string[]; boards: number; tiles: number; depth: number } {
   const problems: string[] = [];
   let boards = 0;
   let tiles = 0;
+  let deepest = 0;
   const walk = (board: TemplateBoard, path: string, depth: number) => {
     boards++;
-    if (depth > BOARD_LIMITS.maxDepth)
+    deepest = Math.max(deepest, depth);
+    if (depth > BOARD_LIMITS.maxDepth) {
       problems.push(`${path}: deeper than ${BOARD_LIMITS.maxDepth}`);
+      return;
+    }
     const cells = new Set<string>();
     for (const tile of board.tiles) {
       tiles++;
@@ -250,11 +322,20 @@ export function templateProblems(template: Template): string[] {
       cells.add(cell);
       const folder = tile.kind === 'folder';
       if (folder !== (tile.board !== undefined)) problems.push(`${where}: board iff folder`);
-      if (tile.symbol?.set === 'own') problems.push(`${where}: templates cannot use own photos`);
+      if (!allowOwn && tile.symbol?.set === 'own') {
+        problems.push(`${where}: templates cannot use own photos`);
+      }
       if (tile.board) walk(tile.board, where, depth + 1);
     }
   };
-  walk(template.board, template.name, 0);
+  walk(root, name, 0);
+  return { problems, boards, tiles, depth: deepest };
+}
+
+export function templateProblems(template: Template): string[] {
+  const { problems, boards, tiles } = treeShape(template.board, template.name, {
+    allowOwn: false,
+  });
   if (boards > BOARD_LIMITS.maxBoards || tiles > BOARD_LIMITS.maxTiles) {
     problems.push(`too big: ${boards} boards, ${tiles} tiles`);
   }

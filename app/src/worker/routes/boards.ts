@@ -29,6 +29,7 @@ const ERROR_STATUS: Record<BoardErrorCode | 'rate_limited', ContentfulStatusCode
   too_deep: 422,
   quota_exceeded: 422,
   unknown_symbol: 422,
+  board_full: 422,
   rate_limited: 429,
 };
 

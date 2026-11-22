@@ -151,6 +151,55 @@ export const VAULT_MIGRATIONS: readonly string[] = [
      BEGIN UPDATE vault_meta SET media = media - 1, media_bytes = media_bytes - OLD.bytes WHERE id = 1; END;
    CREATE INDEX idx_tiles_own ON tiles (symbol_ref) WHERE symbol_set = 'own';
    CREATE INDEX idx_preferred_own ON preferred_symbols (symbol_ref) WHERE symbol_set = 'own';`,
+
+  // v5 — sharing boards between accounts (F6, PLAN §2.8). Inbox: packages other accounts
+  // sent, with their photos, until accepted, rejected or expired; the sender is kept by ID
+  // only (name and address come from D1 when listed, so a deleted sender leaves nothing).
+  // Outbox: what this account sent, as it typed the address, and the recipient's decision.
+  // Sends per day are counted in vault_meta.
+  `CREATE TABLE inbox (
+     id TEXT PRIMARY KEY,
+     sender_id TEXT NOT NULL,
+     share_id TEXT NOT NULL,
+     name TEXT NOT NULL,
+     package TEXT NOT NULL,
+     boards INTEGER NOT NULL,
+     tiles INTEGER NOT NULL,
+     photos INTEGER NOT NULL,
+     bytes INTEGER NOT NULL,
+     created_at INTEGER NOT NULL,
+     expires_at INTEGER NOT NULL
+   );
+   CREATE INDEX idx_inbox_expires ON inbox (expires_at);
+   CREATE TABLE inbox_media (
+     inbox_id TEXT NOT NULL REFERENCES inbox (id) ON DELETE CASCADE,
+     key TEXT NOT NULL,
+     label TEXT NOT NULL,
+     mime TEXT NOT NULL CHECK (mime IN ('image/webp', 'image/jpeg', 'image/png')),
+     width INTEGER NOT NULL,
+     height INTEGER NOT NULL,
+     bytes INTEGER NOT NULL,
+     sha256 TEXT NOT NULL,
+     data BLOB NOT NULL,
+     PRIMARY KEY (inbox_id, key)
+   );
+   CREATE TABLE outbox (
+     id TEXT PRIMARY KEY,
+     recipient TEXT NOT NULL,
+     name TEXT NOT NULL,
+     status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')),
+     boards INTEGER NOT NULL,
+     tiles INTEGER NOT NULL,
+     photos INTEGER NOT NULL,
+     bytes INTEGER NOT NULL,
+     created_at INTEGER NOT NULL,
+     expires_at INTEGER NOT NULL,
+     decided_at INTEGER
+   );
+   CREATE INDEX idx_outbox_created ON outbox (created_at);
+   CREATE INDEX idx_media_sha256 ON media (sha256);
+   ALTER TABLE vault_meta ADD COLUMN sends_day TEXT NOT NULL DEFAULT '';
+   ALTER TABLE vault_meta ADD COLUMN sends INTEGER NOT NULL DEFAULT 0;`,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {

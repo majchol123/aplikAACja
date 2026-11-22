@@ -10,6 +10,18 @@ import type { CleanImage } from '../media/image.ts';
 
 export type MediaError = { error: 'not_found' | 'quota_exceeded' };
 
+/** A photo travelling with a board package (sharing, F6); `key` is its ID at the sender. */
+export type PackagePhoto = {
+  key: string;
+  label: string;
+  mime: MediaType;
+  width: number;
+  height: number;
+  bytes: number;
+  sha256: string;
+  data: ArrayBuffer;
+};
+
 type MediaRow = {
   id: string;
   label: string;
@@ -131,5 +143,62 @@ export class MediaStore {
       .exec<MediaRow>(`UPDATE media SET label = ? WHERE id = ? RETURNING ${COLUMNS}`, label, id)
       .toArray()[0];
     return row ? { media: toInfo(row), usage: this.usage() } : { error: 'not_found' };
+  }
+
+  /** Photos `ids` with their bytes, for a package (unknown IDs are skipped). */
+  forPackage(ids: string[]): PackagePhoto[] {
+    if (ids.length === 0) return [];
+    const marks = ids.map(() => '?').join(', ');
+    return this.sql
+      .exec<PackagePhoto>(
+        `SELECT m.id AS key, m.label, m.mime, m.width, m.height, m.bytes, m.sha256, d.data
+           FROM media m JOIN media_data d ON d.id = m.id WHERE m.id IN (${marks})`,
+        ...ids,
+      )
+      .toArray();
+  }
+
+  /**
+   * Stores the photos of an accepted package (inside the caller's transaction) and maps
+   * their keys to media IDs here. A photo this vault already has (same bytes) is reused
+   * instead of stored twice. Null when the new ones do not fit the quota.
+   */
+  addFromPackage(photos: readonly PackagePhoto[]): Map<string, string> | null {
+    const ids = new Map<string, string>();
+    const fresh: PackagePhoto[] = [];
+    for (const photo of photos) {
+      const existing = this.sql
+        .exec<{ id: string }>('SELECT id FROM media WHERE sha256 = ? LIMIT 1', photo.sha256)
+        .toArray()[0];
+      if (existing) ids.set(photo.key, existing.id);
+      else fresh.push(photo);
+    }
+    const usage = this.usage();
+    const bytes = fresh.reduce((sum, p) => sum + p.bytes, 0);
+    if (
+      usage.count + fresh.length > MEDIA_LIMITS.maxCount ||
+      usage.bytes + bytes > MEDIA_LIMITS.maxTotalBytes
+    ) {
+      return null;
+    }
+    const now = this.now();
+    for (const photo of fresh) {
+      const id = newId();
+      this.sql.exec(
+        `INSERT INTO media (id, label, mime, width, height, bytes, sha256, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        id,
+        photo.label,
+        photo.mime,
+        photo.width,
+        photo.height,
+        photo.bytes,
+        photo.sha256,
+        now,
+      );
+      this.sql.exec('INSERT INTO media_data (id, data) VALUES (?, ?)', id, photo.data);
+      ids.set(photo.key, id);
+    }
+    return ids;
   }
 }

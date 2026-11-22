@@ -69,6 +69,18 @@ export const ROUTES = {
   getMedia: { method: 'GET', path: '/api/media/:id', access: 'user' },
   renameMedia: { method: 'PATCH', path: '/api/media/:id', access: 'user' },
   deleteMedia: { method: 'DELETE', path: '/api/media/:id', access: 'user' },
+  // Sharing boards (PLAN §2.8): IDs are looked up inside the caller's own vault only.
+  sendShare: { method: 'POST', path: '/api/shares', access: 'user' },
+  listShares: { method: 'GET', path: '/api/shares', access: 'user' },
+  getReceivedShare: { method: 'GET', path: '/api/shares/received/:id', access: 'user' },
+  getReceivedSharePhoto: {
+    method: 'GET',
+    path: '/api/shares/received/:id/photos/:key',
+    access: 'user',
+  },
+  acceptShare: { method: 'POST', path: '/api/shares/received/:id/accept', access: 'user' },
+  rejectShare: { method: 'POST', path: '/api/shares/received/:id/reject', access: 'user' },
+  removeSentShare: { method: 'DELETE', path: '/api/shares/sent/:id', access: 'user' },
   // Admin panel (PLAN §2.6): the only routes naming another account; rank rules and audit
   // in routes/admin.ts.
   adminUsers: { method: 'GET', path: '/api/admin/users', access: 'admin' },

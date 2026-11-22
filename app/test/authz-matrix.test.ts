@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ROUTES } from '../src/worker/routes/registry.ts';
-import type { BoardChanges } from '@relaacja/shared';
+import type { BoardChanges, ShareLists } from '@relaacja/shared';
 import {
   apiAs,
   insertUser,
@@ -44,6 +44,9 @@ interface Fixture {
   /** User A, the account admin routes act on. */
   ownerId: string;
   ownerEmail: string;
+  /** A share of user A's home board, sent by user A to itself. */
+  receivedId: string;
+  sentId: string;
 }
 
 type Row = {
@@ -109,6 +112,33 @@ const EXPECTED: Record<string, Row> = {
     status: ownedByA,
   },
   'DELETE /api/media/:id': { path: (f) => `/api/media/${f.mediaId}`, status: ownedByA },
+  // Sharing: a board of one's own to any address (same answer whether it has an account).
+  'POST /api/shares': {
+    body: (f) => ({ boardId: f.boardId, email: 'someone@example.com' }),
+    status: { ...ownedByA, userA: 202 },
+  },
+  'GET /api/shares': { status: userOnly },
+  'GET /api/shares/received/:id': {
+    path: (f) => `/api/shares/received/${f.receivedId}`,
+    status: ownedByA,
+  },
+  'GET /api/shares/received/:id/photos/:key': {
+    path: (f) => `/api/shares/received/${f.receivedId}/photos/${f.mediaId}`,
+    status: ownedByA,
+  },
+  'POST /api/shares/received/:id/accept': {
+    path: (f) => `/api/shares/received/${f.receivedId}/accept`,
+    body: (f) => ({ boardId: f.boardId, rev: 2 }),
+    status: ownedByA,
+  },
+  'POST /api/shares/received/:id/reject': {
+    path: (f) => `/api/shares/received/${f.receivedId}/reject`,
+    status: { ...ownedByA, userA: 204 },
+  },
+  'DELETE /api/shares/sent/:id': {
+    path: (f) => `/api/shares/sent/${f.sentId}`,
+    status: { ...ownedByA, userA: 204 },
+  },
   'GET /api/admin/users': { status: adminsOnly },
   // Admin routes act on user A: admins manage plain accounts, superadmins everyone below.
   'POST /api/admin/users/:id/block': {
@@ -164,17 +194,21 @@ async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: Tes
     cols: 5,
   });
   const boardId = home.body.boards[0]!.id;
+  const photo = await uploadAs(call, await sessionCookie(owner.id))<{ media: { id: string } }>(
+    'Dom',
+    webp(32, 32),
+  );
   const tile = await api<BoardChanges>('POST', `/api/boards/${boardId}/tiles`, {
     rev: 1,
     row: 0,
     col: 0,
     kind: 'word',
     label: 'jeść',
+    symbol: { set: 'own', ref: photo.body.media.id },
   });
-  const photo = await uploadAs(call, await sessionCookie(owner.id))<{ media: { id: string } }>(
-    'Dom',
-    webp(32, 32),
-  );
+  // A share of the home board sent to the owner's own address: one received, one sent.
+  await api('POST', '/api/shares', { boardId, email: owner.email });
+  const shares = await api<ShareLists>('GET', '/api/shares');
   // Board revision is 2 after the tile was added.
   return {
     boardId,
@@ -182,6 +216,8 @@ async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: Tes
     mediaId: photo.body.media.id,
     ownerId: owner.id,
     ownerEmail: owner.email,
+    receivedId: shares.body.received[0]!.id,
+    sentId: shares.body.sent[0]!.id,
   } satisfies Fixture;
 }
 
