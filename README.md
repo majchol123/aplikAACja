@@ -2,9 +2,6 @@
 
 Bezpłatna aplikacja webowa AAC (komunikacja wspomagająca i alternatywna) dla osób, które przy mówieniu wspomagają się symbolami — dzieci, młodzieży i dorosłych. Po zalogowaniu kontem Google tablice z symboli ARASAAC i własnych zdjęć układa się w trybie edycji, a w trybie komunikacji buduje się z nich zdania odczytywane na głos.
 
-- Architektura, decyzje i etapy: [`docs/PLAN.md`](docs/PLAN.md)
-- Backlog: [`TODO.md`](TODO.md)
-
 ## Stos
 
 Cloudflare Workers (plan Free) + Static Assets, Durable Objects (SQLite, jeden na użytkownika, jurysdykcja EU), D1, Hono, Zod, React 19, Vite 8, Tailwind CSS 4, TanStack Query, dnd-kit. Testy: Vitest w runtime Workers (`@cloudflare/vitest-plugin`), Playwright + axe-core. Narzędzia offline (`tools/`): Python 3.13 + uv, Pillow, pytest, ruff.
@@ -57,7 +54,7 @@ Mirror w środowiskach serwuje osobny Worker na ścieżce `/sym/arasaac/*` (Rout
 
 ## Wdrażanie
 
-Push na `main` → CI → staging (`relaacja-staging.jagiellona.one.pl`) → ręczna akceptacja → produkcja (`relaacja.jagiellona.one.pl`). Mirror ARASAAC odświeża `.github/workflows/arasaac-refresh.yml` (2× w tygodniu, przyrostowo; środowisko `symbols`). Prywatny Worker `relaacja-extra` wdraża operator poza CI. Szczegóły w `docs/PLAN.md` §6.
+Push na `main` → CI → staging (`relaacja-staging.jagiellona.one.pl`) → ręczna akceptacja → produkcja (`relaacja.jagiellona.one.pl`). Mirror ARASAAC odświeża `.github/workflows/arasaac-refresh.yml` (2× w tygodniu, przyrostowo; środowisko `symbols`). Prywatny Worker `relaacja-extra` wdraża operator poza CI.
 
 ## Licencje
 

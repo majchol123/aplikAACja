@@ -1,6 +1,6 @@
 // Main relAACja Worker: SPA assets + Hono API + UserVault Durable Object.
 // Top level = local development only (never deployed: no routes, workers.dev disabled).
-// Deploy: CLOUDFLARE_ENV=<staging|production> vite build && wrangler deploy (see docs/PLAN.md §6).
+// Deploy: CLOUDFLARE_ENV=<staging|production> vite build && wrangler deploy (.github/workflows/deploy.yml).
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "relaacja-local",

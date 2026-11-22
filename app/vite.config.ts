@@ -59,7 +59,8 @@ const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 /**
  * The operator's contact address is published on /prywatnosc but kept out of the
- * repository: deploy builds take it from the CONTACT_EMAIL variable (GitHub `vars`).
+ * repository and the public Actions logs: deploy builds take it from CONTACT_EMAIL, a GitHub
+ * environment secret (masked in logs, unlike `vars`).
  */
 function contactEmail(): Plugin {
   const deployEnv = process.env.CLOUDFLARE_ENV;
