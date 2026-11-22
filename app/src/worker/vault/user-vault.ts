@@ -4,7 +4,9 @@ import {
   DEFAULT_SETTINGS,
   ImportPackageSchema,
   treeShape,
+  type BoardPackage,
   type ImportPackage,
+  type ShareCounts,
   type TemplateBoard,
   SettingsSchema,
   SHARE_LIMITS,
@@ -28,7 +30,7 @@ import {
 import type { AppEnv } from '../env.ts';
 import type { CleanImage } from '../media/image.ts';
 import { BoardStore, type BoardError } from './boards.ts';
-import { MediaStore, type MediaError } from './media.ts';
+import { MediaStore, type MediaError, type PackagePhoto } from './media.ts';
 import { PreferredStore, type PreferredError } from './preferred.ts';
 import { migrateVault } from './schema.ts';
 import { ShareStore, type Delivery, type InboxEntry } from './shares.ts';
@@ -58,6 +60,25 @@ export type Counted<T> = T & { totals: VaultTotals };
 type WithTotals<R> = R extends { error: string } ? R : Counted<R>;
 
 export type BoardResult = Counted<BoardChanges> | BoardError | RateLimited;
+
+/** The package with its own photos left out (their tiles keep the label only). */
+function withoutOwnPhotos(pkg: BoardPackage): BoardPackage {
+  const strip = (board: TemplateBoard): TemplateBoard => ({
+    ...board,
+    tiles: board.tiles.map((t) => ({
+      ...t,
+      symbol: t.symbol?.set === 'own' ? null : (t.symbol ?? null),
+      ...(t.board ? { board: strip(t.board) } : {}),
+    })),
+  });
+  return {
+    ...pkg,
+    ...(pkg.tile
+      ? { tile: { ...pkg.tile, symbol: pkg.tile.symbol?.set === 'own' ? null : pkg.tile.symbol } }
+      : {}),
+    board: strip(pkg.board),
+  };
+}
 
 /** Refusals of a share before anything is sent. */
 export type ShareRefusal = { error: 'too_large' | 'daily_limit' };
@@ -251,14 +272,49 @@ export class UserVault extends DurableObject<AppEnv> {
     | ShareRefusal
     | RateLimited {
     if (!this.spendWrite()) return RATE_LIMITED;
+    const built = this.buildPackage(boardId, true);
+    if ('error' in built) return built;
+    const now = Date.now();
+    return this.ctx.storage.transactionSync(() => {
+      if (!this.shares.spendSend(now)) return { error: 'daily_limit' } as const;
+      const share = this.shares.recordSent(
+        { ...built.counts, recipient, name: built.package.name },
+        now,
+      );
+      return {
+        share,
+        delivery: {
+          ...built.counts,
+          shareId: share.id,
+          name: built.package.name,
+          package: JSON.stringify(built.package),
+          files: built.files,
+          expiresAt: share.expiresAt,
+        },
+      };
+    });
+  }
+
+  /**
+   * Board `boardId` with its sub-boards as a package within SHARE_LIMITS, with the photos
+   * on it — or, without `withPhotos`, with those tiles left with their label only.
+   */
+  private buildPackage(
+    boardId: string,
+    withPhotos: boolean,
+  ):
+    | { package: BoardPackage; files: PackagePhoto[]; counts: ShareCounts }
+    | BoardError
+    | ShareRefusal {
     const exported = this.boards.exportPackage(boardId);
     if ('error' in exported) return exported;
-    const photos = this.media.forPackage(exported.photoIds);
+    const files = withPhotos ? this.media.forPackage(exported.photoIds) : [];
+    const pkg = withPhotos ? exported.package : withoutOwnPhotos(exported.package);
     const counts = {
       boards: exported.boards,
       tiles: exported.tiles,
-      photos: photos.length,
-      bytes: photos.reduce((sum, p) => sum + p.bytes, 0),
+      photos: files.length,
+      bytes: files.reduce((sum, p) => sum + p.bytes, 0),
     };
     if (
       counts.boards > SHARE_LIMITS.maxBoards ||
@@ -268,23 +324,40 @@ export class UserVault extends DurableObject<AppEnv> {
     ) {
       return { error: 'too_large' };
     }
-    const now = Date.now();
-    return this.ctx.storage.transactionSync(() => {
-      if (!this.shares.spendSend(now)) return { error: 'daily_limit' } as const;
-      const name = exported.package.name;
-      const share = this.shares.recordSent({ ...counts, recipient, name }, now);
-      return {
-        share,
-        delivery: {
-          ...counts,
-          shareId: share.id,
-          name,
-          package: JSON.stringify(exported.package),
-          files: photos,
-          expiresAt: share.expiresAt,
-        },
-      };
-    });
+    return { package: pkg, files, counts };
+  }
+
+  /**
+   * A copy of board `boardId` for the catalogue of public boards (admins, PLAN §2.8),
+   * named as in the catalogue (the folder it becomes takes that name).
+   */
+  exportForCatalog(
+    boardId: string,
+    withPhotos: boolean,
+    name: string,
+  ): { package: string; files: PackagePhoto[]; counts: ShareCounts } | BoardError | ShareRefusal {
+    const built = this.buildPackage(boardId, withPhotos);
+    if ('error' in built) return built;
+    return {
+      package: JSON.stringify({ ...built.package, name }),
+      files: built.files,
+      counts: built.counts,
+    };
+  }
+
+  /** A catalogue entry copied as a new folder on board `boardId`. */
+  importFromCatalog(
+    boardId: string,
+    rev: number,
+    json: string,
+    files: PackagePhoto[],
+  ): Counted<BoardChanges> | BoardError | RateLimited {
+    if (!this.spendWrite()) return RATE_LIMITED;
+    const parsed = BoardPackageSchema.safeParse(JSON.parse(json));
+    if (!parsed.success) return { error: 'invalid_request' };
+    return this.counted(
+      this.boards.importPackage(boardId, rev, parsed.data, () => this.media.addFromPackage(files)),
+    );
   }
 
   /**

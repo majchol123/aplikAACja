@@ -16,9 +16,16 @@
   },
   "observability": { "enabled": true },
   "durable_objects": {
-    "bindings": [{ "name": "USER_VAULT", "class_name": "UserVault" }],
+    "bindings": [
+      { "name": "USER_VAULT", "class_name": "UserVault" },
+      { "name": "CATALOG", "class_name": "Catalog" },
+    ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["UserVault"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["UserVault"] },
+    // Catalogue of public boards (F6, PLAN §2.8): one object for the whole deployment.
+    { "tag": "v2", "new_sqlite_classes": ["Catalog"] },
+  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -40,7 +47,10 @@
       "routes": [{ "pattern": "relaacja-staging.jagiellona.one.pl", "custom_domain": true }],
       "observability": { "enabled": true },
       "durable_objects": {
-        "bindings": [{ "name": "USER_VAULT", "class_name": "UserVault" }],
+        "bindings": [
+          { "name": "USER_VAULT", "class_name": "UserVault" },
+          { "name": "CATALOG", "class_name": "Catalog" },
+        ],
       },
       "d1_databases": [
         {
@@ -63,7 +73,10 @@
       "routes": [{ "pattern": "relaacja.jagiellona.one.pl", "custom_domain": true }],
       "observability": { "enabled": true },
       "durable_objects": {
-        "bindings": [{ "name": "USER_VAULT", "class_name": "UserVault" }],
+        "bindings": [
+          { "name": "USER_VAULT", "class_name": "UserVault" },
+          { "name": "CATALOG", "class_name": "Catalog" },
+        ],
       },
       "d1_databases": [
         {

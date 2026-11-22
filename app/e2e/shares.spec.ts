@@ -5,6 +5,7 @@ import {
   freshLogin,
   holdEditLock,
   mockArasaac,
+  promoteToAdmin,
   TINY_WEBP,
 } from './support.ts';
 
@@ -87,8 +88,8 @@ test('a board is sent to another account, looked at and accepted there', async (
   // The recipient finds it in edit mode, looks at it and adds it to the home board.
   await recipient.reload();
   await holdEditLock(recipient);
-  await recipient.getByRole('button', { name: 'Otrzymane (1)' }).click();
-  const inbox = recipient.getByRole('dialog', { name: 'Otrzymane tablice' });
+  await recipient.getByRole('button', { name: 'Dodaj tablicę (otrzymane: 1)' }).click();
+  const inbox = recipient.getByRole('dialog', { name: 'Dodaj tablicę na „Start”' });
   const item = inbox.getByRole('listitem', { name: 'Start' });
   await expect(item).toContainText('Od: Terapeutka');
   await item.getByRole('button', { name: 'Podgląd' }).click();
@@ -103,11 +104,11 @@ test('a board is sent to another account, looked at and accepted there', async (
   const axe = await new AxeBuilder({ page: recipient }).include('dialog').analyze();
   expect(axe.violations).toEqual([]);
   await item.getByRole('button', { name: 'Dodaj na tablicę „Start”' }).click();
-  await expect(inbox.getByRole('status')).toHaveText('Dodano folder „Start” na tablicy „Start”.');
+  await expect(inbox.getByText('Dodano folder „Start” na tablicy „Start”.')).toBeVisible();
   await expect(inbox).toContainText('Nie ma otrzymanych tablic.');
   await inbox.getByRole('button', { name: 'Zamknij' }).click();
   await expect(recipient.getByRole('button', { name: /^Zmień kafelek: Start/ })).toBeVisible();
-  await expect(recipient.getByRole('button', { name: /^Otrzymane/ })).toBeHidden();
+  await expect(recipient.getByRole('button', { name: 'Dodaj tablicę', exact: true })).toBeVisible();
 
   // The sender sees the decision in the settings.
   await page.getByRole('button', { name: 'Ustawienia' }).click();
@@ -147,22 +148,25 @@ test('a board is saved to an Open Board file and read back on another account', 
   await seed(reader, { empty: true });
   await reader.reload();
   await holdEditLock(reader);
-  await reader.getByRole('button', { name: 'Udostępnij' }).click();
-  const load = reader.getByRole('dialog', { name: 'Udostępnij tablicę „Start”' });
+  await reader.getByRole('button', { name: 'Dodaj tablicę', exact: true }).click();
+  const load = reader.getByRole('dialog', { name: 'Dodaj tablicę na „Start”' });
   await load.locator('input[type="file"]').setInputFiles(path);
   await expect(load.getByTestId('file-summary')).toHaveText(
     /„Start”: 2 tablice, 2 kafelki, 1 zdjęcie/,
   );
-  await load.getByRole('button', { name: 'Dodaj na tablicę „Start”' }).click();
-  await expect(load.getByRole('status')).toHaveText('Dodano folder „Start” na tablicy „Start”.');
+  await load
+    .getByTestId('file-summary')
+    .getByRole('button', { name: 'Dodaj na tablicę „Start”' })
+    .click();
+  await expect(load.getByText('Dodano folder „Start” na tablicy „Start”.')).toBeVisible();
   await load.getByRole('button', { name: 'Zamknij', exact: true }).click();
   await reader.getByRole('button', { name: 'Otwórz folder Start' }).click();
   await reader.getByRole('button', { name: 'Otwórz folder Jedzenie' }).click();
   const soup = reader.getByRole('button', { name: /^Zmień kafelek: zupa$/ });
   await expect(soup.locator('img')).toHaveAttribute('src', /^\/api\/media\//);
   // Garbage is refused with a message, nothing changes.
-  await reader.getByRole('button', { name: 'Udostępnij' }).click();
-  const again = reader.getByRole('dialog', { name: 'Udostępnij tablicę „Jedzenie”' });
+  await reader.getByRole('button', { name: 'Dodaj tablicę', exact: true }).click();
+  const again = reader.getByRole('dialog', { name: 'Dodaj tablicę na „Jedzenie”' });
   await again.locator('input[type="file"]').setInputFiles({
     name: 'zly.obz',
     mimeType: 'application/zip',
@@ -172,4 +176,58 @@ test('a board is saved to an Open Board file and read back on another account', 
     'To nie jest plik .obz ani .obf (Open Board Format).',
   );
   await other.close();
+});
+
+test('an admin publishes a board in the catalogue; another account adds it', async ({
+  page,
+  browser,
+}) => {
+  await mockArasaac(page);
+  promoteToAdmin(await freshLogin(page, 'Admin katalogu'));
+  await seed(page);
+  await page.reload();
+  await holdEditLock(page);
+  await page.getByRole('button', { name: 'Otwórz folder Jedzenie' }).click();
+  await page.getByRole('button', { name: 'Udostępnij' }).click();
+  const share = page.getByRole('dialog', { name: 'Udostępnij tablicę „Jedzenie”' });
+  const title = `Jedzenie ${test.info().project.name} ${Date.now()}`;
+  await share.getByRole('textbox', { name: 'Nazwa w katalogu' }).fill(title);
+  await share.getByRole('textbox', { name: /Opis/ }).fill('Posiłki w domu');
+  // Own photos stay out unless the admin says so.
+  await expect(
+    share.getByRole('checkbox', { name: /Dołącz moje zdjęcia \(1\)/ }),
+  ).not.toBeChecked();
+  await share.getByRole('button', { name: 'Opublikuj w katalogu' }).click();
+  await expect(share.getByText(`Opublikowano „${title}” w katalogu.`)).toBeVisible();
+
+  const other = await browser.newContext({ serviceWorkers: 'block' });
+  const reader = await other.newPage();
+  await mockArasaac(reader);
+  await freshLogin(reader, 'Czytelnik katalogu');
+  await seed(reader, { empty: true });
+  await reader.reload();
+  await holdEditLock(reader);
+  await reader.getByRole('button', { name: 'Dodaj tablicę', exact: true }).click();
+  const add = reader.getByRole('dialog', { name: 'Dodaj tablicę na „Start”' });
+  const entry = add.getByRole('listitem', { name: title });
+  await expect(entry).toContainText('Posiłki w domu');
+  await expect(entry).toContainText('1 tablica, 1 kafelek');
+  await expect(entry.getByRole('button', { name: 'Wycofaj z katalogu' })).toBeHidden();
+  await entry.getByRole('button', { name: 'Podgląd' }).click();
+  await expect(entry.getByRole('button', { name: 'zupa' })).toBeVisible();
+  await entry.getByRole('button', { name: 'Dodaj na tablicę „Start”' }).click();
+  await expect(add.getByText(`Dodano folder „${title}” na tablicy „Start”.`)).toBeVisible();
+  await add.getByRole('button', { name: 'Zamknij', exact: true }).click();
+  await expect(reader.getByRole('button', { name: `Otwórz folder ${title}` })).toBeVisible();
+  await other.close();
+
+  // The admin withdraws it again.
+  await share.getByRole('button', { name: 'Zamknij', exact: true }).click();
+  await page.getByRole('button', { name: 'Dodaj tablicę', exact: true }).click();
+  const mine = page
+    .getByRole('dialog', { name: 'Dodaj tablicę na „Jedzenie”' })
+    .getByRole('listitem', { name: title });
+  await mine.getByRole('button', { name: 'Wycofaj z katalogu' }).click();
+  await mine.getByRole('button', { name: 'Tak, wycofaj' }).click();
+  await expect(mine).toBeHidden();
 });

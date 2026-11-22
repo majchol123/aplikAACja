@@ -1,6 +1,7 @@
 export * from './admin.ts';
 export * from './api.ts';
 export * from './boards.ts';
+export * from './catalog.ts';
 export * from './categories.ts';
 export * from './device.ts';
 export * from './media.ts';

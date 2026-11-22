@@ -2,7 +2,7 @@ import type { SentShare } from '@relaacja/shared';
 import { useId } from 'react';
 import { formatDate } from '../admin/format.ts';
 import { shareProblem, useRemoveSent, useShares } from '../shares/data.ts';
-import { senderLabel, shareSize } from '../shares/InboxDialog.tsx';
+import { senderLabel, shareSize } from '../shares/AddBoardDialog.tsx';
 
 const card = 'rounded-2xl bg-white p-6 shadow-sm ring-1 ring-brand-100';
 
@@ -34,7 +34,7 @@ export function SharesPanel() {
       </h2>
       <p className="mt-1 text-slate-600">
         Kopię tablicy wysyłasz (albo zapisujesz do pliku) w trybie edycji przyciskiem „Udostępnij”.
-        Otrzymane tablice dodajesz tam przyciskiem „Otrzymane”, na tablicy, na której mają się
+        Otrzymane tablice dodajesz tam przyciskiem „Dodaj tablicę”, na tablicy, na której mają się
         pojawić.
       </p>
 

@@ -57,20 +57,26 @@ export async function freshLogin(page: Page, name: string): Promise<string> {
  */
 export function promoteToAdmin(sub: string): void {
   if (!/^e2e-[a-z0-9-]+$/.test(sub)) throw new Error(`not a test account: ${sub}`);
-  execFileSync(
-    'pnpm',
-    [
-      'exec',
-      'wrangler',
-      'd1',
-      'execute',
-      'DB',
-      '--local',
-      '--command',
-      `UPDATE users SET role = 'admin' WHERE google_sub = 'dev:${sub}'`,
-    ],
-    { cwd: resolve(import.meta.dirname, '..'), stdio: 'ignore' },
-  );
+  const args = [
+    'exec',
+    'wrangler',
+    'd1',
+    'execute',
+    'DB',
+    '--local',
+    '--command',
+    `UPDATE users SET role = 'admin' WHERE google_sub = 'dev:${sub}'`,
+  ];
+  // Both projects may write the local database at the same moment (SQLite busy): retry.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      execFileSync('pnpm', args, { cwd: resolve(import.meta.dirname, '..'), stdio: 'ignore' });
+      return;
+    } catch (err) {
+      if (attempt >= 5) throw err;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300 * attempt);
+    }
+  }
 }
 
 const ROOT = resolve(import.meta.dirname, '../..');

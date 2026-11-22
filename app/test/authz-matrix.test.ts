@@ -1,4 +1,6 @@
+import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
+import { catalogFor } from '../src/worker/catalog/catalog.ts';
 import { ROUTES } from '../src/worker/routes/registry.ts';
 import type { BoardChanges, ShareLists } from '@relaacja/shared';
 import {
@@ -47,7 +49,11 @@ interface Fixture {
   /** A share of user A's home board, sent by user A to itself. */
   receivedId: string;
   sentId: string;
+  /** A catalogue entry (published directly into the catalogue object). */
+  catalogId: string;
 }
+
+const CATALOG_PHOTO = 'c'.repeat(26);
 
 type Row = {
   body?: Record<string, unknown> | ((f: Fixture) => Record<string, unknown>);
@@ -147,6 +153,33 @@ const EXPECTED: Record<string, Row> = {
     path: (f) => `/api/shares/sent/${f.sentId}`,
     status: { ...ownedByA, userA: 204 },
   },
+  // Catalogue: read and copied by everyone signed in, changed by admins.
+  'GET /api/catalog': { status: userOnly },
+  'GET /api/catalog/:id': { path: (f) => `/api/catalog/${f.catalogId}`, status: userOnly },
+  'GET /api/catalog/:id/photos/:key': {
+    path: (f) => `/api/catalog/${f.catalogId}/photos/${CATALOG_PHOTO}`,
+    status: userOnly,
+  },
+  // Copied onto user A's board: everybody else names a board they do not have.
+  'POST /api/catalog/:id/import': {
+    path: (f) => `/api/catalog/${f.catalogId}/import`,
+    body: (f) => ({ boardId: f.boardId, rev: 2 }),
+    status: ownedByA,
+  },
+  // Admins publish their own boards only: user A's board is unknown to them.
+  'POST /api/admin/catalog': {
+    body: (f) => ({ boardId: f.boardId, name: 'K', description: '', includePhotos: false }),
+    status: { ...adminsOnly, admin: 404, superadmin: 404 },
+  },
+  'PATCH /api/admin/catalog/:id': {
+    path: (f) => `/api/admin/catalog/${f.catalogId}`,
+    body: { description: 'Opis' },
+    status: adminsOnly,
+  },
+  'DELETE /api/admin/catalog/:id': {
+    path: (f) => `/api/admin/catalog/${f.catalogId}`,
+    status: { ...adminsOnly, admin: 204, superadmin: 404 },
+  },
   'GET /api/admin/users': { status: adminsOnly },
   // Admin routes act on user A: admins manage plain accounts, superadmins everyone below.
   'POST /api/admin/users/:id/block': {
@@ -217,6 +250,30 @@ async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: Tes
   // A share of the home board sent to the owner's own address: one received, one sent.
   await api('POST', '/api/shares', { boardId, email: owner.email });
   const shares = await api<ShareLists>('GET', '/api/shares');
+  // A catalogue entry with one photo.
+  const entry = await catalogFor(env).publish({
+    name: 'Katalog',
+    description: '',
+    package: JSON.stringify({ v: 1, name: 'Katalog', board: { rows: 1, cols: 1, tiles: [] } }),
+    files: [
+      {
+        key: CATALOG_PHOTO,
+        label: 'x',
+        mime: 'image/webp',
+        width: 8,
+        height: 8,
+        bytes: 8,
+        sha256: 'x',
+        data: webp(8, 8).slice().buffer,
+      },
+    ],
+    boards: 1,
+    tiles: 0,
+    photos: 1,
+    bytes: 8,
+    publishedBy: owner.id,
+  });
+  if ('error' in entry) throw new Error(entry.error);
   // Board revision is 2 after the tile was added.
   return {
     boardId,
@@ -226,6 +283,7 @@ async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: Tes
     ownerEmail: owner.email,
     receivedId: shares.body.received[0]!.id,
     sentId: shares.body.sent[0]!.id,
+    catalogId: entry.id,
   } satisfies Fixture;
 }
 

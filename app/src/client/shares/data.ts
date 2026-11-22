@@ -98,6 +98,8 @@ export function shareProblem(err: unknown): string {
       return 'Tej tablicy już nie ma (przyjęta, odrzucona albo wygasła).';
     case 'rate_limited':
       return 'Za dużo zmian naraz. Odczekaj chwilę.';
+    case 'catalog_full':
+      return 'Katalog jest pełny (200 tablic). Wycofaj nieaktualne tablice.';
     default:
       return 'Nie udało się. Spróbuj ponownie.';
   }

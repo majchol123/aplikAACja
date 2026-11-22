@@ -1,28 +1,24 @@
 import {
   SHARE_SENT_MESSAGE,
-  treeShape,
+  subtreePackage,
   type Board,
   type BoardTree,
   type Me,
-  type ObzImport,
   type SymbolRef,
 } from '@relaacja/shared';
-import { useQueryClient } from '@tanstack/react-query';
-import { useId, useState } from 'react';
-import { BOARDS_PL, PHOTOS_PL, TILES_PL } from '../admin/format.ts';
-import { applyChanges, TREE_KEY } from '../boards/data.ts';
+import { useId, useMemo, useState } from 'react';
 import { Dialog } from '../edit/Dialog.tsx';
 import { countPl } from '../edit/TileEditor.tsx';
 import { ui } from '../edit/ui.ts';
-import { MEDIA_KEY } from '../media/data.ts';
+import { usePublish } from './catalog.ts';
 import { shareProblem, useSendShare } from './data.ts';
-import { download, exportBoardFile, FileProblem, importBoardFile, readBoardFile } from './files.ts';
+import { download, exportBoardFile, FileProblem } from './files.ts';
 
 const section = 'mt-5 border-t border-slate-200 pt-4';
 
 /**
- * Copies of a board (PLAN §2.8): sent to another account, saved to an Open Board file, or
- * a board read from such a file and added here.
+ * Copies of a board going out (PLAN §2.8): to another account, to an Open Board file,
+ * and — for admins — to the catalogue of public boards.
  */
 export function ShareDialog({
   me,
@@ -41,6 +37,9 @@ export function ShareDialog({
     <Dialog title={`Udostępnij tablicę „${board.name}”`} onClose={onClose} wide>
       <SendSection me={me} board={board} />
       <FileSection tree={tree} board={board} resolve={resolve} />
+      {(me.role === 'admin' || me.role === 'superadmin') && (
+        <PublishSection tree={tree} board={board} />
+      )}
       <div className="mt-6 flex justify-end">
         <button type="button" className={ui.primary} onClick={onClose}>
           Zamknij
@@ -131,18 +130,6 @@ function SendSection({ me, board }: { me: Me; board: Board }) {
   );
 }
 
-function sizeOf(imported: ObzImport): string {
-  const shape = treeShape(imported.package.board, imported.package.name, { allowOwn: true });
-  const parts = [countPl(shape.boards, BOARDS_PL), countPl(shape.tiles, TILES_PL)];
-  if (imported.photos.length) parts.push(countPl(imported.photos.length, PHOTOS_PL));
-  return parts.join(', ');
-}
-
-function problem(err: unknown): string {
-  if (err instanceof FileProblem) return err.message;
-  return shareProblem(err);
-}
-
 function FileSection({
   tree,
   board,
@@ -153,16 +140,14 @@ function FileSection({
   resolve: (symbol: SymbolRef) => string | null;
 }) {
   const id = useId();
-  const queryClient = useQueryClient();
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [imported, setImported] = useState<ObzImport | null>(null);
 
   async function save(): Promise<void> {
     setError(null);
     setMessage(null);
-    setBusy('Przygotowywanie pliku…');
+    setBusy(true);
     try {
       const file = await exportBoardFile(tree, board.id, resolve);
       download(file.blob, file.name);
@@ -173,48 +158,9 @@ function FileSection({
             : ''),
       );
     } catch (err) {
-      setError(problem(err));
+      setError(err instanceof FileProblem ? err.message : shareProblem(err));
     } finally {
-      setBusy(null);
-    }
-  }
-
-  async function read(file: File | undefined): Promise<void> {
-    setError(null);
-    setMessage(null);
-    setImported(null);
-    if (!file) return;
-    setBusy('Odczytywanie pliku…');
-    try {
-      setImported(await readBoardFile(file));
-    } catch (err) {
-      setError(problem(err));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function add(): Promise<void> {
-    if (!imported) return;
-    setError(null);
-    try {
-      const { changes, skippedPhotos } = await importBoardFile(imported, board, (done, total) =>
-        setBusy(total ? `Wysyłanie zdjęć: ${done} z ${total}…` : 'Dodawanie tablicy…'),
-      );
-      applyChanges(queryClient, changes);
-      setMessage(
-        `Dodano folder „${imported.package.name}” na tablicy „${board.name}”.` +
-          (skippedPhotos
-            ? ` Pominięto zdjęcia, których nie dało się odczytać: ${skippedPhotos}.`
-            : ''),
-      );
-      setImported(null);
-    } catch (err) {
-      setError(problem(err));
-      void queryClient.invalidateQueries({ queryKey: TREE_KEY });
-    } finally {
-      void queryClient.invalidateQueries({ queryKey: MEDIA_KEY });
-      setBusy(null);
+      setBusy(false);
     }
   }
 
@@ -225,73 +171,17 @@ function FileSection({
       </h3>
       <p className="mt-1 text-slate-700">
         Kopia tablicy z folderami i obrazkami w jednym pliku, który otworzą też inne aplikacje AAC.
-        Symbole dodatkowego zestawu zapisują się bez obrazków.
+        Symbole dodatkowego zestawu zapisują się bez obrazków. Plik wczytasz przyciskiem „Dodaj
+        tablicę”.
       </p>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className={ui.secondary}
-          disabled={busy !== null}
-          onClick={() => void save()}
-        >
-          Zapisz tę tablicę do pliku
-        </button>
-        <label
-          className={`${ui.secondary} cursor-pointer has-disabled:opacity-50 has-focus-visible:ring-2 has-focus-visible:ring-brand-600`}
-        >
-          Wczytaj tablicę z pliku…
-          <input
-            type="file"
-            accept=".obz,.obf,.zip,application/zip,application/json"
-            className="sr-only"
-            disabled={busy !== null}
-            onChange={(e) => {
-              void read(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
-        </label>
-      </div>
-      {imported && (
-        <div
-          className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200"
-          data-testid="file-summary"
-        >
-          <p className="font-semibold text-slate-900">
-            „{imported.package.name}”: {sizeOf(imported)}
-          </p>
-          {imported.warnings.length > 0 && (
-            <ul className="mt-1 list-disc pl-5 text-sm text-amber-900">
-              {imported.warnings.map((w) => (
-                <li key={w}>{w}</li>
-              ))}
-            </ul>
-          )}
-          <div className="mt-3 flex flex-wrap gap-3">
-            <button
-              type="button"
-              className={ui.primary}
-              disabled={busy !== null}
-              onClick={() => void add()}
-            >
-              Dodaj na tablicę „{board.name}”
-            </button>
-            <button
-              type="button"
-              className={ui.secondary}
-              disabled={busy !== null}
-              onClick={() => setImported(null)}
-            >
-              Anuluj
-            </button>
-          </div>
-        </div>
-      )}
-      {busy && (
-        <p role="status" className="mt-3 text-slate-700">
-          {busy}
-        </p>
-      )}
+      <button
+        type="button"
+        className={`${ui.secondary} mt-3`}
+        disabled={busy}
+        onClick={() => void save()}
+      >
+        {busy ? 'Przygotowywanie pliku…' : 'Zapisz tę tablicę do pliku'}
+      </button>
       {message && (
         <p
           role="status"
@@ -303,6 +193,96 @@ function FileSection({
       {error && (
         <p role="alert" className="mt-3 text-red-700">
           {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Admins: a copy of this board for every account (PLAN §2.8), photos only by consent. */
+function PublishSection({ tree, board }: { tree: BoardTree; board: Board }) {
+  const id = useId();
+  const publish = usePublish();
+  const [name, setName] = useState(board.name);
+  const [description, setDescription] = useState('');
+  const [withPhotos, setWithPhotos] = useState(false);
+  const photos = useMemo(() => {
+    const boards = new Map(tree.boards.map((b) => [b.id, b]));
+    return subtreePackage(boards, board.id)?.photoIds.length ?? 0;
+  }, [tree.boards, board.id]);
+
+  return (
+    <section className={section} aria-labelledby={`${id}-title`}>
+      <h3 id={`${id}-title`} className="font-bold text-brand-900">
+        Katalog tablic publicznych
+      </h3>
+      <p className="mt-1 text-slate-700">
+        Kopia tej tablicy z folderami trafi do katalogu, z którego każde zalogowane konto może ją
+        dodać do swoich tablic. Zmiany tej tablicy nie zmieniają kopii w katalogu.
+      </p>
+      <form
+        className="mt-3 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          publish.mutate({
+            boardId: board.id,
+            name: name.trim(),
+            description: description.trim(),
+            includePhotos: withPhotos,
+          });
+        }}
+      >
+        <label className={ui.field} htmlFor={`${id}-name`}>
+          Nazwa w katalogu
+        </label>
+        <input
+          id={`${id}-name`}
+          value={name}
+          required
+          maxLength={80}
+          onChange={(e) => setName(e.target.value)}
+          className={ui.input}
+        />
+        <label className={ui.field} htmlFor={`${id}-description`}>
+          Opis (dla kogo, do czego)
+        </label>
+        <textarea
+          id={`${id}-description`}
+          value={description}
+          rows={3}
+          maxLength={500}
+          onChange={(e) => setDescription(e.target.value)}
+          className={ui.input}
+        />
+        {photos > 0 && (
+          <label className="flex items-start gap-3 rounded-xl bg-amber-50 p-3 text-slate-800 ring-1 ring-amber-200">
+            <input
+              type="checkbox"
+              className="mt-1 size-5"
+              checked={withPhotos}
+              onChange={(e) => setWithPhotos(e.target.checked)}
+            />
+            <span>
+              Dołącz moje zdjęcia ({photos}). Zobaczy je każdy, kto otworzy katalog. Bez zgody
+              kafelki ze zdjęciami trafią do katalogu z samym napisem.
+            </span>
+          </label>
+        )}
+        <button type="submit" className={ui.primary} disabled={publish.isPending || !name.trim()}>
+          {publish.isPending ? 'Publikowanie…' : 'Opublikuj w katalogu'}
+        </button>
+      </form>
+      {publish.isSuccess && (
+        <p
+          role="status"
+          className="mt-3 rounded-xl bg-emerald-50 p-3 text-emerald-900 ring-1 ring-emerald-200"
+        >
+          Opublikowano „{publish.data.name}” w katalogu.
+        </p>
+      )}
+      {publish.isError && (
+        <p role="alert" className="mt-3 text-red-700">
+          {shareProblem(publish.error)}
         </p>
       )}
     </section>

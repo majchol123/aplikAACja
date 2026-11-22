@@ -1,9 +1,12 @@
+import type { Catalog } from './catalog/catalog.ts';
 import type { UserVault } from './vault/user-vault.ts';
 
 /** Bindings, vars and secrets of the main Worker (secrets via `wrangler secret put`). */
 export interface AppEnv {
   DB: D1Database;
   USER_VAULT: DurableObjectNamespace<UserVault>;
+  /** The catalogue of public boards: one object (catalog/catalog.ts). */
+  CATALOG: DurableObjectNamespace<Catalog>;
   ASSETS: Fetcher;
   /** Private assets Worker with the extra symbol set; absent locally unless it runs too. */
   EXTRA_SET?: Fetcher;

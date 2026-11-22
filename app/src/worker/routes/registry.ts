@@ -88,6 +88,14 @@ export const ROUTES = {
   acceptShare: { method: 'POST', path: '/api/shares/received/:id/accept', access: 'user' },
   rejectShare: { method: 'POST', path: '/api/shares/received/:id/reject', access: 'user' },
   removeSentShare: { method: 'DELETE', path: '/api/shares/sent/:id', access: 'user' },
+  // Catalogue of public boards (PLAN §2.8): read by all, changed by admins (below).
+  listCatalog: { method: 'GET', path: '/api/catalog', access: 'user' },
+  getCatalogEntry: { method: 'GET', path: '/api/catalog/:id', access: 'user' },
+  getCatalogPhoto: { method: 'GET', path: '/api/catalog/:id/photos/:key', access: 'user' },
+  importCatalogEntry: { method: 'POST', path: '/api/catalog/:id/import', access: 'user' },
+  publishCatalog: { method: 'POST', path: '/api/admin/catalog', access: 'admin' },
+  patchCatalog: { method: 'PATCH', path: '/api/admin/catalog/:id', access: 'admin' },
+  withdrawCatalog: { method: 'DELETE', path: '/api/admin/catalog/:id', access: 'admin' },
   // Admin panel (PLAN §2.6): the only routes naming another account; rank rules and audit
   // in routes/admin.ts.
   adminUsers: { method: 'GET', path: '/api/admin/users', access: 'admin' },

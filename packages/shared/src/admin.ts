@@ -58,6 +58,9 @@ export const AUDIT_ACTIONS = [
   'user.view',
   'category_icon.set',
   'category_icon.reset',
+  'catalog.publish',
+  'catalog.edit',
+  'catalog.withdraw',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
