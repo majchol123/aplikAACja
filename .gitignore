@@ -18,3 +18,8 @@ tools/.cache/
 # Private symbol-set assets must never be committed
 workers/extra/dist/
 workers/extra/sample/
+# Local agent / MCP tooling configs
+.agents/
+.claude/
+.mcp.json
+.serena/
