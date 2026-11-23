@@ -385,6 +385,7 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.importCatalogEntry, catalog.importCatalogEntry);
   defineRoute(ROUTES.publishCatalog, catalog.publishCatalog(deps.now));
   defineRoute(ROUTES.patchCatalog, catalog.patchCatalog(deps.now));
+  defineRoute(ROUTES.replaceCatalog, catalog.replaceCatalog(deps.now));
   defineRoute(ROUTES.withdrawCatalog, catalog.withdrawCatalog(deps.now));
   defineRoute(ROUTES.adminUsers, admin.listUsers);
   defineRoute(ROUTES.adminBlock, admin.blockUser(deps.now));

@@ -24,6 +24,7 @@ import {
   useCatalogEntry,
   useCopyFromCatalog,
   useEditEntry,
+  useReplaceContent,
   useWithdraw,
 } from './catalog.ts';
 import {
@@ -300,6 +301,7 @@ function CatalogSection({ me, board, onDone }: { me: Me; board: Board } & Outcom
             key={entry.id}
             me={me}
             entry={entry}
+            board={board}
             admin={isAdmin}
             busy={copy.isPending}
             onCopy={() => {
@@ -336,12 +338,15 @@ function CatalogSection({ me, board, onDone }: { me: Me; board: Board } & Outcom
 function CatalogItem({
   me,
   entry,
+  board,
   admin,
   busy,
   onCopy,
 }: {
   me: Me;
   entry: CatalogEntry;
+  /** Admins: the board open in the editor, the source of a new version. */
+  board: Board;
   admin: boolean;
   busy: boolean;
   onCopy: () => void;
@@ -350,10 +355,13 @@ function CatalogItem({
   const [preview, setPreview] = useState(false);
   const [editing, setEditing] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [replacing, setReplacing] = useState(false);
+  const [withPhotos, setWithPhotos] = useState(false);
   const [name, setName] = useState(entry.name);
   const [description, setDescription] = useState(entry.description);
   const edit = useEditEntry();
   const withdraw = useWithdraw();
+  const replace = useReplaceContent();
   return (
     <li className={item} aria-label={entry.name}>
       <p className="text-lg font-bold text-brand-900">{entry.name}</p>
@@ -376,6 +384,18 @@ function CatalogItem({
         {admin && !editing && (
           <button type="button" className={ui.secondary} onClick={() => setEditing(true)}>
             Zmień opis
+          </button>
+        )}
+        {admin && !replacing && (
+          <button
+            type="button"
+            className={ui.secondary}
+            onClick={() => {
+              replace.reset();
+              setReplacing(true);
+            }}
+          >
+            Aktualizuj zawartość
           </button>
         )}
         {admin && !withdrawing && (
@@ -401,6 +421,47 @@ function CatalogItem({
             Anuluj
           </button>
         </div>
+      )}
+      {replacing && (
+        <div className="mt-3 space-y-3 rounded-xl bg-white p-3 ring-1 ring-slate-200">
+          <p className="text-slate-800">
+            Zawartość wpisu zastąpi tablica „{board.name}” z jej folderami, w obecnej postaci.
+            Nazwa, opis i miejsce w katalogu zostaną. Kto już dodał tę tablicę, zachowa swoją kopię.
+          </p>
+          <label className="flex items-start gap-3 text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-1 size-5 accent-brand-700"
+              checked={withPhotos}
+              onChange={(e) => setWithPhotos(e.target.checked)}
+            />
+            Dołącz moje zdjęcia. Zobaczy je każdy, kto otworzy katalog. Bez zgody kafelki ze
+            zdjęciami zostaną z samym napisem.
+          </label>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              className={ui.primary}
+              disabled={replace.isPending}
+              onClick={() =>
+                replace.mutate(
+                  { id: entry.id, boardId: board.id, includePhotos: withPhotos },
+                  { onSuccess: () => setReplacing(false) },
+                )
+              }
+            >
+              Tak, aktualizuj
+            </button>
+            <button type="button" className={ui.secondary} onClick={() => setReplacing(false)}>
+              Anuluj
+            </button>
+          </div>
+        </div>
+      )}
+      {replace.isSuccess && !replacing && (
+        <p role="status" className="mt-2 text-emerald-800">
+          Zaktualizowano zawartość: {shareSize(replace.data)}.
+        </p>
       )}
       {editing && (
         <form
@@ -445,9 +506,9 @@ function CatalogItem({
           </div>
         </form>
       )}
-      {(edit.isError || withdraw.isError) && (
+      {(edit.isError || withdraw.isError || replace.isError) && (
         <p role="alert" className="mt-2 text-red-700">
-          {shareProblem(edit.error ?? withdraw.error)}
+          {shareProblem(edit.error ?? withdraw.error ?? replace.error)}
         </p>
       )}
       {preview && <CatalogPreview me={me} id={entry.id} />}

@@ -3,6 +3,7 @@ import {
   BoardPackageSchema,
   ObjectIdSchema,
   PatchCatalogSchema,
+  ReplaceCatalogSchema,
   PublishCatalogSchema,
   type CatalogView,
 } from '@relaacja/shared';
@@ -142,6 +143,38 @@ export function patchCatalog(now: () => number) {
       actor: c.get('user').userId,
       action: 'catalog.edit',
       details: { entry: id, name: entry.name },
+    }).run();
+    return c.json(entry);
+  };
+}
+
+/** PUT /api/admin/catalog/:id/content `{boardId, includePhotos}` — a new version. */
+export function replaceCatalog(now: () => number) {
+  return async (c: Ctx): Promise<Response> => {
+    const id = pathId(c);
+    if (!id) return notFound(c);
+    const input = ReplaceCatalogSchema.safeParse(await c.req.json().catch(() => null));
+    if (!input.success) return invalid(c);
+    const user = c.get('user');
+    const built = await vaultFor(c.env, user.userId).exportForCatalog(
+      input.data.boardId,
+      input.data.includePhotos,
+    );
+    if ('error' in built) {
+      if (built.error === 'not_found') return notFound(c);
+      return c.json({ error: built.error }, built.error === 'too_large' ? 422 : 429);
+    }
+    const entry = await catalogFor(c.env).replace(id, {
+      ...built.counts,
+      package: built.package,
+      files: built.files,
+    });
+    if (!entry) return notFound(c);
+    await auditStatement(c.env.DB, {
+      at: now(),
+      actor: user.userId,
+      action: 'catalog.update',
+      details: { entry: id, name: entry.name, photos: entry.photos },
     }).run();
     return c.json(entry);
   };

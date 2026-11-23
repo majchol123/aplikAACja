@@ -37,6 +37,15 @@ export const PatchCatalogSchema = z
   .refine((p) => p.name !== undefined || p.description !== undefined, 'nothing to change');
 export type PatchCatalog = z.infer<typeof PatchCatalogSchema>;
 
+/**
+ * PUT /api/admin/catalog/:id/content: a new version of an entry from one's own board. The
+ * name, description and place in the list stay; copies already made do not change.
+ */
+export const ReplaceCatalogSchema = z
+  .object({ boardId: ObjectIdSchema, includePhotos: z.boolean() })
+  .strict();
+export type ReplaceCatalog = z.infer<typeof ReplaceCatalogSchema>;
+
 export interface CatalogEntry {
   id: string;
   name: string;

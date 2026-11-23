@@ -379,12 +379,13 @@ export class UserVault extends DurableObject<AppEnv> {
   exportForCatalog(
     boardId: string,
     withPhotos: boolean,
-    name: string,
+    /** The entry's name; without it the board's own (the catalogue sets it). */
+    name?: string,
   ): { package: string; files: PackagePhoto[]; counts: ShareCounts } | BoardError | ShareRefusal {
     const built = this.buildPackage(boardId, withPhotos);
     if ('error' in built) return built;
     return {
-      package: JSON.stringify({ ...built.package, name }),
+      package: JSON.stringify({ ...built.package, name: name ?? built.package.name }),
       files: built.files,
       counts: built.counts,
     };

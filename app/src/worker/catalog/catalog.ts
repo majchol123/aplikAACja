@@ -266,6 +266,47 @@ export class Catalog extends DurableObject<AppEnv> {
     return row ? toEntry(row) : null;
   }
 
+  /**
+   * A new version of entry `id`: package, photos and counts replaced in one transaction;
+   * name, description, publisher and creation time stay (the package takes the entry's name).
+   */
+  replace(id: string, input: Omit<Publication, 'name' | 'description' | 'publishedBy'>) {
+    return this.ctx.storage.transactionSync((): CatalogEntry | null => {
+      const row = this.sql
+        .exec<EntryRow>(
+          `UPDATE entries SET package = json_set(?, '$.name', name), boards = ?, tiles = ?,
+                              photos = ?, bytes = ?, updated_at = ?
+            WHERE id = ? RETURNING ${COLUMNS}`,
+          input.package,
+          input.boards,
+          input.tiles,
+          input.photos,
+          input.bytes,
+          Date.now(),
+          id,
+        )
+        .toArray()[0];
+      if (!row) return null;
+      this.sql.exec('DELETE FROM entry_media WHERE entry_id = ?', id);
+      for (const p of input.files) {
+        this.sql.exec(
+          `INSERT INTO entry_media (entry_id, key, label, mime, width, height, bytes, sha256, data)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id,
+          p.key,
+          p.label,
+          p.mime,
+          p.width,
+          p.height,
+          p.bytes,
+          p.sha256,
+          p.data,
+        );
+      }
+      return toEntry(row);
+    });
+  }
+
   withdraw(id: string): { name: string } | null {
     return (
       this.sql

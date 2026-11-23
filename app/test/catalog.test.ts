@@ -185,6 +185,84 @@ describe('catalogue of public boards (PLAN §2.8)', () => {
     ]);
   });
 
+  it('a new version replaces the contents; name, description and earlier copies stay', async () => {
+    await clearCatalog();
+    const { admin, morning } = await adminBoard();
+    const entry = await admin.api<CatalogEntry>('POST', '/api/admin/catalog', {
+      boardId: morning.id,
+      name: 'Poranek w domu',
+      description: 'Dla przedszkolaków',
+      includePhotos: true,
+    });
+    const reader = await account();
+    const start = await home(reader);
+    await reader.api('POST', `/api/catalog/${entry.body.id}/import`, {
+      boardId: start.id,
+      rev: start.rev,
+    });
+    // The admin adds a word, then publishes the board again over the entry, without photos.
+    const tree = (await admin.api<BoardTree>('GET', '/api/boards')).body;
+    const current = tree.boards.find((b) => b.id === morning.id)!;
+    await admin.api('POST', `/api/boards/${morning.id}/tiles`, {
+      rev: current.rev,
+      row: 1,
+      col: 0,
+      kind: 'word',
+      label: 'śniadanie',
+    });
+    const path = `/api/admin/catalog/${entry.body.id}/content`;
+    const user = await account();
+    expect(
+      (await user.api('PUT', path, { boardId: morning.id, includePhotos: false })).status,
+    ).toBe(403);
+    expect((await admin.api('PUT', path, { boardId: morning.id })).status).toBe(400);
+    expect(
+      (
+        await admin.api('PUT', '/api/admin/catalog/' + 'z'.repeat(26) + '/content', {
+          boardId: morning.id,
+          includePhotos: false,
+        })
+      ).status,
+    ).toBe(404);
+    // Another admin's board is unknown to this one.
+    const other = await account({ role: 'admin' });
+    expect(
+      (await other.api('PUT', path, { boardId: morning.id, includePhotos: false })).status,
+    ).toBe(404);
+    const updated = await admin.api<CatalogEntry>('PUT', path, {
+      boardId: morning.id,
+      includePhotos: false,
+    });
+    expect(updated.status).toBe(200);
+    expect(updated.body).toMatchObject({
+      id: entry.body.id,
+      name: 'Poranek w domu',
+      description: 'Dla przedszkolaków',
+      boards: 1,
+      tiles: 3,
+      photos: 0,
+      createdAt: entry.body.createdAt,
+    });
+    expect(updated.body.updatedAt).toBeGreaterThanOrEqual(entry.body.updatedAt);
+    const view = (await reader.api<CatalogView>('GET', `/api/catalog/${entry.body.id}`)).body;
+    expect(view.package.name).toBe('Poranek w domu');
+    expect(view.package.board.tiles.map((t) => t.label).sort()).toEqual([
+      'mama',
+      'myć zęby',
+      'śniadanie',
+    ]);
+    expect(view.photos).toEqual([]);
+    expect((await reader.api('GET', `/api/catalog/${entry.body.id}/photos/p1`)).status).toBe(404);
+    // The copy made before keeps the old version.
+    const readerTree = (await reader.api<BoardTree>('GET', '/api/boards')).body;
+    const copy = readerTree.boards.find((b) => b.parentId === start.id)!;
+    expect(copy.tiles.map((t) => t.label).sort()).toEqual(['mama', 'myć zęby']);
+    expect((await audit(admin.id)).at(-1)).toEqual([
+      'catalog.update',
+      { entry: entry.body.id, name: 'Poranek w domu', photos: 0 },
+    ]);
+  });
+
   it('publishing needs one of the admin’s own boards and validates its input', async () => {
     const { admin } = await adminBoard();
     const user = await account();

@@ -103,6 +103,7 @@ export const ROUTES = {
   importCatalogEntry: { method: 'POST', path: '/api/catalog/:id/import', access: 'user' },
   publishCatalog: { method: 'POST', path: '/api/admin/catalog', access: 'admin' },
   patchCatalog: { method: 'PATCH', path: '/api/admin/catalog/:id', access: 'admin' },
+  replaceCatalog: { method: 'PUT', path: '/api/admin/catalog/:id/content', access: 'admin' },
   withdrawCatalog: { method: 'DELETE', path: '/api/admin/catalog/:id', access: 'admin' },
   // Admin panel (PLAN §2.6): the only routes naming another account; rank rules and audit
   // in routes/admin.ts.

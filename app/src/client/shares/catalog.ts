@@ -5,6 +5,7 @@ import type {
   CatalogView,
   PatchCatalog,
   PublishCatalog,
+  ReplaceCatalog,
 } from '@relaacja/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../api.ts';
@@ -63,6 +64,17 @@ export function useEditEntry() {
   return useMutation({
     mutationFn: ({ id, ...patch }: PatchCatalog & { id: string }) =>
       api<CatalogEntry>(`/api/admin/catalog/${id}`, { method: 'PATCH', json: patch }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: CATALOG_KEY }),
+  });
+}
+
+/** A new version of an entry from one's own board (admins). */
+export function useReplaceContent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: ReplaceCatalog & { id: string }) =>
+      api<CatalogEntry>(`/api/admin/catalog/${id}/content`, { method: 'PUT', json: input }),
+    // The list and the entry's preview.
     onSettled: () => queryClient.invalidateQueries({ queryKey: CATALOG_KEY }),
   });
 }

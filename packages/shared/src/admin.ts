@@ -60,6 +60,7 @@ export const AUDIT_ACTIONS = [
   'category_icon.reset',
   'catalog.publish',
   'catalog.edit',
+  'catalog.update',
   'catalog.withdraw',
   'backup.configure',
   'backup.disable',

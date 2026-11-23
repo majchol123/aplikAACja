@@ -189,6 +189,12 @@ const EXPECTED: Record<string, Row> = {
     body: { description: 'Opis' },
     status: adminsOnly,
   },
+  // A new version from one's own board: user A's board is unknown to admins.
+  'PUT /api/admin/catalog/:id/content': {
+    path: (f) => `/api/admin/catalog/${f.catalogId}/content`,
+    body: (f) => ({ boardId: f.boardId, includePhotos: false }),
+    status: { ...adminsOnly, admin: 404, superadmin: 404 },
+  },
   'DELETE /api/admin/catalog/:id': {
     path: (f) => `/api/admin/catalog/${f.catalogId}`,
     status: { ...adminsOnly, admin: 204, superadmin: 404 },

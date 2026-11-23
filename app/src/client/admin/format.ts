@@ -27,6 +27,7 @@ const ACTION_LABEL: Record<string, string> = {
   'category_icon.reset': 'Automatyczny obrazek folderu',
   'catalog.publish': 'Publikacja w katalogu tablic',
   'catalog.edit': 'Zmiana wpisu w katalogu tablic',
+  'catalog.update': 'Nowa wersja tablicy w katalogu',
   'catalog.withdraw': 'Wycofanie z katalogu tablic',
   'backup.configure': 'Ustawienie kopii zapasowych',
   'backup.disable': 'Wyłączenie kopii zapasowych',
@@ -52,6 +53,7 @@ export function actionDetails(entry: AuditEntry): string {
       return `${set}, folder ${String(d.key)}${symbol}`;
     }
     case 'catalog.publish':
+    case 'catalog.update':
       return `„${String(d.name)}”${d.photos ? ', ze zdjęciami' : ''}`;
     case 'catalog.edit':
     case 'catalog.withdraw':

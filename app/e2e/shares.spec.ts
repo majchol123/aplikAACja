@@ -249,12 +249,22 @@ test('an admin publishes a board in the catalogue; another account adds it', asy
   await expect(reader.getByRole('button', { name: `Otwórz folder ${title}` })).toBeVisible();
   await other.close();
 
-  // The admin withdraws it again.
+  // The admin publishes a new version over the entry, this time with the photo.
   await share.getByRole('button', { name: 'Zamknij', exact: true }).click();
   await page.getByRole('button', { name: 'Dodaj tablicę', exact: true }).click();
   const mine = page
     .getByRole('dialog', { name: 'Dodaj tablicę', exact: true })
     .getByRole('listitem', { name: title });
+  await mine.getByRole('button', { name: 'Aktualizuj zawartość' }).click();
+  await expect(mine).toContainText('Zawartość wpisu zastąpi tablica „Jedzenie”');
+  await mine.getByRole('checkbox', { name: /Dołącz moje zdjęcia/ }).check();
+  await mine.getByRole('button', { name: 'Tak, aktualizuj' }).click();
+  await expect(mine.getByRole('status')).toHaveText(
+    /^Zaktualizowano zawartość: 1 tablica, 1 kafelek, 1 zdjęcie/,
+  );
+  await expect(mine).toContainText('Posiłki w domu');
+
+  // ...and withdraws it again.
   await mine.getByRole('button', { name: 'Wycofaj z katalogu' }).click();
   await mine.getByRole('button', { name: 'Tak, wycofaj' }).click();
   await expect(mine).toBeHidden();
