@@ -250,6 +250,46 @@ describe('sharing: refusals and limits', () => {
     expect(boards).toHaveLength(1);
   });
 
+  it('lands in the chosen cell, which must be free and inside the grid', async () => {
+    const { user, food } = await sender();
+    const recipient = await account();
+    const start = await home(recipient, 2, 3);
+    await send(user, food.id, recipient.email);
+    const [entry] = (await recipient.api<ShareLists>('GET', '/api/shares')).body.received;
+    const accept = (rev: number, cell: unknown) =>
+      recipient.api('POST', `/api/shares/received/${entry!.id}/accept`, {
+        boardId: start.id,
+        rev,
+        cell,
+      });
+    await recipient.api('POST', `/api/boards/${start.id}/tiles`, {
+      rev: start.rev,
+      row: 1,
+      col: 2,
+      kind: 'word',
+      label: 'zajęte',
+    });
+    const rev = start.rev + 1;
+    expect(await accept(rev, { row: 1, col: 2 })).toMatchObject({
+      status: 422,
+      body: { error: 'cell_occupied' },
+    });
+    expect(await accept(rev, { row: 2, col: 0 })).toMatchObject({
+      status: 422,
+      body: { error: 'out_of_bounds' },
+    });
+    expect((await accept(rev, { row: -1, col: 0 })).status).toBe(400);
+    expect((await accept(rev, { row: 0, col: 1, extra: 1 })).status).toBe(400);
+    expect((await accept(rev, { row: 1, col: 1 })).status).toBe(200);
+    const tiles = (await recipient.api<BoardTree>('GET', '/api/boards')).body.boards.find(
+      (b) => b.id === start.id,
+    )!.tiles;
+    expect(tiles.map((t) => `${t.label}@${t.row},${t.col}`).sort()).toEqual([
+      'Jedzenie@1,1',
+      'zajęte@1,2',
+    ]);
+  });
+
   it('refuses too large packages and more than the daily sends', async () => {
     const { user, food, photoId } = await sender();
     await runInDurableObject(vaultFor(env, user.id), (_i: UserVault, state) => {
@@ -406,6 +446,27 @@ describe('a board read from a file (POST /api/boards/:id/import)', () => {
     const otherCopy = otherTree.boards.find((b) => b.parentId === otherHome.id)!;
     expect(stolen.status).toBe(200);
     expect(otherCopy.tiles.every((t) => t.symbol === null)).toBe(true);
+  });
+
+  it('goes to the chosen cell when one is given', async () => {
+    const user = await account();
+    const start = await home(user, 1, 3);
+    const path = `/api/boards/${start.id}/import`;
+    const res = await user.api<BoardChanges>('POST', path, {
+      rev: start.rev,
+      package: pkg('a'.repeat(26)),
+      cell: { row: 0, col: 2 },
+    });
+    expect(res.status).toBe(200);
+    const tree = (await user.api<BoardTree>('GET', '/api/boards')).body;
+    expect(tree.boards.find((b) => b.id === start.id)!.tiles[0]).toMatchObject({ row: 0, col: 2 });
+    expect(
+      await user.api('POST', path, {
+        rev: start.rev + 1,
+        package: pkg('a'.repeat(26)),
+        cell: { row: 0, col: 2 },
+      }),
+    ).toMatchObject({ status: 422, body: { error: 'cell_occupied' } });
   });
 
   it('refuses malformed, oversized and stale imports', async () => {

@@ -89,7 +89,7 @@ test('a board is sent to another account, looked at and accepted there', async (
   await recipient.reload();
   await holdEditLock(recipient);
   await recipient.getByRole('button', { name: 'Dodaj tablicę (otrzymane: 1)' }).click();
-  const inbox = recipient.getByRole('dialog', { name: 'Dodaj tablicę na „Start”' });
+  const inbox = recipient.getByRole('dialog', { name: 'Dodaj tablicę', exact: true });
   const item = inbox.getByRole('listitem', { name: 'Start' });
   await expect(item).toContainText('Od: Terapeutka');
   await item.getByRole('button', { name: 'Podgląd' }).click();
@@ -103,11 +103,34 @@ test('a board is sent to another account, looked at and accepted there', async (
     .toBeGreaterThan(0);
   const axe = await new AxeBuilder({ page: recipient }).include('dialog').analyze();
   expect(axe.violations).toEqual([]);
-  await item.getByRole('button', { name: 'Dodaj na tablicę „Start”' }).click();
+  // Where it goes: the first free cell comes preselected, another one is a tap away.
+  await item.getByRole('button', { name: 'Dodaj…' }).click();
+  const place = recipient.getByRole('dialog', { name: 'Gdzie dodać „Start”?' });
+  await expect(
+    place.getByRole('button', { name: 'Wiersz 1, kolumna 1: tu będzie „Start”' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await place.getByRole('button', { name: 'Wiersz 2, kolumna 2: puste' }).click();
+  await expect(
+    place.getByRole('button', { name: 'Wiersz 2, kolumna 2: tu będzie „Start”' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(place.getByRole('button', { name: 'Wiersz 1, kolumna 1: puste' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  const placeAxe = await new AxeBuilder({ page: recipient }).include('dialog').analyze();
+  expect(placeAxe.violations).toEqual([]);
+  await place.getByRole('button', { name: 'Dodaj tutaj' }).click();
+  await expect(place).toBeHidden();
   await expect(inbox.getByText('Dodano folder „Start” na tablicy „Start”.')).toBeVisible();
   await expect(inbox).toContainText('Nie ma otrzymanych tablic.');
   await inbox.getByRole('button', { name: 'Zamknij' }).click();
   await expect(recipient.getByRole('button', { name: /^Zmień kafelek: Start/ })).toBeVisible();
+  await expect(
+    recipient.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 1' }),
+  ).toBeVisible();
+  await expect(
+    recipient.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 2' }),
+  ).toHaveCount(0);
   await expect(recipient.getByRole('button', { name: 'Dodaj tablicę', exact: true })).toBeVisible();
 
   // The sender sees the decision in the settings.
@@ -149,14 +172,15 @@ test('a board is saved to an Open Board file and read back on another account', 
   await reader.reload();
   await holdEditLock(reader);
   await reader.getByRole('button', { name: 'Dodaj tablicę', exact: true }).click();
-  const load = reader.getByRole('dialog', { name: 'Dodaj tablicę na „Start”' });
+  const load = reader.getByRole('dialog', { name: 'Dodaj tablicę', exact: true });
   await load.locator('input[type="file"]').setInputFiles(path);
   await expect(load.getByTestId('file-summary')).toHaveText(
     /„Start”: 2 tablice, 2 kafelki, 1 zdjęcie/,
   );
-  await load
-    .getByTestId('file-summary')
-    .getByRole('button', { name: 'Dodaj na tablicę „Start”' })
+  await load.getByTestId('file-summary').getByRole('button', { name: 'Dodaj…' }).click();
+  await reader
+    .getByRole('dialog', { name: 'Gdzie dodać „Start”?' })
+    .getByRole('button', { name: 'Dodaj tutaj' })
     .click();
   await expect(load.getByText('Dodano folder „Start” na tablicy „Start”.')).toBeVisible();
   await load.getByRole('button', { name: 'Zamknij', exact: true }).click();
@@ -166,7 +190,7 @@ test('a board is saved to an Open Board file and read back on another account', 
   await expect(soup.locator('img')).toHaveAttribute('src', /^\/api\/media\//);
   // Garbage is refused with a message, nothing changes.
   await reader.getByRole('button', { name: 'Dodaj tablicę', exact: true }).click();
-  const again = reader.getByRole('dialog', { name: 'Dodaj tablicę na „Jedzenie”' });
+  const again = reader.getByRole('dialog', { name: 'Dodaj tablicę', exact: true });
   await again.locator('input[type="file"]').setInputFiles({
     name: 'zly.obz',
     mimeType: 'application/zip',
@@ -208,14 +232,18 @@ test('an admin publishes a board in the catalogue; another account adds it', asy
   await reader.reload();
   await holdEditLock(reader);
   await reader.getByRole('button', { name: 'Dodaj tablicę', exact: true }).click();
-  const add = reader.getByRole('dialog', { name: 'Dodaj tablicę na „Start”' });
+  const add = reader.getByRole('dialog', { name: 'Dodaj tablicę', exact: true });
   const entry = add.getByRole('listitem', { name: title });
   await expect(entry).toContainText('Posiłki w domu');
   await expect(entry).toContainText('1 tablica, 1 kafelek');
   await expect(entry.getByRole('button', { name: 'Wycofaj z katalogu' })).toBeHidden();
   await entry.getByRole('button', { name: 'Podgląd' }).click();
   await expect(entry.getByRole('button', { name: 'zupa' })).toBeVisible();
-  await entry.getByRole('button', { name: 'Dodaj na tablicę „Start”' }).click();
+  await entry.getByRole('button', { name: 'Dodaj…' }).click();
+  await reader
+    .getByRole('dialog', { name: `Gdzie dodać „${title}”?` })
+    .getByRole('button', { name: 'Dodaj tutaj' })
+    .click();
   await expect(add.getByText(`Dodano folder „${title}” na tablicy „Start”.`)).toBeVisible();
   await add.getByRole('button', { name: 'Zamknij', exact: true }).click();
   await expect(reader.getByRole('button', { name: `Otwórz folder ${title}` })).toBeVisible();
@@ -225,7 +253,7 @@ test('an admin publishes a board in the catalogue; another account adds it', asy
   await share.getByRole('button', { name: 'Zamknij', exact: true }).click();
   await page.getByRole('button', { name: 'Dodaj tablicę', exact: true }).click();
   const mine = page
-    .getByRole('dialog', { name: 'Dodaj tablicę na „Jedzenie”' })
+    .getByRole('dialog', { name: 'Dodaj tablicę', exact: true })
     .getByRole('listitem', { name: title });
   await mine.getByRole('button', { name: 'Wycofaj z katalogu' }).click();
   await mine.getByRole('button', { name: 'Tak, wycofaj' }).click();

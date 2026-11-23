@@ -12,6 +12,33 @@ export function boardPath(boards: Map<string, Board>, board: Board): Board[] {
   return path;
 }
 
+/**
+ * Every board reachable from the home board, depth first in reading order, named by its
+ * path ("Start › Jedzenie"); boards in `blocked` and below them are left out.
+ */
+export function boardOptions(
+  boards: Map<string, Board>,
+  homeId: string,
+  blocked: ReadonlySet<string> = new Set(),
+): { id: string; name: string }[] {
+  const list: { id: string; name: string }[] = [];
+  const walk = (boardId: string) => {
+    const board = boards.get(boardId);
+    if (!board || blocked.has(boardId) || list.length > boards.size) return;
+    list.push({
+      id: board.id,
+      name: boardPath(boards, board)
+        .map((b) => b.name)
+        .join(' › '),
+    });
+    for (const t of [...board.tiles].sort((a, b) => a.row - b.row || a.col - b.col)) {
+      if (t.targetBoardId) walk(t.targetBoardId);
+    }
+  };
+  walk(homeId);
+  return list;
+}
+
 function NavButton({
   label,
   disabled,

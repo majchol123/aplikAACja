@@ -62,6 +62,8 @@ const PLACE_STATUS = {
   not_found: 404,
   conflict: 409,
   board_full: 422,
+  cell_occupied: 422,
+  out_of_bounds: 422,
   too_deep: 422,
   quota_exceeded: 422,
 } as const;
@@ -80,6 +82,7 @@ export async function importCatalogEntry(c: Ctx): Promise<Response> {
     input.data.rev,
     copy.package,
     copy.files,
+    input.data.cell,
   );
   if ('error' in result) {
     if (result.error === 'rate_limited') return c.json({ error: 'rate_limited' }, 429);

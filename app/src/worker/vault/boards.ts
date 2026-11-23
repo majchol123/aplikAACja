@@ -662,8 +662,8 @@ export class BoardStore {
   }
 
   /**
-   * Places a copy of `pkg` as a new folder in the first free cell of board `boardId`, in
-   * one transaction. `addPhotos` runs inside that transaction before the tiles are written:
+   * Places a copy of `pkg` as a new folder in cell `at` of board `boardId` (it must be free)
+   * or, without `at`, in the first free cell, in one transaction. `addPhotos` runs inside that transaction before the tiles are written:
    * it stores the package's photos and maps their keys to media IDs of this vault, or
    * returns null when the photo quota is exceeded (everything is rolled back). A photo
    * key it did not map leaves its tiles with their label only.
@@ -673,6 +673,7 @@ export class BoardStore {
     rev: number,
     pkg: BoardPackage,
     addPhotos: () => Map<string, string> | null,
+    at?: { row: number; col: number },
   ): BoardChanges | BoardError {
     return this.write((changes, now) => {
       const board = this.boardAt(boardId, rev);
@@ -688,6 +689,11 @@ export class BoardStore {
           .map((t) => `${t.row},${t.col}`),
       );
       let cell: { row: number; col: number } | undefined;
+      if (at) {
+        this.assertInGrid(board, at.row, at.col);
+        if (taken.has(`${at.row},${at.col}`)) throw new Abort('cell_occupied');
+        cell = at;
+      }
       for (let i = 0; i < board.rows * board.cols && !cell; i++) {
         const row = Math.floor(i / board.cols);
         const col = i % board.cols;

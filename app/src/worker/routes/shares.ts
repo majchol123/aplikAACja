@@ -155,6 +155,8 @@ const ACCEPT_STATUS = {
   not_found: 404,
   conflict: 409,
   board_full: 422,
+  cell_occupied: 422,
+  out_of_bounds: 422,
   too_deep: 422,
   quota_exceeded: 422,
 } as const;
@@ -165,7 +167,12 @@ export async function acceptShare(c: Ctx): Promise<Response> {
   if (!id) return notFound(c);
   const input = AcceptShareSchema.safeParse(await c.req.json().catch(() => null));
   if (!input.success) return invalid(c);
-  const result = await vault(c).acceptShare(id, input.data.boardId, input.data.rev);
+  const result = await vault(c).acceptShare(
+    id,
+    input.data.boardId,
+    input.data.rev,
+    input.data.cell,
+  );
   if ('error' in result) {
     if (result.error === 'rate_limited') return rateLimited(c);
     const status = ACCEPT_STATUS[result.error as keyof typeof ACCEPT_STATUS] ?? 422;

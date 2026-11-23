@@ -87,9 +87,12 @@ export function shareProblem(err: unknown): string {
     case 'invalid_request':
       return 'Sprawdź adres e-mail.';
     case 'board_full':
-      return 'Na tej tablicy nie ma wolnego pola. Zwolnij jedno albo otwórz inną tablicę.';
+      return 'Na tej tablicy nie ma wolnego pola. Zwolnij jedno albo wybierz inną tablicę.';
+    case 'cell_occupied':
+    case 'out_of_bounds':
+      return 'Tego pola już nie ma wolnego. Wybierz inne.';
     case 'too_deep':
-      return 'Tutaj folder byłby za głęboko (najwyżej 10 poziomów). Otwórz tablicę bliżej pulpitu.';
+      return 'Tutaj folder byłby za głęboko (najwyżej 10 poziomów). Wybierz tablicę bliżej pulpitu.';
     case 'quota_exceeded':
       return 'Na koncie brakuje miejsca na tyle tablic, kafelków lub zdjęć.';
     case 'conflict':

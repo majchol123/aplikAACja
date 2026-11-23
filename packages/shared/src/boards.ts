@@ -73,6 +73,9 @@ const colSchema = z
 export const GridSizeSchema = z.object({ rows: rowsSchema, cols: colsSchema }).strict();
 export type GridSize = z.infer<typeof GridSizeSchema>;
 
+/** One cell of a board's grid (stored coordinates, whatever the screen shows). */
+export const GridCellSchema = z.object({ row: rowSchema, col: colSchema }).strict();
+
 const tileStyle = {
   labelPosition: z.enum(LABEL_POSITIONS),
   fontSize: z.enum(FONT_SIZES),

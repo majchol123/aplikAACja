@@ -6,6 +6,7 @@ import {
   type BoardChanges,
   type BoardPackage,
   type BoardTree,
+  type Cell,
   type MediaSaved,
   type ObzImport,
   type ObzPicture,
@@ -201,7 +202,7 @@ function withPhotos(pkg: BoardPackage, ids: ReadonlyMap<string, string>): BoardP
  */
 export async function importBoardFile(
   imported: ObzImport,
-  board: { id: string; rev: number },
+  board: { id: string; rev: number; cell?: Cell },
   onProgress: (done: number, total: number) => void,
 ): Promise<{ changes: BoardChanges; skippedPhotos: number }> {
   const ids = new Map<string, string>();
@@ -219,7 +220,7 @@ export async function importBoardFile(
   }
   const changes = await api<BoardChanges>(`/api/boards/${board.id}/import`, {
     method: 'POST',
-    json: { rev: board.rev, package: withPhotos(imported.package, ids) },
+    json: { rev: board.rev, package: withPhotos(imported.package, ids), cell: board.cell },
   });
   return { changes, skippedPhotos: skipped };
 }

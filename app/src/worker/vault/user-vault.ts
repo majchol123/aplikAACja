@@ -5,6 +5,7 @@ import {
   ImportPackageSchema,
   treeShape,
   type BoardPackage,
+  type Cell,
   type Favorite,
   type FavoriteList,
   type ImportPackage,
@@ -395,12 +396,19 @@ export class UserVault extends DurableObject<AppEnv> {
     rev: number,
     json: string,
     files: PackagePhoto[],
+    cell?: Cell,
   ): Counted<BoardChanges> | BoardError | RateLimited {
     if (!this.spendWrite()) return RATE_LIMITED;
     const parsed = BoardPackageSchema.safeParse(JSON.parse(json));
     if (!parsed.success) return { error: 'invalid_request' };
     return this.counted(
-      this.boards.importPackage(boardId, rev, parsed.data, () => this.media.addFromPackage(files)),
+      this.boards.importPackage(
+        boardId,
+        rev,
+        parsed.data,
+        () => this.media.addFromPackage(files),
+        cell,
+      ),
     );
   }
 
@@ -433,8 +441,12 @@ export class UserVault extends DurableObject<AppEnv> {
     };
     collect(input.package.board);
     if (input.package.tile?.symbol?.set === 'own') own.add(input.package.tile.symbol.ref);
-    const result = this.boards.importPackage(boardId, input.rev, input.package, () =>
-      this.media.existing([...own]),
+    const result = this.boards.importPackage(
+      boardId,
+      input.rev,
+      input.package,
+      () => this.media.existing([...own]),
+      input.cell,
     );
     return this.counted(result);
   }
@@ -475,17 +487,24 @@ export class UserVault extends DurableObject<AppEnv> {
     id: string,
     boardId: string,
     rev: number,
+    cell?: Cell,
   ): (Counted<BoardChanges> & { sender: ShareSender }) | BoardError | RateLimited {
     if (!this.spendWrite()) return RATE_LIMITED;
     const item = this.shares.inboxItem(id, Date.now());
     if (!item) return { error: 'not_found' };
     const parsed = BoardPackageSchema.safeParse(JSON.parse(item.package));
     if (!parsed.success) return { error: 'invalid_request' };
-    const result = this.boards.importPackage(boardId, rev, parsed.data, () => {
-      const ids = this.media.addFromPackage(this.shares.photos(id));
-      if (ids) this.shares.remove(id);
-      return ids;
-    });
+    const result = this.boards.importPackage(
+      boardId,
+      rev,
+      parsed.data,
+      () => {
+        const ids = this.media.addFromPackage(this.shares.photos(id));
+        if (ids) this.shares.remove(id);
+        return ids;
+      },
+      cell,
+    );
     if ('error' in result) return result;
     return {
       ...result,
