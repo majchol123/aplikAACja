@@ -1,10 +1,5 @@
 import { z } from 'zod';
-import {
-  BoardPackageSchema,
-  GridCellSchema,
-  ObjectIdSchema,
-  type BoardPackage,
-} from './boards.ts';
+import { BoardPackageSchema, GridCellSchema, ObjectIdSchema, type BoardPackage } from './boards.ts';
 import type { MediaType } from './media.ts';
 
 /**
