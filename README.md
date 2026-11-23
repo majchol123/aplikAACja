@@ -56,6 +56,15 @@ Mirror w środowiskach serwuje osobny Worker na ścieżce `/sym/arasaac/*` (Rout
 
 Push na `main` → CI → staging (`relaacja-staging.jagiellona.one.pl`) → ręczna akceptacja → produkcja (`relaacja.jagiellona.one.pl`). Mirror ARASAAC odświeża `.github/workflows/arasaac-refresh.yml` (2× w tygodniu, przyrostowo; środowisko `symbols`). Prywatny Worker `relaacja-extra` wdraża operator poza CI.
 
+## Kopie zapasowe
+
+Dane kont są w Durable Objects i D1 Cloudflare; kopia trafia poza Cloudflare, zaszyfrowana [age](https://age-encryption.org). Artefakty GitHub Actions w publicznym repo są publiczne, więc kopie nigdy tam nie trafiają.
+
+1. Klucz: `age-keygen -o key.txt` — klucz prywatny przechowuj **poza** maszyną, na której działa zadanie kopii (tylko nim da się ją odczytać).
+2. Superadministrator: panel administratora → „Kopie zapasowe” → klucz publiczny (`age-keygen -y key.txt`) → „Włącz kopie zapasowe”. Klucz dostępu zadania pokazuje się raz; nowy klucz publiczny unieważnia poprzedni klucz dostępu.
+3. Zadanie (np. codziennie z crona): `RELAACJA_BACKUP_TOKEN=… uv run --project tools tools/backup.py --origin https://<host> --out <katalog> --keep 30`. Serwer szyfruje każdy plik w Durable Objects, więc klucz dostępu daje wyłącznie szyfrogramy; zadanie odrzuca wszystko, co nie jest plikiem age. Zdjęcia pobierają się raz (są niezmienne), migawki starsze niż `--keep` znikają razem ze zdjęciami, których już nie używają.
+4. Odczyt: `age -d -i key.txt snapshots/<czas>/users/<id>.json.age` — tabele SQLite sejfu (kolumny i wiersze), D1 (`d1.json.age`: konta, dziennik zdarzeń, obrazki folderów; bez sesji) i katalog tablic.
+
 ## Licencje
 
 Kod: MIT ([`LICENSE`](LICENSE)). Symbole ARASAAC mają osobną licencję CC BY-NC-SA 4.0 i nie są częścią repozytorium; słownik odmian pochodzi z PoliMorf (BSD-2) — patrz [`NOTICE`](NOTICE).

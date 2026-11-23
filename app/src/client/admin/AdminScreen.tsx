@@ -4,6 +4,7 @@ import { countPl } from '../edit/TileEditor.tsx';
 import { ui } from '../edit/ui.ts';
 import { AccountDialog } from './AccountDialog.tsx';
 import { AuditLog } from './AuditLog.tsx';
+import { BackupPanel } from './BackupPanel.tsx';
 import { useAdminUsers } from './data.ts';
 import {
   adminStats,
@@ -20,12 +21,12 @@ import {
   type AdminStats,
 } from './format.ts';
 
-type View = 'accounts' | 'audit';
+type View = 'accounts' | 'audit' | 'backup';
 type StatusFilter = 'all' | AdminUser['status'];
 
 const card = 'rounded-2xl bg-white p-4 shadow-sm ring-1 ring-brand-100 sm:p-6';
 
-/** Admin panel (PLAN §2.6): accounts with statistics v1, and the audit log. */
+/** Admin panel (PLAN §2.6): accounts with statistics v1, the audit log, backups (superadmin). */
 export function AdminScreen({ me, onBack }: { me: Me; onBack: () => void }) {
   const [view, setView] = useState<View>('accounts');
   return (
@@ -49,6 +50,7 @@ export function AdminScreen({ me, onBack }: { me: Me; onBack: () => void }) {
           [
             ['accounts', 'Konta'],
             ['audit', 'Dziennik zdarzeń'],
+            ...(me.role === 'superadmin' ? ([['backup', 'Kopie zapasowe']] as const) : []),
           ] as const
         ).map(([id, label]) => (
           <button
@@ -65,6 +67,8 @@ export function AdminScreen({ me, onBack }: { me: Me; onBack: () => void }) {
       <main className="mt-4 flex-1 space-y-4">
         {view === 'accounts' ? (
           <Accounts me={me} />
+        ) : view === 'backup' ? (
+          <BackupPanel />
         ) : (
           <section className={card} aria-labelledby="audit-title">
             <h2 id="audit-title" className="text-lg font-bold text-brand-900">

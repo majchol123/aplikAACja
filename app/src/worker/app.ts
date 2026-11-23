@@ -1,4 +1,4 @@
-import { SettingsPatchSchema, type Me } from '@relaacja/shared';
+import { BACKUP_TOKEN_RE, SettingsPatchSchema, type Me } from '@relaacja/shared';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
@@ -29,9 +29,10 @@ import {
 } from './auth/session.ts';
 import { effectiveRole, parseAdminEmails, upsertGoogleUser, type UserRow } from './auth/users.ts';
 import type { AppContext } from './context.ts';
-import { newToken, sha256Hex } from './lib/crypto.ts';
+import { newToken, sha256Hex, timingSafeEqual } from './lib/crypto.ts';
 import { defer } from './lib/defer.ts';
 import * as admin from './routes/admin.ts';
+import * as backup from './routes/backup.ts';
 import * as boards from './routes/boards.ts';
 import * as catalog from './routes/catalog.ts';
 import * as categories from './routes/categories.ts';
@@ -124,6 +125,26 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
     return next();
   };
 
+  const requireSuperadmin: MiddlewareHandler<AppContext> = async (c, next) => {
+    if (c.get('user').role !== 'superadmin') return c.json({ error: 'forbidden' }, 403);
+    return next();
+  };
+
+  /** The backup job (F7): a bearer token whose SHA-256 is in D1; sessions do not count. */
+  const backupToken: MiddlewareHandler<AppContext> = async (c, next) => {
+    const match = /^Bearer (\S+)$/.exec(c.req.header('Authorization') ?? '');
+    const token = match?.[1];
+    if (!token || !BACKUP_TOKEN_RE.test(token)) return c.json({ error: 'unauthenticated' }, 401);
+    const row = await c.env.DB.prepare(
+      'SELECT recipient, token_hash, created_by FROM backup_config WHERE id = 1',
+    ).first<{ recipient: string; token_hash: string; created_by: string }>();
+    if (!row || !timingSafeEqual(await sha256Hex(token), row.token_hash)) {
+      return c.json({ error: 'unauthenticated' }, 401);
+    }
+    c.set('backup', { recipient: row.recipient, createdBy: row.created_by });
+    return next();
+  };
+
   const requireExtraSet: MiddlewareHandler<AppContext> = async (c, next) => {
     // Always from D1 via the session, never from the user's saved settings (PLAN D5).
     if (!c.get('user').extraSet) return c.json({ error: 'extra_set_not_enabled' }, 403);
@@ -144,6 +165,8 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
     public: [],
     user: [authenticate],
     admin: [authenticate, requireAdmin],
+    superadmin: [authenticate, requireSuperadmin],
+    backup: [backupToken],
     extra: [authenticate, requireExtraSet],
     dev: [devOnly],
   };
@@ -372,6 +395,16 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.adminUserData, admin.userData(deps.now));
   defineRoute(ROUTES.adminUserMedia, admin.userMedia);
   defineRoute(ROUTES.adminAudit, admin.listAudit);
+  defineRoute(ROUTES.adminBackupStatus, backup.status);
+  defineRoute(ROUTES.adminBackupConfigure, backup.configure(deps.now));
+  defineRoute(ROUTES.adminBackupDisable, backup.disable(deps.now));
+  defineRoute(ROUTES.backupIndex, backup.index(deps.now));
+  defineRoute(ROUTES.backupAccounts, backup.accounts);
+  defineRoute(ROUTES.backupCatalog, backup.catalogDump);
+  defineRoute(ROUTES.backupCatalogPhoto, backup.catalogPhoto);
+  defineRoute(ROUTES.backupUser, backup.user);
+  defineRoute(ROUTES.backupUserMediaList, backup.userMediaList);
+  defineRoute(ROUTES.backupUserMedia, backup.userMedia);
 
   defineRoute(ROUTES.extraAsset, serveExtraFile);
 

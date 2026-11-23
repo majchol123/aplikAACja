@@ -61,6 +61,9 @@ export const AUDIT_ACTIONS = [
   'catalog.publish',
   'catalog.edit',
   'catalog.withdraw',
+  'backup.configure',
+  'backup.disable',
+  'backup.run',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

@@ -1,12 +1,14 @@
 import { DurableObject } from 'cloudflare:workers';
 import {
   CATALOG_LIMITS,
+  type BackupIndex,
   type CatalogEntry,
   type PatchCatalog,
   type ShareCounts,
   type SharePhoto,
 } from '@relaacja/shared';
 import type { AppEnv } from '../env.ts';
+import { D1_BACKUP_TABLES, dumpTables, sealFor, type TableDump } from '../lib/backup.ts';
 import { newId } from '../lib/crypto.ts';
 import type { PackagePhoto } from '../vault/media.ts';
 
@@ -158,6 +160,42 @@ export class Catalog extends DurableObject<AppEnv> {
       )
       .toArray();
     return { package: row.package, files };
+  }
+
+  // --- backups (F7, PLAN §6): this one object also holds the copy of D1 --------------
+
+  backupIndex(): BackupIndex['catalog'] {
+    const photos = this.sql
+      .exec<{ entry_id: string; key: string }>(
+        'SELECT entry_id, key FROM entry_media ORDER BY entry_id, key',
+      )
+      .toArray();
+    return this.sql
+      .exec<{ id: string }>('SELECT id FROM entries ORDER BY id')
+      .toArray()
+      .map(({ id }) => ({ id, photos: photos.filter((p) => p.entry_id === id).map((p) => p.key) }));
+  }
+
+  async backupDump(recipient: string): Promise<Uint8Array> {
+    const tables = dumpTables(this.sql, { entry_media: ['data'] });
+    return sealFor(recipient, JSON.stringify({ v: 1, kind: 'catalog', at: Date.now(), tables }));
+  }
+
+  async backupPhoto(recipient: string, id: string, key: string): Promise<Uint8Array | null> {
+    const photo = this.photo(id, key);
+    return photo ? sealFor(recipient, new Uint8Array(photo.data)) : null;
+  }
+
+  /** Accounts, audit log and folder pictures from D1, encrypted here for the CPU time. */
+  async backupAccounts(recipient: string): Promise<Uint8Array> {
+    const tables: Record<string, TableDump> = {};
+    for (const name of D1_BACKUP_TABLES) {
+      const [columns, ...rows] = await this.env.DB.prepare(`SELECT * FROM ${name}`).raw<unknown[]>({
+        columnNames: true,
+      });
+      tables[name] = { columns, rows };
+    }
+    return sealFor(recipient, JSON.stringify({ v: 1, kind: 'd1', at: Date.now(), tables }));
   }
 
   publish(input: Publication): CatalogEntry | { error: 'catalog_full' } {

@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { Decrypter, generateIdentity, identityToRecipient } from 'age-encryption';
 import {
+  devLogin,
   failOnConsoleErrors,
   freshLogin,
   mockArasaac,
@@ -135,4 +137,63 @@ test('admin panel: statistics, data view, blocking and hard delete of an account
     .filter({ hasText: `konto usunięte (${targetId.slice(0, 6)}…)` });
   await expect(gone.filter({ hasText: 'Usunięcie konta' })).toHaveCount(1);
   await other.close();
+});
+
+test('a superadmin turns encrypted backups on; the job reads with the token alone', async ({
+  page,
+  request,
+}) => {
+  await mockArasaac(page);
+  // CI lists this address in ADMIN_EMAILS (.dev.vars.example); a developer's own .dev.vars
+  // may not, and superadmin comes from nowhere else.
+  const sub = `e2e-backup-${test.info().project.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await devLogin(page, { sub, email: 'you@example.com', name: 'Superadmin' });
+  const me = await page.evaluate(
+    async () => (await (await fetch('/api/me')).json()) as { id: string; role: string },
+  );
+  test.skip(me.role !== 'superadmin', 'you@example.com is not in ADMIN_EMAILS here');
+
+  await page.getByRole('button', { name: 'Ustawienia i konto' }).click();
+  await page.getByRole('button', { name: 'Otwórz panel administratora' }).click();
+  await page.getByRole('button', { name: 'Kopie zapasowe' }).click();
+  const panel = page.getByRole('region', { name: 'Kopie zapasowe' });
+  const identity = await generateIdentity();
+  const recipient = await identityToRecipient(identity);
+  const field = panel.getByLabel(/Klucz publiczny age/);
+  await field.fill('age1nie-taki-klucz');
+  await expect(panel.getByRole('button', { name: 'Włącz kopie zapasowe' })).toBeDisabled();
+  await field.fill(recipient);
+  await panel.getByRole('button', { name: 'Włącz kopie zapasowe' }).click();
+  const token = await panel.getByLabel('Klucz dostępu zadania kopii').inputValue();
+  expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  await expect(panel.getByTestId('backup-recipient')).toHaveText(recipient);
+  await expect(panel.getByTestId('backup-last-run')).toHaveText('jeszcze nie było');
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  // The job: plain IDs in the index, everything else an age file for that key.
+  const auth = { Authorization: `Bearer ${token}` };
+  const index = await request.get('/api/backup/index', { headers: auth });
+  expect(index.status()).toBe(200);
+  expect(((await index.json()) as { users: string[] }).users).toContain(me.id);
+  const vault = await request.get(`/api/backup/users/${me.id}`, { headers: auth });
+  const decrypter = new Decrypter();
+  decrypter.addIdentity(identity);
+  const dump = JSON.parse(await decrypter.decrypt(new Uint8Array(await vault.body()), 'text')) as {
+    kind: string;
+    tables: Record<string, unknown>;
+  };
+  expect(dump.kind).toBe('vault');
+  expect(Object.keys(dump.tables)).toContain('boards');
+  expect((await request.get('/api/backup/index')).status()).toBe(401);
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Ustawienia i konto' }).click();
+  await page.getByRole('button', { name: 'Otwórz panel administratora' }).click();
+  await page.getByRole('button', { name: 'Kopie zapasowe' }).click();
+  await expect(panel.getByTestId('backup-last-run')).not.toHaveText('jeszcze nie było');
+  await expect(panel.getByLabel('Klucz dostępu zadania kopii')).toHaveCount(0);
+  await panel.getByRole('button', { name: 'Wyłącz kopie zapasowe' }).click();
+  await panel.getByRole('button', { name: 'Tak, wyłącz' }).click();
+  await expect(panel.getByRole('button', { name: 'Włącz kopie zapasowe' })).toBeVisible();
+  expect((await request.get('/api/backup/index', { headers: auth })).status()).toBe(401);
 });

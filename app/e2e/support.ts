@@ -30,14 +30,20 @@ export function failOnConsoleErrors({
 
 export async function devLogin(page: Page, who: { sub: string; email: string; name: string }) {
   await page.goto('/');
-  const status = await page.evaluate(async (body) => {
-    const res = await fetch('/api/auth/dev-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Relaacja': '1' },
-      body: JSON.stringify(body),
+  const origin = new URL(page.url()).origin;
+  // From the test process (page.request shares the context's cookies), so a retried request
+  // leaves no console error: promoteToAdmin in a parallel test (wrangler d1 execute --local)
+  // can hold the local database for a moment, and the login fails with SQLITE_BUSY (500).
+  let status = 0;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await page.request.post('/api/auth/dev-login', {
+      headers: { Origin: origin, 'Sec-Fetch-Site': 'same-origin', 'X-Relaacja': '1' },
+      data: who,
     });
-    return res.status;
-  }, who);
+    status = res.status();
+    if (status !== 500) break;
+    await page.waitForTimeout(300 * (attempt + 1));
+  }
   expect(status).toBe(204);
   await page.goto('/');
 }

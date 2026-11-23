@@ -1,2 +1,15 @@
 # ZAP baseline rules (.github/workflows/zap.yml): <alert id> TAB <IGNORE|WARN|FAIL> TAB (<name>)
 # Every IGNORE names the reason it is accepted. Alerts not listed fail the run.
+#
+# The public pages, robots.txt and the manifest are the same for everyone; max-age=0 with
+# must-revalidate (Cloudflare static assets) keeps them fresh. Private answers are no-store.
+10015	IGNORE	(Re-examine Cache-control Directives)
+# Informational: API answers are no-store on purpose, static files revalidate.
+10049	IGNORE	(Non-Storable Content / Storable but Non-Cacheable Content)
+# Hashed file names, image bytes and the OIDC state/PKCE values of the Google redirect.
+10094	IGNORE	(Base64 Disclosure)
+# Informational: the short-lived encrypted __Host- OAuth cookie of /api/auth/login.
+10112	IGNORE	(Session Management Response Identified)
+# About the scanner's own requests (no Sec-Fetch-* headers); the CSRF guard checks
+# Sec-Fetch-Site when a browser sends it.
+90005	IGNORE	(Sec-Fetch-* Header is Missing)

@@ -47,6 +47,7 @@ common() { # headers every response carries
   expect "$1" "$2" referrer-policy '^no-referrer$'
   expect "$1" "$2" cross-origin-opener-policy '^same-origin$'
   expect "$1" "$2" cross-origin-resource-policy '^same-origin$'
+  expect "$1" "$2" cross-origin-embedder-policy '^require-corp$'
   expect "$1" "$2" permissions-policy 'geolocation=\(\)'
 }
 page_csp=""

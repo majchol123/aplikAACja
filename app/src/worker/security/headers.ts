@@ -39,6 +39,9 @@ export const COMMON_SECURITY_HEADERS: Record<string, string> = {
   'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=()',
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Resource-Policy': 'same-origin',
+  // Every resource of the app is same-origin, so documents can require it of all of them:
+  // with COOP the pages are cross-origin isolated (ZAP 90004, Spectre).
+  'Cross-Origin-Embedder-Policy': 'require-corp',
   'X-Frame-Options': 'DENY',
 };
 

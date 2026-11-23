@@ -28,6 +28,9 @@ const ACTION_LABEL: Record<string, string> = {
   'catalog.publish': 'Publikacja w katalogu tablic',
   'catalog.edit': 'Zmiana wpisu w katalogu tablic',
   'catalog.withdraw': 'Wycofanie z katalogu tablic',
+  'backup.configure': 'Ustawienie kopii zapasowych',
+  'backup.disable': 'Wyłączenie kopii zapasowych',
+  'backup.run': 'Kopia zapasowa',
 };
 
 export function actionLabel(action: string): string {
@@ -53,6 +56,10 @@ export function actionDetails(entry: AuditEntry): string {
     case 'catalog.edit':
     case 'catalog.withdraw':
       return `„${String(d.name)}”`;
+    case 'backup.configure':
+      return `klucz ${String(d.recipient)}`;
+    case 'backup.run':
+      return `kont: ${String(d.accounts)}, wpisów katalogu: ${String(d.catalog)}`;
     default:
       return '';
   }

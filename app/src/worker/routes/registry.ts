@@ -12,6 +12,10 @@ export type Access =
   | 'user'
   /** Active account with role admin or superadmin. */
   | 'admin'
+  /** Active account with role superadmin (ADMIN_EMAILS). */
+  | 'superadmin'
+  /** The backup job: `Authorization: Bearer` token set in the admin panel, never a session. */
+  | 'backup'
   /** Active account with the optional extra symbol set granted (users.extra_set_enabled). */
   | 'extra'
   /** Fake login for local E2E; 404 everywhere else. */
@@ -116,6 +120,26 @@ export const ROUTES = {
   },
   adminAudit: { method: 'GET', path: '/api/admin/audit', access: 'admin' },
   putCategoryIcon: { method: 'PUT', path: '/api/admin/category-icons', access: 'admin' },
+  // Encrypted backups (F7, PLAN §6): a superadmin sets the age recipient and gets the
+  // token; the backup job reads with it. Every file but the index is age-encrypted.
+  adminBackupStatus: { method: 'GET', path: '/api/admin/backup', access: 'superadmin' },
+  adminBackupConfigure: { method: 'PUT', path: '/api/admin/backup', access: 'superadmin' },
+  adminBackupDisable: { method: 'DELETE', path: '/api/admin/backup', access: 'superadmin' },
+  backupIndex: { method: 'GET', path: '/api/backup/index', access: 'backup' },
+  backupAccounts: { method: 'GET', path: '/api/backup/d1', access: 'backup' },
+  backupCatalog: { method: 'GET', path: '/api/backup/catalog', access: 'backup' },
+  backupCatalogPhoto: {
+    method: 'GET',
+    path: '/api/backup/catalog/:id/photos/:key',
+    access: 'backup',
+  },
+  backupUser: { method: 'GET', path: '/api/backup/users/:id', access: 'backup' },
+  backupUserMediaList: { method: 'GET', path: '/api/backup/users/:id/media', access: 'backup' },
+  backupUserMedia: {
+    method: 'GET',
+    path: '/api/backup/users/:id/media/:mediaId',
+    access: 'backup',
+  },
   /** Gate in front of the private extra-set Worker (PLAN D5, §4.1 path traversal). */
   extraAsset: { method: 'GET', path: '/sym/extra/*', access: 'extra' },
 } as const satisfies Record<string, RouteDef>;

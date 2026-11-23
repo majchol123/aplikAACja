@@ -35,6 +35,9 @@ const all = (status: number) =>
   Object.fromEntries(PRINCIPALS.map((p) => [p, status])) as Record<Principal, number>;
 const userOnly = { ...all(200), anon: 401, blocked: 403 };
 const adminsOnly = { ...all(403), anon: 401, admin: 200, superadmin: 200 };
+const superadminOnly = { ...all(403), anon: 401, superadmin: 200 };
+/** A valid age recipient (X25519) from the age-encryption documentation. */
+const RECIPIENT = 'age1tgyuvdlmpejqsdf847hevurz9szk7vf3j7ytfyqecgzvphvu2d8qrtaxl6';
 /** Objects in user A's vault: everybody else gets the same 404 as for a missing ID. */
 const ownedByA = { ...all(404), anon: 401, blocked: 403, userA: 200 };
 
@@ -229,6 +232,27 @@ const EXPECTED: Record<string, Row> = {
   'PUT /api/admin/category-icons': {
     body: { set: 'arasaac', key: 'verb', symbol: 6061 },
     status: { ...all(403), anon: 401, admin: 200, superadmin: 200 },
+  },
+  // Backups (F7): set up by superadmins only; read with the token alone, which no
+  // principal here has, so a session (even a superadmin's) never reads a backup.
+  'GET /api/admin/backup': { status: superadminOnly },
+  'PUT /api/admin/backup': { body: { recipient: RECIPIENT }, status: superadminOnly },
+  'DELETE /api/admin/backup': { status: { ...superadminOnly, superadmin: 204 } },
+  'GET /api/backup/index': { status: all(401) },
+  'GET /api/backup/d1': { status: all(401) },
+  'GET /api/backup/catalog': { status: all(401) },
+  'GET /api/backup/catalog/:id/photos/:key': {
+    path: (f) => `/api/backup/catalog/${f.catalogId}/photos/${CATALOG_PHOTO}`,
+    status: all(401),
+  },
+  'GET /api/backup/users/:id': { path: (f) => `/api/backup/users/${f.ownerId}`, status: all(401) },
+  'GET /api/backup/users/:id/media': {
+    path: (f) => `/api/backup/users/${f.ownerId}/media`,
+    status: all(401),
+  },
+  'GET /api/backup/users/:id/media/:mediaId': {
+    path: (f) => `/api/backup/users/${f.ownerId}/media/${f.mediaId}`,
+    status: all(401),
   },
   // The flag comes from D1, not from the role: admins without it are refused too.
   'GET /sym/extra/*': {

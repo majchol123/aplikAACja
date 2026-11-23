@@ -31,6 +31,7 @@ import {
   type SettingsPatch,
 } from '@relaacja/shared';
 import type { AppEnv } from '../env.ts';
+import { dumpTables, sealFor } from '../lib/backup.ts';
 import type { CleanImage } from '../media/image.ts';
 import { BoardStore, type BoardError } from './boards.ts';
 import { FavoriteStore } from './favorites.ts';
@@ -260,6 +261,28 @@ export class UserVault extends DurableObject<AppEnv> {
       settings: this.getSettings(),
       totals: this.totals(),
     };
+  }
+
+  // --- backups (F7, PLAN §6) ---------------------------------------------------------
+
+  /** Every table but the photo bytes (one request each, below), encrypted for `recipient`. */
+  async backupDump(recipient: string): Promise<Uint8Array> {
+    const tables = dumpTables(this.ctx.storage.sql, { media_data: true, inbox_media: ['data'] });
+    return sealFor(recipient, JSON.stringify({ v: 1, kind: 'vault', at: Date.now(), tables }));
+  }
+
+  backupMediaIds(): string[] {
+    return this.ctx.storage.sql
+      .exec<{ id: string }>('SELECT id FROM media ORDER BY id')
+      .toArray()
+      .map((r) => r.id);
+  }
+
+  async backupMedia(recipient: string, id: string): Promise<Uint8Array | null> {
+    const row = this.ctx.storage.sql
+      .exec<{ data: ArrayBuffer }>('SELECT data FROM media_data WHERE id = ?', id)
+      .toArray()[0];
+    return row ? sealFor(recipient, new Uint8Array(row.data)) : null;
   }
 
   // --- favourite phrases (F3, PLAN §2.1) ----------------------------------------------
