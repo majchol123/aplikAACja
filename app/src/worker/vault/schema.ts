@@ -200,6 +200,10 @@ export const VAULT_MIGRATIONS: readonly string[] = [
    CREATE INDEX idx_media_sha256 ON media (sha256);
    ALTER TABLE vault_meta ADD COLUMN sends_day TEXT NOT NULL DEFAULT '';
    ALTER TABLE vault_meta ADD COLUMN sends INTEGER NOT NULL DEFAULT 0;`,
+
+  // v6 — hidden tiles (backlog): out of communication mode but kept in their cell, so the
+  // other tiles never move (motor planning); shown dimmed in edit mode.
+  `ALTER TABLE tiles ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1));`,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {

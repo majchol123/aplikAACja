@@ -1,5 +1,6 @@
 import type { Me, SymbolHit, SymbolRef } from '@relaacja/shared';
 import { Dialog } from '../edit/Dialog.tsx';
+import { ui } from '../edit/ui.ts';
 import { CategoryBrowser } from '../library/CategoryBrowser.tsx';
 
 /**
@@ -35,6 +36,12 @@ export function AllSymbols({
           </button>
         )}
       />
+      {/* A touch screen has no Escape key. */}
+      <div className="mt-4 flex justify-end">
+        <button type="button" className={ui.primary} onClick={onClose}>
+          Zamknij
+        </button>
+      </div>
     </Dialog>
   );
 }

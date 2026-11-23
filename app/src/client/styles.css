@@ -354,6 +354,29 @@ html[data-state='anon'] .landing-reveal {
   }
 }
 
+/* Hidden tile in edit mode and previews: dimmed and marked; communication mode leaves its cell empty. */
+/* The picture fades, the label keeps its contrast (WCAG AA). */
+.tile-hidden .tile {
+  border-style: dashed;
+  background-color: #f1f5f9;
+}
+.tile-hidden .tile img {
+  opacity: 0.35;
+}
+.tile-hidden-badge {
+  position: absolute;
+  top: 3cqmin;
+  right: 3cqmin;
+  border-radius: 9999px;
+  background: #334155;
+  color: #fff;
+  font-size: max(11px, 6cqmin);
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.25em 0.6em;
+  pointer-events: none;
+}
+
 /* Photo crop (media/PhotoCropper.tsx): the finger moves and pinches the picture, not the page. */
 .photo-crop {
   touch-action: none;

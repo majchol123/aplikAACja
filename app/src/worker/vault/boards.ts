@@ -65,13 +65,14 @@ type TileRow = {
   color_mode: Tile['colorMode'];
   symbol_set: 'arasaac' | 'extra' | 'own' | null;
   symbol_ref: string | null;
+  hidden: number;
 };
 
 type MetaRow = { epoch: string; version: number; boards: number; tiles: number };
 
 const BOARD_COLUMNS = 'id, name, parent_board_id, rows, cols, rev';
 const TILE_COLUMNS =
-  'id, board_id, row, col, kind, target_board_id, label, label_position, font_size, color_role, color_mode, symbol_set, symbol_ref';
+  'id, board_id, row, col, kind, target_board_id, label, label_position, font_size, color_role, color_mode, symbol_set, symbol_ref, hidden';
 
 /** Recursion guard for tree queries; far above maxDepth, below SQLite's limits. */
 const WALK_LIMIT = 64;
@@ -92,6 +93,7 @@ function toTile(row: TileRow): Tile {
       row.symbol_set && row.symbol_ref !== null
         ? { set: row.symbol_set, ref: row.symbol_ref }
         : null,
+    hidden: row.hidden === 1,
   };
 }
 
@@ -419,9 +421,9 @@ export class BoardStore {
   ): void {
     this.sql.exec(
       `INSERT INTO tiles (id, board_id, row, col, kind, target_board_id, label, label_position,
-                          font_size, color_role, color_mode, symbol_set, symbol_ref,
+                          font_size, color_role, color_mode, symbol_set, symbol_ref, hidden,
                           created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       newId(),
       boardId,
       tile.row,
@@ -435,6 +437,7 @@ export class BoardStore {
       tile.colorMode ?? 'border',
       tile.symbol?.set ?? null,
       tile.symbol?.ref ?? null,
+      tile.hidden ? 1 : 0,
       now,
       now,
     );
@@ -516,7 +519,7 @@ export class BoardStore {
       this.sql.exec(
         `UPDATE tiles SET kind = ?, target_board_id = ?, label = ?, label_position = ?,
                           font_size = ?, color_role = ?, color_mode = ?, symbol_set = ?,
-                          symbol_ref = ?, updated_at = ?
+                          symbol_ref = ?, hidden = ?, updated_at = ?
           WHERE id = ?`,
         kind,
         kind === 'folder' ? target : null,
@@ -527,6 +530,7 @@ export class BoardStore {
         input.colorMode ?? tile.color_mode,
         symbol === undefined ? tile.symbol_set : (symbol?.set ?? null),
         symbol === undefined ? tile.symbol_ref : (symbol?.ref ?? null),
+        input.hidden === undefined ? tile.hidden : input.hidden ? 1 : 0,
         now,
         tileId,
       );

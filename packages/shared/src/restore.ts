@@ -52,6 +52,8 @@ export function restoreTree(dump: VaultDump): { tree: BoardTree; photos: DumpedP
       colorRole: text(t.color_role) as Tile['colorRole'],
       colorMode: t.color_mode as Tile['colorMode'],
       symbol: set ? { set, ref: String(t.symbol_ref) } : null,
+      // Backups made before the vault had the column have no hidden tiles.
+      hidden: Number(t.hidden ?? 0) === 1,
     };
     const board = String(t.board_id);
     tilesOf.set(board, [...(tilesOf.get(board) ?? []), tile]);

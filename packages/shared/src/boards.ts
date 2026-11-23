@@ -100,6 +100,7 @@ const TemplateTileSchema = z
     colorRole: tileStyle.colorRole.optional(),
     colorMode: tileStyle.colorMode.optional(),
     symbol: tileStyle.symbol.optional(),
+    hidden: z.boolean().optional(),
     /** Contents of the board a folder opens (folders only). */
     get board() {
       return TemplateBoardSchema.optional();
@@ -174,6 +175,7 @@ export const CreateTileSchema = z
     colorRole: tileStyle.colorRole.optional(),
     colorMode: tileStyle.colorMode.optional(),
     symbol: tileStyle.symbol.optional(),
+    hidden: z.boolean().optional(),
     /** Grid of the board a folder opens; defaults to the parent board's grid. */
     folder: GridSizeSchema.optional(),
   })
@@ -195,6 +197,7 @@ export const PatchTileSchema = z
     colorRole: tileStyle.colorRole.optional(),
     colorMode: tileStyle.colorMode.optional(),
     symbol: tileStyle.symbol.optional(),
+    hidden: z.boolean().optional(),
     folder: GridSizeSchema.optional(),
   })
   .strict()
@@ -232,6 +235,8 @@ export interface Tile {
   colorRole: FitzgeraldRole | null;
   colorMode: ColorMode;
   symbol: { set: SymbolSet; ref: string } | null;
+  /** Out of communication mode, kept in its cell so the other tiles never move. */
+  hidden: boolean;
 }
 
 export interface Board {
@@ -287,6 +292,7 @@ export function packageTree(pkg: BoardPackage): BoardTree {
       colorRole: t.colorRole ?? null,
       colorMode: t.colorMode ?? 'border',
       symbol: t.symbol ?? null,
+      hidden: t.hidden ?? false,
     }));
     return id;
   };

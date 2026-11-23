@@ -240,3 +240,52 @@ test('the editor finds a tile anywhere in the tree and opens its board (F3)', as
   await expect(current(page)).toHaveText('Śniadanie');
   await expect(editTile(page, 'dżem')).toHaveClass(/tile-found/);
 });
+
+test('a hidden tile keeps its cell: out of communication mode and its search, dimmed here', async ({
+  page,
+}) => {
+  await startEditing(page, 'Ukryty kafelek', 'Tablica startowa');
+  await page.getByRole('button', { name: 'Gotowe' }).click();
+  const grid = page.getByTestId('board-grid');
+  const neighbour = grid.getByRole('button', { name: 'Picie, folder', exact: true });
+  const before = await neighbour.boundingBox();
+  await expect(grid.getByRole('button')).toHaveCount(17);
+
+  await holdEditLock(page);
+  await editTile(page, 'Jedzenie').click();
+  await dialog(page)
+    .getByLabel(/Ukryj w trybie komunikacji/)
+    .check();
+  await dialog(page).getByRole('button', { name: 'Zapisz' }).click();
+  await expect(dialog(page)).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Zmień kafelek: Jedzenie (folder) (ukryty)' }),
+  ).toBeVisible();
+  await axe(page);
+  // Edit mode still finds what is inside the hidden folder.
+  await page.getByRole('button', { name: 'Szukaj kafelka' }).click();
+  await dialog(page).getByRole('searchbox').fill('jablka');
+  await expect(
+    dialog(page).getByRole('list', { name: 'Znalezione kafelki' }).getByRole('button'),
+  ).toHaveCount(1);
+  await dialog(page).getByRole('button', { name: 'Zamknij' }).click();
+
+  await page.getByRole('button', { name: 'Gotowe' }).click();
+  await expect(grid.getByRole('button', { name: 'Jedzenie, folder' })).toHaveCount(0);
+  await expect(grid.getByRole('button')).toHaveCount(16);
+  expect(await neighbour.boundingBox()).toEqual(before);
+  await page.getByRole('button', { name: 'Szukaj' }).click();
+  const search = page.getByRole('dialog', { name: 'Szukaj' });
+  await search.getByRole('searchbox').fill('jablka');
+  await expect(search).toContainText('Nic nie znaleziono.');
+  await search.getByRole('button', { name: 'Zamknij' }).click();
+
+  await holdEditLock(page);
+  await page.getByRole('button', { name: 'Zmień kafelek: Jedzenie (folder) (ukryty)' }).click();
+  await dialog(page)
+    .getByLabel(/Ukryj w trybie komunikacji/)
+    .uncheck();
+  await dialog(page).getByRole('button', { name: 'Zapisz' }).click();
+  await page.getByRole('button', { name: 'Gotowe' }).click();
+  await expect(grid.getByRole('button', { name: 'Jedzenie, folder' })).toBeVisible();
+});

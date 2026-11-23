@@ -18,18 +18,43 @@ import { FolderIcon } from './icons.tsx';
 
 type Source = 'tiles' | 'library';
 
+/**
+ * Boards communication mode can reach from the home board: hidden folders and everything
+ * inside them are out of it.
+ */
+function reachable(tree: BoardTree): Set<string> {
+  const boards = new Map(tree.boards.map((b) => [b.id, b]));
+  const seen = new Set<string>();
+  const queue = tree.homeId ? [tree.homeId] : [];
+  for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    for (const tile of boards.get(id)?.tiles ?? []) {
+      if (!tile.hidden && tile.targetBoardId) queue.push(tile.targetBoardId);
+    }
+  }
+  return seen;
+}
+
 /** Search over the account's own tiles, with the same rules as the symbol library. */
-function useTileSearch(me: Me, tree: BoardTree) {
+function useTileSearch(me: Me, tree: BoardTree, includeHidden: boolean) {
   const manifest = useManifest('arasaac', true);
   const lexicon = useSymbolSet(manifest.data, true).data?.lexicon;
   return useMemo(() => {
-    const tiles = tree.boards.flatMap((board) => board.tiles.map((tile) => ({ tile, board })));
+    const open = includeHidden ? null : reachable(tree);
+    const tiles = tree.boards
+      .filter((board) => !open || open.has(board.id))
+      .flatMap((board) =>
+        board.tiles
+          .filter((tile) => includeHidden || !tile.hidden)
+          .map((tile) => ({ tile, board })),
+      );
     const find = labelSearch(
       tiles.map((t) => t.tile.label),
       lexicon ? [lexicon] : [],
     );
     return (query: string) => find(query, 40).flatMap((i) => (tiles[i] ? [tiles[i]] : []));
-  }, [tree.boards, lexicon]);
+  }, [tree, lexicon, includeHidden]);
 }
 
 /**
@@ -45,10 +70,13 @@ export function SearchPanel({
   onShowTile,
   onPick,
   onClose,
+  includeHidden = false,
 }: {
   me: Me;
   tree: BoardTree;
   sources: Settings['searchSources'];
+  /** Edit mode finds hidden tiles too (communication mode cannot show them). */
+  includeHidden?: boolean;
   resolve: (symbol: Tile['symbol']) => string | null;
   onShowTile: (tile: Tile, board: Board) => void;
   onPick: (item: { label: string; src: string; symbol: SymbolRef }) => void;
@@ -59,7 +87,7 @@ export function SearchPanel({
   const deferred = useDeferredValue(query);
   const available: Source[] = sources === 'both' ? ['tiles', 'library'] : [sources];
   const [source, setSource] = useState<Source>(available[0] ?? 'tiles');
-  const findTiles = useTileSearch(me, tree);
+  const findTiles = useTileSearch(me, tree, includeHidden);
   const library = useLibrary(me);
   const boards = useMemo(() => new Map(tree.boards.map((b) => [b.id, b])), [tree.boards]);
 
@@ -173,6 +201,12 @@ export function SearchPanel({
             ))}
           </ul>
         )}
+      </div>
+      {/* A touch screen has no Escape key. */}
+      <div className="mt-4 flex justify-end">
+        <button type="button" className={ui.primary} onClick={onClose}>
+          Zamknij
+        </button>
       </div>
     </Dialog>
   );

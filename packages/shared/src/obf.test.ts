@@ -176,6 +176,29 @@ describe('Open Board Format', () => {
     expect(BoardPackageSchema.safeParse(back.package).error?.issues ?? []).toEqual([]);
   });
 
+  it('hidden tiles stay hidden, with Open Board’s own field', () => {
+    const start: BoardPackage = {
+      v: 1,
+      name: 'Start',
+      board: {
+        rows: 1,
+        cols: 2,
+        tiles: [
+          { row: 0, col: 0, kind: 'word', label: 'tak', hidden: true },
+          { row: 0, col: 1, kind: 'word', label: 'nie' },
+        ],
+      },
+    };
+    const files = packageToObz(start, new Map());
+    const root = JSON.parse(files['boards/0.obf'] as string) as { buttons: { hidden?: true }[] };
+    expect(root.buttons.map((b) => b.hidden)).toEqual([true, undefined]);
+    const back = obzToPackage(bytes(files));
+    expect(back.package.board.tiles.map((t) => [t.label, t.hidden])).toEqual([
+      ['tak', true],
+      ['nie', undefined],
+    ]);
+  });
+
   it('the whole starter template survives the round trip', () => {
     const template = TemplateSchema.parse(starter);
     const start: BoardPackage = { v: 1, name: template.name, board: template.board };

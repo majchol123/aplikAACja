@@ -353,14 +353,16 @@ function BoardGrid({
   filter.current ??= new TapFilter(device.motor);
   useEffect(() => filter.current?.configure(device.motor), [device.motor]);
 
-  const byId = useMemo(() => new Map(board.tiles.map((t) => [t.id, t])), [board.tiles]);
+  // Hidden tiles leave their cell empty: nothing else moves (motor planning).
+  const shown = useMemo(() => board.tiles.filter((t) => !t.hidden), [board.tiles]);
+  const byId = useMemo(() => new Map(shown.map((t) => [t.id, t])), [shown]);
   const cells = useMemo(() => {
-    const at = new Map(board.tiles.map((t) => [`${t.row},${t.col}`, t]));
+    const at = new Map(shown.map((t) => [`${t.row},${t.col}`, t]));
     return Array.from({ length: board.rows * board.cols }, (_, i) => ({
       key: i,
       tile: at.get(`${Math.floor(i / board.cols)},${i % board.cols}`),
     }));
-  }, [board]);
+  }, [board, shown]);
 
   // Where each pointer went down: the tile and its box (touch pointers are captured by that
   // element, so the lift position is compared with the box instead of hit-testing).

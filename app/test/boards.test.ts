@@ -174,6 +174,7 @@ describe('board tree', () => {
       colorRole: 'noun',
       colorMode: 'background',
       symbol: { set: 'arasaac', ref: '2494' },
+      hidden: false,
     });
 
     const t = await tree(api);
@@ -573,6 +574,46 @@ describe('board tree', () => {
       fontSize: 'L',
       labelPosition: 'bottom',
     });
+  });
+
+  it('hides a tile in its cell and shows it again; packages keep it hidden', async () => {
+    const { api } = await setup();
+    const start = await home(api);
+    const tile = await addTile(api, start, { row: 1, col: 2, label: 'nie', hidden: true });
+    expect(tile.tile).toMatchObject({ label: 'nie', row: 1, col: 2, hidden: true });
+    // The cell stays taken: nothing else moves into it.
+    const blocked = await api('POST', `/api/boards/${start.id}/tiles`, {
+      rev: tile.board.rev,
+      row: 1,
+      col: 2,
+      kind: 'word',
+      label: 'tak',
+    });
+    expect(blocked.status).toBe(422);
+    const shown = await api<BoardChanges>('PATCH', `/api/tiles/${tile.tile.id}`, {
+      rev: tile.board.rev,
+      hidden: false,
+    });
+    expect(changed(shown, start.id).tiles[0]).toMatchObject({ label: 'nie', hidden: false });
+    expect(
+      (await api('PATCH', `/api/tiles/${tile.tile.id}`, { rev: 1, hidden: 'yes' })).status,
+    ).toBe(400);
+
+    const imported = await api<BoardChanges>('POST', `/api/boards/${start.id}/import`, {
+      rev: changed(shown, start.id).rev,
+      package: {
+        v: 1,
+        name: 'Ukryte',
+        board: {
+          rows: 1,
+          cols: 1,
+          tiles: [{ row: 0, col: 0, kind: 'word', label: 'sekret', hidden: true }],
+        },
+      },
+    });
+    expect(imported.status).toBe(200);
+    const copy = imported.body.boards.find((b) => b.name === 'Ukryte')!;
+    expect(copy.tiles[0]).toMatchObject({ label: 'sekret', hidden: true });
   });
 
   it('enforces the per-account quotas', async () => {

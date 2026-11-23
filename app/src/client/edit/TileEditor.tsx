@@ -51,6 +51,7 @@ interface Draft {
   colorRole: FitzgeraldRole | null;
   colorMode: ColorMode;
   symbol: SymbolRef | null;
+  hidden: boolean;
 }
 
 const BOARDS_PL = ['tablica', 'tablice', 'tablic'] as const;
@@ -157,6 +158,7 @@ export function TileEditor({
     colorRole: tile?.colorRole ?? null,
     colorMode: tile?.colorMode ?? 'border',
     symbol: tile?.symbol ?? null,
+    hidden: tile?.hidden ?? false,
   }));
   // Picking a symbol proposes its part-of-speech colour until a colour is chosen by hand.
   const [autoColor, setAutoColor] = useState(true);
@@ -225,6 +227,7 @@ export function TileEditor({
       if (draft.fontSize !== tile.fontSize) input.fontSize = draft.fontSize;
       if (draft.colorRole !== tile.colorRole) input.colorRole = draft.colorRole;
       if (draft.colorMode !== tile.colorMode) input.colorMode = draft.colorMode;
+      if (draft.hidden !== tile.hidden) input.hidden = draft.hidden;
       if (!sameSymbol(draft.symbol, tile.symbol)) input.symbol = draft.symbol;
       if (Object.keys(input).length === 0) return onClose();
       if (input.kind === 'word' && lost && !confirmed) {
@@ -503,6 +506,21 @@ export function TileEditor({
             onChange={(colorMode) => change({ colorMode })}
             render={(m) => MODE_NAMES[m]}
           />
+          <label className="flex items-start gap-3 text-slate-800">
+            <input
+              type="checkbox"
+              className="mt-1 size-5 shrink-0"
+              checked={draft.hidden}
+              onChange={(e) => change({ hidden: e.target.checked })}
+            />
+            <span>
+              Ukryj w trybie komunikacji
+              <span className="block text-sm text-slate-600">
+                Kafelek zostaje na swoim miejscu, więc pozostałe się nie przesuwają. W trybie edycji
+                jest widoczny przygaszony.
+              </span>
+            </span>
+          </label>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 md:col-span-2">

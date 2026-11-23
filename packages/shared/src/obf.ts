@@ -57,6 +57,7 @@ export function subtreePackage(
             colorRole: tile.colorRole,
             colorMode: tile.colorMode,
             symbol: tile.symbol,
+            ...(tile.hidden ? { hidden: true } : {}),
             ...(target && !seen.has(target.id) ? { board: build(target) } : {}),
           };
         }),
@@ -239,6 +240,8 @@ export function packageToObz(
         ext_relaacja_color_role: tile.colorRole ?? null,
         ext_relaacja_color_mode: tile.colorMode ?? 'border',
       };
+      // Open Board's own field: other apps hide the button too.
+      if (tile.hidden) button.hidden = true;
       if (tile.symbol) {
         const image = imageFor(tile.symbol);
         used.add(image);
@@ -315,6 +318,7 @@ const ButtonSchema = z
     background_color: z.string().optional(),
     border_color: z.string().optional(),
     load_board: z.object({ id: id.optional(), path: z.string().optional() }).loose().optional(),
+    hidden: z.boolean().optional(),
     ext_relaacja_label_position: z.enum(['top', 'bottom']).optional(),
     ext_relaacja_font_size: z.enum(['S', 'M', 'L', 'XL']).optional(),
     ext_relaacja_color_role: z
@@ -503,6 +507,7 @@ export function obzToPackage(files: Readonly<Record<string, Uint8Array>>): ObzIm
         }
         tiles++;
         const tile: TemplateTile = { row: r, col: c, kind: 'word', label };
+        if (button.hidden) tile.hidden = true;
         if (button.ext_relaacja_label_position)
           tile.labelPosition = button.ext_relaacja_label_position;
         if (button.ext_relaacja_font_size) tile.fontSize = button.ext_relaacja_font_size;

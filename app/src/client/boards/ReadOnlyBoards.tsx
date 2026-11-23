@@ -63,14 +63,22 @@ function Grid({
             return (
               <div key={i} className="tile-cell">
                 {tile && (
-                  <TileView
-                    tile={tile}
-                    src={resolve(tile.symbol)}
-                    ariaLabel={tile.kind === 'folder' ? `Otwórz folder ${tile.label}` : tile.label}
-                    onClick={
-                      tile.targetBoardId ? () => onOpen(tile.targetBoardId as string) : undefined
-                    }
-                  />
+                  // Hidden tiles: dimmed and marked, as in edit mode.
+                  <div className={`relative size-full ${tile.hidden ? 'tile-hidden' : ''}`}>
+                    <TileView
+                      tile={tile}
+                      src={resolve(tile.symbol)}
+                      ariaLabel={`${tile.kind === 'folder' ? `Otwórz folder ${tile.label}` : tile.label}${tile.hidden ? ' (ukryty)' : ''}`}
+                      onClick={
+                        tile.targetBoardId ? () => onOpen(tile.targetBoardId as string) : undefined
+                      }
+                    />
+                    {tile.hidden && (
+                      <span className="tile-hidden-badge" aria-hidden="true">
+                        ukryty
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             );

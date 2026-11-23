@@ -225,6 +225,7 @@ export function EditMode({
           me={me}
           tree={tree}
           sources="tiles"
+          includeHidden
           resolve={resolve}
           onShowTile={(tile, on) => {
             setSearching(false);
@@ -411,16 +412,23 @@ function EditTile({
   const { ref, isDragging } = useDraggable({ id: tile.id, plugins: FEEDBACK });
   const target = tile.targetBoardId;
   return (
-    <div className={`edit-tile ${isDragging ? 'edit-dragging' : ''}`}>
+    <div
+      className={`edit-tile ${isDragging ? 'edit-dragging' : ''} ${tile.hidden ? 'tile-hidden' : ''}`}
+    >
       <TileView
         ref={ref}
         tile={tile}
         src={src}
         uppercase={uppercase}
         found={found}
-        ariaLabel={`Zmień kafelek: ${tile.label}${target ? ' (folder)' : ''}`}
+        ariaLabel={`Zmień kafelek: ${tile.label}${target ? ' (folder)' : ''}${tile.hidden ? ' (ukryty)' : ''}`}
         onClick={onEdit}
       />
+      {tile.hidden && (
+        <span className="tile-hidden-badge" aria-hidden="true">
+          ukryty
+        </span>
+      )}
       {target && (
         <button
           type="button"
