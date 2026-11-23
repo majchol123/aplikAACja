@@ -86,8 +86,6 @@ const fromHit = (hit: SymbolHit): Pic => ({
 });
 const sameSymbol = (a: SymbolRef, b: SymbolRef) => a.set === b.set && a.ref === b.ref;
 const clip = (text: string, max: number) => [...text].slice(0, max).join('').trim();
-/** Pictures of the extra set stay inside the app: not in the PNG, not on paper. */
-const exportable = (pic: Pic | null) => (pic && pic.symbol.set !== 'extra' ? pic.src : null);
 const roleOf = (pic: Pic | null, colors: ColorMode) =>
   colors === 'none' || !pic?.role ? 'none' : pic.role;
 
@@ -218,7 +216,7 @@ export function PhraseGenerator({
     try {
       const cards: Card[] = items.map((item) => ({
         label: item.label,
-        src: exportable(item.pic),
+        src: item.pic?.src ?? null,
         border: colorsOf(item.pic).css.border,
         background: look.colors === 'background' ? colorsOf(item.pic).css.background : '#ffffff',
       }));
@@ -417,11 +415,6 @@ export function PhraseGenerator({
           Bez symboli dla słów funkcyjnych (i, w, na, z…)
         </label>
       </fieldset>
-      {items.some((i) => i.pic?.symbol.set === 'extra') && (
-        <p className="mt-2 text-sm text-slate-600">
-          Symbole dodatkowego zestawu nie trafiają do pliku PNG ani na wydruk (zostają w aplikacji).
-        </p>
-      )}
       {notice && (
         <p
           role={notice.ok ? 'status' : 'alert'}
@@ -457,7 +450,7 @@ function PrintSheet({ items, look, credit }: { items: Shown[]; look: Look; credi
       <ul className="flex flex-wrap gap-[4mm]">
         {items.map((item, i) => {
           const colors = ROLE_COLORS[roleOf(item.pic, look.colors)];
-          const src = exportable(item.pic);
+          const src = item.pic?.src;
           const label = (
             <span
               className={`text-[14pt] font-bold leading-tight ${look.uppercase ? 'uppercase' : ''}`}
