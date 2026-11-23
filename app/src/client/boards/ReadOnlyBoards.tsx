@@ -1,8 +1,9 @@
-import type { Board, BoardTree, Me } from '@relaacja/shared';
+import { cellAt, type Board, type BoardTree, type Me } from '@relaacja/shared';
 import { useMemo, useState, type CSSProperties } from 'react';
 import { TileView } from '../comm/TileView.tsx';
 import { BoardNav } from './BoardNav.tsx';
 import { useSymbolResolver } from './data.ts';
+import { useGridLayout } from './layout.ts';
 
 /**
  * A board tree to look at, not to use: folders open, tiles neither speak nor change.
@@ -50,18 +51,20 @@ function Grid({
 }) {
   const resolve = useSymbolResolver(me, board.tiles, ownUrl);
   const at = new Map(board.tiles.map((t) => [`${t.row},${t.col}`, t]));
+  const layout = useGridLayout(board);
   return (
     <div className="mt-3 h-[min(60dvh,30rem)] rounded-2xl bg-slate-100 p-2">
       <div className="board-area h-full">
         <div
           className="board-grid"
-          style={{ '--cols': board.cols, '--rows': board.rows } as CSSProperties}
+          style={{ '--cols': layout.cols, '--rows': layout.rows } as CSSProperties}
           data-testid="preview-grid"
         >
-          {Array.from({ length: board.rows * board.cols }, (_, i) => {
-            const tile = at.get(`${Math.floor(i / board.cols)},${i % board.cols}`);
+          {Array.from({ length: layout.rows * layout.cols }, (_, i) => {
+            const { row, col } = cellAt(layout, i);
+            const tile = at.get(`${row},${col}`);
             return (
-              <div key={i} className="tile-cell">
+              <div key={`${row},${col}`} className="tile-cell">
                 {tile && (
                   // Hidden tiles: dimmed and marked, as in edit mode.
                   <div className={`relative size-full ${tile.hidden ? 'tile-hidden' : ''}`}>

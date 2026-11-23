@@ -48,6 +48,11 @@ export const DeviceSettingsSchema = z
       })
       .strict()
       .nullable(),
+    /**
+     * Fit board grids to the screen's orientation (grid.ts); null = not chosen: on for phones
+     * (where small tiles hurt most and the orientation rarely changes), off elsewhere.
+     */
+    fitGrid: z.boolean().nullable(),
   })
   .strict();
 export type DeviceSettings = z.infer<typeof DeviceSettingsSchema>;
@@ -58,6 +63,7 @@ export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
   feedback: true,
   motor: { activateOn: 'release', minHoldMs: 0, sameTileGuardMs: 400, globalGuardMs: 150 },
   pin: null,
+  fitGrid: null,
 };
 
 /** Stored values from older versions fall back to defaults key by key. */

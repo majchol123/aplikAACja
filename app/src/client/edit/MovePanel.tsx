@@ -1,6 +1,7 @@
-import type { Board, Tile } from '@relaacja/shared';
+import { cellAt, toScreen, type Board, type Tile } from '@relaacja/shared';
 import { useId, useMemo, useState } from 'react';
 import { boardPath } from '../boards/BoardNav.tsx';
+import { useGridLayout } from '../boards/layout.ts';
 import { ui } from './ui.ts';
 
 /** Boards opened from `rootId` (a folder cannot move into itself or below itself). */
@@ -59,6 +60,8 @@ export function MovePanel({
   }, [boards, homeId, tile.targetBoardId]);
   const target = boards.get(targetId) ?? from;
   const at = new Map(target.tiles.map((t) => [`${t.row},${t.col}`, t]));
+  // The cells as the target board looks on this screen (grid.ts).
+  const layout = useGridLayout(target);
 
   return (
     <div className="mt-4 space-y-4">
@@ -81,20 +84,20 @@ export function MovePanel({
       </p>
       <div
         className="grid gap-1.5"
-        style={{ gridTemplateColumns: `repeat(${target.cols}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))` }}
         role="group"
         aria-label={`Pola tablicy ${target.name}`}
         aria-describedby={`${id}-hint`}
       >
-        {Array.from({ length: target.rows * target.cols }, (_, i) => {
-          const row = Math.floor(i / target.cols);
-          const col = i % target.cols;
+        {Array.from({ length: layout.rows * layout.cols }, (_, i) => {
+          const { row, col } = cellAt(layout, i);
+          const shown = toScreen(layout, { row, col });
           const other = at.get(`${row},${col}`);
           const here = other?.id === tile.id;
-          const where = `Wiersz ${row + 1}, kolumna ${col + 1}`;
+          const where = `Wiersz ${shown.row + 1}, kolumna ${shown.col + 1}`;
           return (
             <button
-              key={i}
+              key={`${row},${col}`}
               type="button"
               disabled={busy || here}
               aria-label={

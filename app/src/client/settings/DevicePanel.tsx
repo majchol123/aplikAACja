@@ -10,6 +10,7 @@ import {
   type VoicePreset,
 } from '@relaacja/shared';
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useFitGrid } from '../boards/layout.ts';
 import { useDeviceSettings } from '../device.ts';
 import { useAccountSettings, useUpdateAccountSettings } from './account.ts';
 import { speak, speechSupported, useVoices } from '../speech.ts';
@@ -104,22 +105,33 @@ function AccountToggle({
 function DeviceToggle({
   checked,
   onChange,
+  hint,
   children,
 }: {
   checked: boolean;
   onChange: (value: boolean) => void;
+  hint?: string;
   children: ReactNode;
 }) {
+  const id = useId();
   return (
-    <label className="mt-3 flex items-center gap-3 text-slate-700">
-      <input
-        type="checkbox"
-        className="size-5 accent-brand-700"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-      {children}
-    </label>
+    <>
+      <label className="mt-3 flex items-center gap-3 text-slate-700">
+        <input
+          type="checkbox"
+          className="size-5 accent-brand-700"
+          checked={checked}
+          aria-describedby={hint ? id : undefined}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        {children}
+      </label>
+      {hint && (
+        <p id={id} className="mt-1 pl-8 text-sm text-slate-600">
+          {hint}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -131,6 +143,7 @@ export function DevicePanel() {
   const { speech, change, ready } = useSpeechDraft();
   const pinned = device.voices[speech.preset] ?? null;
   const motor = (patch: Partial<MotorSettings>) => update({ motor: { ...device.motor, ...patch } });
+  const fitGrid = useFitGrid();
   const id = useId();
 
   return (
@@ -282,6 +295,13 @@ export function DevicePanel() {
         </div>
         <DeviceToggle checked={device.feedback} onChange={(v) => update({ feedback: v })}>
           Podświetlenie i wibracja po dotknięciu
+        </DeviceToggle>
+        <DeviceToggle
+          checked={fitGrid}
+          onChange={(v) => update({ fitGrid: v })}
+          hint="W pionie tablica 6×4 pokazuje się jako 4×6, z większymi kafelkami: pierwszy wiersz staje się pierwszą kolumną. Słowo ma wtedy inne miejsce w pionie, a inne w poziomie. Domyślnie włączone na telefonach."
+        >
+          Dopasuj siatkę do orientacji ekranu
         </DeviceToggle>
       </section>
 

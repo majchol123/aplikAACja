@@ -1,10 +1,11 @@
 import { DragDropProvider, useDraggable, useDroppable } from '@dnd-kit/react';
 import type { ComponentProps } from 'react';
 import { Accessibility, Feedback, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
-import type { Board, BoardTree, Me, Tile } from '@relaacja/shared';
+import { cellAt, toScreen, type Board, type BoardTree, type Me, type Tile } from '@relaacja/shared';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
+import { useGridLayout } from '../boards/layout.ts';
 import { useBoardWrites } from '../boards/writes.ts';
 import {
   GearIcon,
@@ -46,9 +47,9 @@ const FEEDBACK = [Feedback.configure({ dropAnimation: null })];
 const cellId = (row: number, col: number) => `cell-${row}-${col}`;
 const CELL_ID = /^cell-(\d+)-(\d+)$/;
 
-function cellName(id: unknown): string {
-  const m = CELL_ID.exec(String(id ?? ''));
-  return m ? `wiersz ${Number(m[1]) + 1}, kolumna ${Number(m[2]) + 1}` : '';
+/** "wiersz 2, kolumna 3" as on screen (the grid may be transposed, grid.ts), set on each cell. */
+function cellName(target: { element?: Element | null } | null): string {
+  return (target?.element as HTMLElement | null | undefined)?.dataset.where ?? '';
 }
 
 /** The dragged tile's label, read from the element (announcements run outside React). */
@@ -66,11 +67,11 @@ const ACCESSIBILITY_OPTIONS: AccessibilityOptions = {
     dragstart: ({ operation: { source } }) =>
       source ? `Przenoszenie kafelka ${labelOf(source)}.` : undefined,
     dragover: ({ operation: { source, target } }) =>
-      source && target ? `${labelOf(source)} nad polem: ${cellName(target.id)}.` : undefined,
+      source && target ? `${labelOf(source)} nad polem: ${cellName(target)}.` : undefined,
     dragend: ({ operation: { source, target }, canceled }) => {
       if (!source) return undefined;
       if (canceled || !target) return 'Przenoszenie anulowane.';
-      return `Upuszczono ${labelOf(source)} na polu: ${cellName(target.id)}.`;
+      return `Upuszczono ${labelOf(source)} na polu: ${cellName(target)}.`;
     },
   },
 };
@@ -323,6 +324,7 @@ function EditGrid({
 }) {
   const at = useMemo(() => new Map(board.tiles.map((t) => [`${t.row},${t.col}`, t])), [board]);
   const byId = useMemo(() => new Map(board.tiles.map((t) => [t.id, t])), [board]);
+  const layout = useGridLayout(board);
   // The click that ends a drag must not open the tile dialog.
   const dragging = useRef(false);
 
@@ -346,16 +348,17 @@ function EditGrid({
       <div className="board-area">
         <div
           className="board-grid"
-          style={{ '--cols': board.cols, '--rows': board.rows } as CSSProperties}
+          style={{ '--cols': layout.cols, '--rows': layout.rows } as CSSProperties}
           onContextMenu={(e) => e.preventDefault()}
           data-testid="edit-grid"
         >
-          {Array.from({ length: board.rows * board.cols }, (_, i) => {
-            const row = Math.floor(i / board.cols);
-            const col = i % board.cols;
+          {Array.from({ length: layout.rows * layout.cols }, (_, i) => {
+            const { row, col } = cellAt(layout, i);
+            const shown = toScreen(layout, { row, col });
+            const where = `wiersz ${shown.row + 1}, kolumna ${shown.col + 1}`;
             const tile = at.get(`${row},${col}`);
             return (
-              <EditCell key={`${board.id}:${i}`} row={row} col={col}>
+              <EditCell key={`${board.id}:${row},${col}`} row={row} col={col} where={where}>
                 {tile ? (
                   <EditTile
                     key={tile.id}
@@ -369,7 +372,7 @@ function EditGrid({
                 ) : (
                   <button
                     type="button"
-                    aria-label={`Dodaj kafelek: wiersz ${row + 1}, kolumna ${col + 1}`}
+                    aria-label={`Dodaj kafelek: ${where}`}
                     onClick={() => onAdd(row, col)}
                     className="edit-empty"
                   >
@@ -385,10 +388,25 @@ function EditGrid({
   );
 }
 
-function EditCell({ row, col, children }: { row: number; col: number; children: ReactNode }) {
+function EditCell({
+  row,
+  col,
+  where,
+  children,
+}: {
+  row: number;
+  col: number;
+  /** Place on screen, for screen readers. */
+  where: string;
+  children: ReactNode;
+}) {
   const { ref, isDropTarget } = useDroppable({ id: cellId(row, col) });
   return (
-    <div ref={ref} className={`tile-cell ${isDropTarget ? 'edit-drop-target' : ''}`}>
+    <div
+      ref={ref}
+      data-where={where}
+      className={`tile-cell ${isDropTarget ? 'edit-drop-target' : ''}`}
+    >
       {children}
     </div>
   );

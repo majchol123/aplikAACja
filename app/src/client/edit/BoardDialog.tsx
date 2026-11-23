@@ -1,5 +1,6 @@
 import { BOARD_LIMITS, type Board, type PatchBoard } from '@relaacja/shared';
 import { useState } from 'react';
+import { useGridLayout } from '../boards/layout.ts';
 import { Dialog } from './Dialog.tsx';
 import { ui } from './ui.ts';
 
@@ -22,6 +23,7 @@ export function BoardDialog({
   const [cols, setCols] = useState(board.cols);
   const [busy, setBusy] = useState(false);
   const trimmed = name.trim();
+  const turned = useGridLayout({ rows, cols }).transposed;
 
   async function save(): Promise<void> {
     const input: Omit<PatchBoard, 'rev'> = {};
@@ -93,6 +95,12 @@ export function BoardDialog({
           Kafelki zostają na swoich polach. Siatkę można zmniejszyć tylko wtedy, gdy poza nią nie ma
           kafelków.
         </p>
+        {turned && (
+          <p className="text-sm text-slate-600">
+            Na tym ekranie siatka jest dopasowana do orientacji: wiersze widać jako kolumny
+            (Ustawienia → „Dopasuj siatkę do orientacji ekranu”).
+          </p>
+        )}
         {problem && (
           <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-red-800">
             {problem}

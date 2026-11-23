@@ -1,4 +1,5 @@
 import {
+  cellAt,
   TapFilter,
   type Board,
   type BoardTree,
@@ -19,6 +20,7 @@ import {
 } from 'react';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
+import { useGridLayout } from '../boards/layout.ts';
 import { useDeviceSettings } from '../device.ts';
 import { PhraseGenerator } from '../phrase/PhraseGenerator.tsx';
 import { useSpeaker } from '../speech.ts';
@@ -369,13 +371,14 @@ function BoardGrid({
   // Hidden tiles leave their cell empty: nothing else moves (motor planning).
   const shown = useMemo(() => board.tiles.filter((t) => !t.hidden), [board.tiles]);
   const byId = useMemo(() => new Map(shown.map((t) => [t.id, t])), [shown]);
+  const layout = useGridLayout(board);
   const cells = useMemo(() => {
     const at = new Map(shown.map((t) => [`${t.row},${t.col}`, t]));
-    return Array.from({ length: board.rows * board.cols }, (_, i) => ({
-      key: i,
-      tile: at.get(`${Math.floor(i / board.cols)},${i % board.cols}`),
-    }));
-  }, [board, shown]);
+    return Array.from({ length: layout.rows * layout.cols }, (_, i) => {
+      const { row, col } = cellAt(layout, i);
+      return { key: `${row},${col}`, tile: at.get(`${row},${col}`) };
+    });
+  }, [layout, shown]);
 
   // Where each pointer went down: the tile and its box (touch pointers are captured by that
   // element, so the lift position is compared with the box instead of hit-testing).
@@ -427,7 +430,8 @@ function BoardGrid({
     <div className="board-area [grid-area:board]">
       <div
         className="board-grid"
-        style={{ '--cols': board.cols, '--rows': board.rows } as CSSProperties}
+        style={{ '--cols': layout.cols, '--rows': layout.rows } as CSSProperties}
+        data-transposed={layout.transposed || undefined}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
