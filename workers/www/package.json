@@ -1,0 +1,14 @@
+{
+  "name": "@aplikaacja/www",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261121.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.1"
+  }
+}

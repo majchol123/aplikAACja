@@ -1,0 +1,15 @@
+// www.aplikaacja.one.pl → https://aplikaacja.one.pl (301, path and query kept). The app stays
+// on one host (OAuth redirect URIs, `__Host-` cookies, the exact-Origin CSRF check), so www
+// never serves it. The Custom Domain creates the DNS record and the edge certificate itself:
+// the zone needs no hand-made record and the deploy token no DNS permission. Deployed by the
+// production job of .github/workflows/deploy.yml. No observability: nothing worth logging.
+{
+  "$schema": "../../app/node_modules/wrangler/config-schema.json",
+  "name": "aplikaacja-www",
+  "main": "./src/index.ts",
+  "compatibility_date": "2026-11-15",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "routes": [{ "pattern": "www.aplikaacja.one.pl", "custom_domain": true }],
+}

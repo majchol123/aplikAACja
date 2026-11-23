@@ -54,7 +54,7 @@ Mirror w środowiskach serwuje osobny Worker na ścieżce `/sym/arasaac/*` (Rout
 
 ## Wdrażanie
 
-Push na `main` → CI → staging (`staging.aplikaacja.one.pl`) → ręczna akceptacja → produkcja (`aplikaacja.one.pl`). Mirror ARASAAC odświeża `.github/workflows/arasaac-refresh.yml` (2× w tygodniu, przyrostowo; środowisko `symbols`). Prywatny Worker `aplikaacja-extra` wdraża operator poza CI.
+Push na `main` → CI → staging (`staging.aplikaacja.one.pl`) → ręczna akceptacja → produkcja (`aplikaacja.one.pl`). Mirror ARASAAC odświeża `.github/workflows/arasaac-refresh.yml` (2× w tygodniu, przyrostowo; środowisko `symbols`). Prywatny Worker `aplikaacja-extra` wdraża operator poza CI. `www.aplikaacja.one.pl` przekierowuje (301, ze ścieżką i zapytaniem) na `aplikaacja.one.pl` — Worker `aplikaacja-www` (`workers/www`) z Custom Domain, wdrażany w zadaniu produkcji.
 
 ## Kopie zapasowe
 
