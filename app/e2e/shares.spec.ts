@@ -14,7 +14,7 @@ import {
 failOnConsoleErrors();
 
 /**
- * Home board "Start" with a folder "Jedzenie" holding a photo tile "zupa"; or, with
+ * Home board "Pulpit" with a folder "Jedzenie" holding a photo tile "zupa"; or, with
  * `empty`, a bare 2×2 home board.
  */
 async function seed(page: Page, { empty = false } = {}): Promise<void> {
@@ -23,7 +23,7 @@ async function seed(page: Page, { empty = false } = {}): Promise<void> {
       const headers = { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' };
       const post = (path: string, body: unknown) =>
         fetch(path, { method: 'POST', headers, body: JSON.stringify(body) }).then((r) => r.json());
-      const home = await post('/api/boards/home', { name: 'Start', rows: 2, cols: 2 });
+      const home = await post('/api/boards/home', { rows: 2, cols: 2 });
       if (empty) return true;
       const start = home.boards[0];
       const folder = await post(`/api/boards/${start.id}/tiles`, {
@@ -74,7 +74,7 @@ test('a board is sent to another account, looked at and accepted there', async (
   await page.reload();
   await holdEditLock(page);
   await page.getByRole('button', { name: 'Udostępnij' }).click();
-  const send = page.getByRole('dialog', { name: 'Udostępnij tablicę „Start”' });
+  const send = page.getByRole('dialog', { name: 'Udostępnij tablicę „Pulpit”' });
   await send
     .getByRole('textbox', { name: /Adres e-mail konta odbiorcy/ })
     .fill(`${to}@example.com`);
@@ -92,7 +92,7 @@ test('a board is sent to another account, looked at and accepted there', async (
   await holdEditLock(recipient);
   await recipient.getByRole('button', { name: 'Dodaj tablicę (otrzymane: 1)' }).click();
   const inbox = recipient.getByRole('dialog', { name: 'Dodaj tablicę', exact: true });
-  const item = inbox.getByRole('listitem', { name: 'Start' });
+  const item = inbox.getByRole('listitem', { name: 'Pulpit' });
   await expect(item).toContainText('Od: Terapeutka');
   await item.getByRole('button', { name: 'Podgląd' }).click();
   await item.getByRole('button', { name: 'Otwórz folder Jedzenie' }).click();
@@ -107,17 +107,17 @@ test('a board is sent to another account, looked at and accepted there', async (
   expect(axe.violations).toEqual([]);
   // Where it goes: the first free cell comes preselected, another one is a tap away.
   await item.getByRole('button', { name: 'Dodaj…' }).click();
-  const place = recipient.getByRole('dialog', { name: 'Gdzie dodać „Start”?' });
+  const place = recipient.getByRole('dialog', { name: 'Gdzie dodać „Pulpit”?' });
   // The home board's first cell is "Wszystkie symbole".
   await expect(
     place.getByRole('button', { name: 'Wiersz 1, kolumna 1: Wszystkie symbole (stałe pole)' }),
   ).toBeDisabled();
   await expect(
-    place.getByRole('button', { name: 'Wiersz 1, kolumna 2: tu będzie „Start”' }),
+    place.getByRole('button', { name: 'Wiersz 1, kolumna 2: tu będzie „Pulpit”' }),
   ).toHaveAttribute('aria-pressed', 'true');
   await place.getByRole('button', { name: 'Wiersz 2, kolumna 2: puste' }).click();
   await expect(
-    place.getByRole('button', { name: 'Wiersz 2, kolumna 2: tu będzie „Start”' }),
+    place.getByRole('button', { name: 'Wiersz 2, kolumna 2: tu będzie „Pulpit”' }),
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(place.getByRole('button', { name: 'Wiersz 1, kolumna 2: puste' })).toHaveAttribute(
     'aria-pressed',
@@ -127,10 +127,10 @@ test('a board is sent to another account, looked at and accepted there', async (
   expect(placeAxe.violations).toEqual([]);
   await place.getByRole('button', { name: 'Dodaj tutaj' }).click();
   await expect(place).toBeHidden();
-  await expect(inbox.getByText('Dodano folder „Start” na tablicy „Start”.')).toBeVisible();
+  await expect(inbox.getByText('Dodano folder „Pulpit” na tablicy „Pulpit”.')).toBeVisible();
   await expect(inbox).toContainText('Nie ma otrzymanych tablic.');
   await inbox.getByRole('button', { name: 'Zamknij' }).click();
-  await expect(recipient.getByRole('button', { name: /^Zmień kafelek: Start/ })).toBeVisible();
+  await expect(recipient.getByRole('button', { name: /^Zmień kafelek: Pulpit/ })).toBeVisible();
   await expect(
     recipient.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 2' }),
   ).toBeVisible();
@@ -162,12 +162,12 @@ test('a board is saved to an Open Board file and read back on another account', 
   await page.reload();
   await holdEditLock(page);
   await page.getByRole('button', { name: 'Udostępnij' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Udostępnij tablicę „Start”' });
+  const dialog = page.getByRole('dialog', { name: 'Udostępnij tablicę „Pulpit”' });
   const saving = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Zapisz tę tablicę do pliku' }).click();
   const file = await saving;
-  expect(file.suggestedFilename()).toBe('Start.obz');
-  await expect(dialog.getByRole('status')).toHaveText('Zapisano plik Start.obz.');
+  expect(file.suggestedFilename()).toBe('Pulpit.obz');
+  await expect(dialog.getByRole('status')).toHaveText('Zapisano plik Pulpit.obz.');
   const path = await file.path();
 
   const other = await browser.newContext({ serviceWorkers: 'block' });
@@ -181,16 +181,16 @@ test('a board is saved to an Open Board file and read back on another account', 
   const load = reader.getByRole('dialog', { name: 'Dodaj tablicę', exact: true });
   await load.locator('input[type="file"]').setInputFiles(path);
   await expect(load.getByTestId('file-summary')).toHaveText(
-    /„Start”: 2 tablice, 2 kafelki, 1 zdjęcie/,
+    /„Pulpit”: 2 tablice, 2 kafelki, 1 zdjęcie/,
   );
   await load.getByTestId('file-summary').getByRole('button', { name: 'Dodaj…' }).click();
   await reader
-    .getByRole('dialog', { name: 'Gdzie dodać „Start”?' })
+    .getByRole('dialog', { name: 'Gdzie dodać „Pulpit”?' })
     .getByRole('button', { name: 'Dodaj tutaj' })
     .click();
-  await expect(load.getByText('Dodano folder „Start” na tablicy „Start”.')).toBeVisible();
+  await expect(load.getByText('Dodano folder „Pulpit” na tablicy „Pulpit”.')).toBeVisible();
   await load.getByRole('button', { name: 'Zamknij', exact: true }).click();
-  await reader.getByRole('button', { name: 'Otwórz folder Start' }).click();
+  await reader.getByRole('button', { name: 'Otwórz folder Pulpit' }).click();
   await reader.getByRole('button', { name: 'Otwórz folder Jedzenie' }).click();
   const soup = reader.getByRole('button', { name: /^Zmień kafelek: zupa$/ });
   await expect(soup.locator('img')).toHaveAttribute('src', /^\/api\/media\//);
@@ -250,7 +250,7 @@ test('an admin publishes a board in the catalogue; another account adds it', asy
     .getByRole('dialog', { name: `Gdzie dodać „${title}”?` })
     .getByRole('button', { name: 'Dodaj tutaj' })
     .click();
-  await expect(add.getByText(`Dodano folder „${title}” na tablicy „Start”.`)).toBeVisible();
+  await expect(add.getByText(`Dodano folder „${title}” na tablicy „Pulpit”.`)).toBeVisible();
   await add.getByRole('button', { name: 'Zamknij', exact: true }).click();
   await expect(reader.getByRole('button', { name: `Otwórz folder ${title}` })).toBeVisible();
   await other.close();
@@ -285,7 +285,7 @@ test('without access to the extra set, an ARASAAC symbol found by the label stan
     const headers = { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' };
     const post = (path: string, body: unknown) =>
       fetch(path, { method: 'POST', headers, body: JSON.stringify(body) });
-    const home = await post('/api/boards/home', { name: 'Start', rows: 2, cols: 2 });
+    const home = await post('/api/boards/home', { rows: 2, cols: 2 });
     const start = (await home.json()).boards[0];
     const pkg = {
       v: 1,

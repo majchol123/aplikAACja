@@ -162,7 +162,7 @@ export function EditMode({
           }}
           className="flex items-center gap-2 rounded-full border border-brand-700 bg-white px-4 py-2 font-semibold text-brand-800 hover:bg-brand-50"
         >
-          <GridIcon /> Nazwa i siatka
+          <GridIcon /> {board.parentId ? 'Nazwa i siatka' : 'Siatka'}
         </button>
         <button
           type="button"

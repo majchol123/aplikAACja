@@ -14,7 +14,7 @@ export function boardPath(boards: Map<string, Board>, board: Board): Board[] {
 
 /**
  * Every board reachable from the home board, depth first in reading order, named by its
- * path ("Start › Jedzenie"); boards in `blocked` and below them are left out.
+ * path ("Pulpit › Jedzenie"); boards in `blocked` and below them are left out.
  */
 export function boardOptions(
   boards: Map<string, Board>,
@@ -42,11 +42,14 @@ export function boardOptions(
 function NavButton({
   label,
   disabled,
+  current = false,
   onClick,
   children,
 }: {
   label: string;
   disabled: boolean;
+  /** The place it leads to is the one open: marked, not dimmed (the path names it). */
+  current?: boolean;
   onClick: () => void;
   children: ReactNode;
 }) {
@@ -56,14 +59,18 @@ function NavButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 disabled:opacity-35"
+      className={`flex size-12 shrink-0 items-center justify-center rounded-xl shadow-sm ${
+        current
+          ? 'bg-brand-50 text-brand-800 ring-2 ring-brand-600'
+          : 'bg-white text-slate-700 ring-1 ring-slate-200 disabled:opacity-35'
+      }`}
     >
       {children}
     </button>
   );
 }
 
-/** 🏠, ← and breadcrumbs (PLAN §2.1); `children` go to the right end. */
+/** 🏠, ← and the path below the home board (PLAN §2.1); `children` go to the right end. */
 export function BoardNav({
   boards,
   board,
@@ -85,26 +92,30 @@ export function BoardNav({
   className?: string;
   children?: ReactNode;
 }) {
+  const below = trail.length > 0;
+  // The 🏠 button stands for the home board, so the path starts below it; on the home board
+  // itself the button is marked and the name is there for screen readers only.
+  const atHome = !board.parentId && !below;
+  const path = boardPath(boards, board);
   const crumbs = [
-    ...boardPath(boards, board).map((b) => ({
+    ...(atHome ? path : path.slice(1)).map((b) => ({
       key: b.id,
       name: b.name,
       onOpen: () => onOpen(b.id),
     })),
     ...trail,
   ];
-  const below = trail.length > 0;
   return (
     <nav
       className={`flex min-w-0 items-center gap-2 ${className}`}
       aria-label="Nawigacja po tablicach"
     >
-      <NavButton label="Pulpit" disabled={!board.parentId && !below} onClick={() => onOpen(homeId)}>
+      <NavButton label="Pulpit" disabled={atHome} current={atHome} onClick={() => onOpen(homeId)}>
         <HomeIcon />
       </NavButton>
       <NavButton
         label="Wstecz"
-        disabled={!board.parentId && !below}
+        disabled={atHome}
         onClick={() => (below ? onBack?.() : board.parentId && onOpen(board.parentId))}
       >
         <ArrowBackIcon />
@@ -114,7 +125,11 @@ export function BoardNav({
           <li key={crumb.key} className="flex min-w-0 items-center gap-1">
             {i > 0 && <span aria-hidden="true">›</span>}
             {i === crumbs.length - 1 ? (
-              <span className="truncate px-1" aria-current="page" data-testid="current-board">
+              <span
+                className={atHome ? 'sr-only' : 'truncate px-1'}
+                aria-current="page"
+                data-testid="current-board"
+              >
                 {crumb.name}
               </span>
             ) : (

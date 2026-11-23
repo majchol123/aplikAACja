@@ -86,7 +86,7 @@ const EXPECTED: Record<string, Row> = {
   },
   'PATCH /api/boards/:id': {
     path: (f) => `/api/boards/${f.boardId}`,
-    body: { rev: 2, name: 'Nowa' },
+    body: { rev: 2, rows: 5 },
     status: ownedByA,
   },
   'POST /api/boards/:id/tiles': {

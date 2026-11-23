@@ -36,7 +36,7 @@ const current = (page: Page) => page.getByTestId('current-board');
 async function starterBoard(page: Page, name: string): Promise<string> {
   const sub = await freshLogin(page, name);
   await page.getByRole('button', { name: /Tablica startowa/ }).click();
-  await expect(current(page)).toHaveText('Start');
+  await expect(current(page)).toHaveText('Pulpit');
   return sub;
 }
 
@@ -55,11 +55,11 @@ test('a sentence built through a folder is spoken (PLAN F2)', async ({ page }) =
 
   await tile(page, 'Picie, folder').click();
   await expect(current(page)).toHaveText('Picie');
-  await expect(page.getByRole('navigation').getByRole('button', { name: 'Start' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pulpit', exact: true })).toBeEnabled();
   await tile(page, 'sok').click();
   await expect(sentence(page)).toHaveText(['chcę', 'sok']);
   // Back on the home board after a word (default "return to home").
-  await expect(current(page)).toHaveText('Start');
+  await expect(current(page)).toHaveText('Pulpit');
 
   await page.getByRole('button', { name: 'Powiedz zdanie' }).click();
   expect((await spoken(page)).at(-1)?.text).toBe('chcę sok');
@@ -122,7 +122,7 @@ test('edit mode needs a 2-second hold; settings keep device and account values',
 
   await tile(page, 'Jedzenie, folder').click();
   await tile(page, 'Śniadanie, folder').click();
-  await expect(page.getByRole('navigation')).toContainText('Start›Jedzenie›Śniadanie');
+  await expect(page.getByRole('navigation')).toContainText('Jedzenie›Śniadanie');
   await tile(page, 'chleb').click();
   await expect(current(page)).toHaveText('Śniadanie');
   await expect(tile(page, 'chleb').locator('.tile-label')).toHaveCSS('text-transform', 'uppercase');
@@ -137,7 +137,7 @@ test('edit mode needs a 2-second hold; settings keep device and account values',
   await expect(current(page)).toHaveText('Uczucia');
   expect((await spoken(page)).at(-1)).toMatchObject({ text: 'wesoły', voice: 'Krzysztof' });
   await page.getByRole('button', { name: 'Pulpit' }).click();
-  await expect(current(page)).toHaveText('Start');
+  await expect(current(page)).toHaveText('Pulpit');
 });
 
 test('on a phone, upright and sideways, tiles keep their shape and whole-word labels', async ({
@@ -198,7 +198,7 @@ test('a pinned board is where choosing a word comes back to, until unpinned', as
   await expect(current(page)).toHaveText('Picie');
   // ...and a word anywhere else comes back to it, the home board's words too.
   await page.getByRole('button', { name: 'Pulpit' }).click();
-  await expect(current(page)).toHaveText('Start');
+  await expect(current(page)).toHaveText('Pulpit');
   await tile(page, 'chcę').click();
   await expect(current(page)).toHaveText('Picie');
   await page.getByRole('button', { name: 'Pulpit' }).click();
@@ -215,7 +215,7 @@ test('a pinned board is where choosing a word comes back to, until unpinned', as
   await pin.click();
   await expect(pin).toHaveAttribute('aria-pressed', 'false');
   await tile(page, 'woda').click();
-  await expect(current(page)).toHaveText('Start');
+  await expect(current(page)).toHaveText('Pulpit');
 });
 
 test('the search finds own tiles by an inflected word and adds library symbols (F3)', async ({
@@ -234,7 +234,7 @@ test('the search finds own tiles by an inflected word and adds library symbols (
   const found = search.getByRole('list', { name: 'Znalezione kafelki' }).getByRole('button');
   await expect(found).toHaveCount(1);
   await expect(found).toContainText('jabłko');
-  await expect(found).toContainText('Start › Jedzenie › Przekąski i owoce');
+  await expect(found).toContainText('Pulpit › Jedzenie › Przekąski i owoce');
   const axe = await new AxeBuilder({ page }).include('dialog').analyze();
   expect(axe.violations).toEqual([]);
   await found.click();
@@ -332,7 +332,7 @@ test('"Wszystkie symbole" in the first cell opens the category folders like boar
   await expect(grid.getByRole('button').first()).toHaveAccessibleName('Wszystkie symbole, folder');
   await expect(all.locator('img')).toHaveAttribute('src', '/sym/arasaac/p/15018.0000abcd.webp');
   await all.click();
-  await expect(page.getByRole('navigation')).toContainText('Start›Wszystkie symbole');
+  await expect(page.getByRole('navigation')).toContainText('Wszystkie symbole');
   await tile(page, 'Odżywianie się, folder').click();
   await tile(page, 'Jedzenie, folder').click();
   await expect(current(page)).toHaveText('Jedzenie');
@@ -342,7 +342,7 @@ test('"Wszystkie symbole" in the first cell opens the category folders like boar
   await tile(page, 'Jedzenie, folder').click();
   await tile(page, 'Owoce, folder').click();
   await expect(page.getByRole('navigation')).toContainText(
-    'Start›Wszystkie symbole›Odżywianie się›Jedzenie›Owoce',
+    'Wszystkie symbole›Odżywianie się›Jedzenie›Owoce',
   );
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations).toEqual([]);
@@ -350,7 +350,7 @@ test('"Wszystkie symbole" in the first cell opens the category folders like boar
   await tile(page, 'jabłko').click();
   await expect(sentence(page)).toHaveText(['jabłko']);
   expect((await spoken(page)).at(-1)).toMatchObject({ text: 'jabłko' });
-  await expect(current(page)).toHaveText('Start');
+  await expect(current(page)).toHaveText('Pulpit');
 
   // Switched off in the settings, the cell stays empty: nothing else moves.
   const ja = (await tile(page, 'ja').boundingBox())!;

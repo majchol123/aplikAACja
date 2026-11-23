@@ -1,5 +1,6 @@
 import {
   BOARD_LIMITS,
+  HOME_NAME,
   type Board,
   type BoardChanges,
   type CreateHome,
@@ -405,10 +406,10 @@ export class BoardStore {
       if (this.meta().boards > 0) throw new Abort('already_initialized');
       if ('template' in input) {
         const template = loadTemplate(input.template);
-        const home = this.insertBoard(changes, now, template.name, null, template.board);
+        const home = this.insertBoard(changes, now, HOME_NAME, null, template.board);
         this.seed(changes, now, home, template.board);
       } else {
-        this.insertBoard(changes, now, input.name, null, input);
+        this.insertBoard(changes, now, HOME_NAME, null, input);
       }
     });
   }
@@ -458,6 +459,10 @@ export class BoardStore {
   patchBoard(id: string, input: PatchBoard): BoardChanges | BoardError {
     return this.write((changes, now) => {
       const board = this.boardAt(id, input.rev);
+      // The home board keeps HOME_NAME.
+      if (input.name !== undefined && board.parent_board_id === null) {
+        throw new Abort('invalid_request');
+      }
       const rows = input.rows ?? board.rows;
       const cols = input.cols ?? board.cols;
       if (rows < board.rows || cols < board.cols) {
@@ -765,6 +770,14 @@ export class BoardStore {
     )[0];
     const meta = this.meta();
     if (counts && counts.boards > 0 && homes !== 1) problems.push(`homes=${homes}`);
+    for (const r of this.sql
+      .exec<{ name: string }>(
+        'SELECT name FROM boards WHERE parent_board_id IS NULL AND name != ?',
+        HOME_NAME,
+      )
+      .toArray()) {
+      problems.push(`home board named ${JSON.stringify(r.name)}`);
+    }
     if (counts && (counts.boards !== meta.boards || counts.tiles !== meta.tiles)) {
       problems.push(`counters ${meta.boards}/${meta.tiles} != ${counts.boards}/${counts.tiles}`);
     }

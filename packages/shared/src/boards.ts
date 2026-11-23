@@ -25,6 +25,12 @@ export const BOARD_LIMITS = {
 } as const;
 
 /**
+ * Name of the home board, fixed: the 🏠 button and the first step of every path are the same
+ * board, so they say the same word (its own name would only look like a second board).
+ */
+export const HOME_NAME = 'Pulpit';
+
+/**
  * The first cell of the home board belongs to the folder "Wszystkie symbole" (every symbol
  * of the active sets by category, drawn by the app, not stored): no tile may take it.
  */
@@ -110,9 +116,12 @@ const tileStyle = {
 export const TEMPLATES = ['starter'] as const;
 export type TemplateName = (typeof TEMPLATES)[number];
 
-/** An empty home board, or one built from a bundled template. */
+/**
+ * An empty home board, or one built from a bundled template. The home board is always named
+ * HOME_NAME; a `name` (sent by clients before that rule) is accepted and ignored.
+ */
 export const CreateHomeSchema = z.union([
-  z.object({ name: BoardNameSchema, rows: rowsSchema, cols: colsSchema }).strict(),
+  z.object({ name: BoardNameSchema.optional(), rows: rowsSchema, cols: colsSchema }).strict(),
   z.object({ template: z.enum(TEMPLATES) }).strict(),
 ]);
 export type CreateHome = z.infer<typeof CreateHomeSchema>;

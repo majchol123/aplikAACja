@@ -35,7 +35,7 @@ const cards = (page: Page) => page.getByTestId('phrase').getByRole('button');
 async function emptyBoard(page: Page, name: string) {
   await freshLogin(page, name);
   await page.getByRole('button', { name: /Pusta tablica/ }).click();
-  await expect(current(page)).toHaveText('Start');
+  await expect(current(page)).toHaveText('Pulpit');
 }
 
 async function setSetting(page: Page, patch: Record<string, unknown>) {
@@ -57,7 +57,7 @@ test('the phrase generator turns a sentence into symbols for the sentence bar (F
   // On by default; the account setting hides it.
   await setSetting(page, { showPhraseGenerator: false });
   await page.reload();
-  await expect(current(page)).toHaveText('Start');
+  await expect(current(page)).toHaveText('Pulpit');
   await expect(page.getByRole('button', { name: 'Generator fraz' })).toBeHidden();
   await setSetting(page, { showPhraseGenerator: true });
   await page.reload();
@@ -144,7 +144,7 @@ test('a generated phrase is saved as a board, a PNG, a favourite and printed (F5
   await expect(generator.getByRole('status')).toHaveText('Zapisano w ulubionych.');
   await generator.getByRole('button', { name: 'Zapisz jako tablicę' }).click();
   await expect(generator.getByRole('status')).toHaveText(
-    'Dodano tablicę „Dzień dobry Ola pije sok jabłkowy” na tablicy „Start”.',
+    'Dodano tablicę „Dzień dobry Ola pije sok jabłkowy” na tablicy „Pulpit”.',
   );
   await generator.getByRole('button', { name: 'Zamknij' }).click();
   await expect(

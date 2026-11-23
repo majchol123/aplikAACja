@@ -74,7 +74,7 @@ describe('UserVault', () => {
       const [home, food] = ['h'.repeat(26), 'f'.repeat(26)];
       sql.exec(
         `INSERT INTO boards (id, name, parent_board_id, rows, cols, rev, created_at, updated_at)
-         VALUES (?1, 'Start', NULL, 4, 6, 7, 1, 2), (?2, 'Jedzenie', ?1, 12, 12, 3, 1, 2)`,
+         VALUES (?1, 'Pulpit', NULL, 4, 6, 7, 1, 2), (?2, 'Jedzenie', ?1, 12, 12, 3, 1, 2)`,
         home,
         food,
       );
@@ -152,7 +152,7 @@ describe('UserVault', () => {
         sql.exec('INSERT INTO _schema (id, version) VALUES (1, 9)');
         sql.exec(
           `INSERT INTO boards (id, name, parent_board_id, rows, cols, rev, created_at, updated_at)
-           VALUES (?, 'Start', NULL, ?, ?, 5, 1, 2)`,
+           VALUES (?, 'Pulpit', NULL, ?, ?, 5, 1, 2)`,
           'h'.repeat(26),
           rows,
           cols,
@@ -216,6 +216,52 @@ describe('UserVault', () => {
     expect(await after(await v9('vault-v9-empty', 2, 2, [['ty', 0, 1]]))).toMatchObject({
       tiles: ['ty@0,1'],
       board: { rev: 5 },
+      version: 0,
+    });
+  });
+
+  it('names the home board "Pulpit" (v11)', async () => {
+    const v10 = (name: string, home: string) =>
+      runInDurableObject(vaultFor(env, name), async (_i: UserVault, state) => {
+        await state.storage.deleteAll();
+        const sql = state.storage.sql;
+        sql.exec(
+          'CREATE TABLE _schema (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)',
+        );
+        for (const migration of VAULT_MIGRATIONS.slice(0, 10)) applyMigration(sql, migration);
+        sql.exec('INSERT INTO _schema (id, version) VALUES (1, 10)');
+        sql.exec(
+          `INSERT INTO boards (id, name, parent_board_id, rows, cols, rev, created_at, updated_at)
+           VALUES (?1, ?2, NULL, 4, 6, 5, 1, 2), (?3, 'Start', ?1, 2, 2, 3, 1, 2)`,
+          'h'.repeat(26),
+          home,
+          'f'.repeat(26),
+        );
+        sql.exec(
+          `INSERT INTO tiles (id, board_id, row, col, kind, target_board_id, label, created_at, updated_at)
+           VALUES (?, ?, 0, 1, 'folder', ?, 'Start', 1, 2)`,
+          'a'.repeat(26),
+          'h'.repeat(26),
+          'f'.repeat(26),
+        );
+        migrateVault(state.storage);
+        return {
+          boards: sql.exec('SELECT name, rev FROM boards ORDER BY id').toArray(),
+          version: sql.exec<{ version: number }>('SELECT version FROM vault_meta').one().version,
+          problems: new BoardStore(state.storage).integrity(),
+        };
+      });
+    // Renamed with a new revision; a sub-board of the same name keeps it.
+    expect(await v10('vault-v10-start', 'Start')).toEqual({
+      boards: [
+        { name: 'Start', rev: 3 },
+        { name: 'Pulpit', rev: 6 },
+      ],
+      version: 1,
+      problems: [],
+    });
+    expect(await v10('vault-v10-pulpit', 'Pulpit')).toMatchObject({
+      boards: [{}, { name: 'Pulpit', rev: 5 }],
       version: 0,
     });
   });

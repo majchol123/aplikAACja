@@ -28,7 +28,7 @@ export function Onboarding({ onSettings }: { onSettings: () => void }) {
           type="button"
           className={option}
           disabled={create.isPending}
-          onClick={() => create.mutate({ name: 'Start', rows: 4, cols: 6 })}
+          onClick={() => create.mutate({ rows: 4, cols: 6 })}
         >
           <span className="text-xl font-bold text-brand-800">Pusta tablica</span>
           <span className="mt-1 text-slate-600">Siatka 4 × 6 do samodzielnego wypełnienia.</span>

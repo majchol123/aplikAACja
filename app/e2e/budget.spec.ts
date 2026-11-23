@@ -40,7 +40,7 @@ test('a typical day with the app stays within the request budget (PLAN §3.2)', 
   const requests = countWorkerRequests(page);
   await freshLogin(page, 'Budżet żądań');
   await page.getByRole('button', { name: /Tablica startowa/ }).click();
-  await expect(page.getByTestId('current-board')).toHaveText('Start');
+  await expect(page.getByTestId('current-board')).toHaveText('Pulpit');
   await expect(page.getByRole('button', { name: 'chcę', exact: true })).toBeVisible();
   const firstStart = [...requests];
   expect(firstStart.length, firstStart.join('\n')).toBeLessThanOrEqual(LIMITS.firstStart);

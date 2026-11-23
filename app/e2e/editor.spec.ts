@@ -41,7 +41,7 @@ async function axe(page: Page) {
 async function startEditing(page: Page, name: string, board: 'Tablica startowa' | 'Pusta tablica') {
   await freshLogin(page, name);
   await page.getByRole('button', { name: new RegExp(board) }).click();
-  await expect(current(page)).toHaveText('Start');
+  await expect(current(page)).toHaveText('Pulpit');
   await holdEditLock(page);
   await expect(page.getByRole('heading', { name: 'Tryb edycji' })).toBeVisible();
 }
@@ -92,7 +92,7 @@ test('Jedzenie → Śniadanie → chleb built from an empty board, then spoken (
   await dialog(page).getByRole('button', { name: 'Anuluj' }).click();
   await addTile(page, 'wiersz 1, kolumna 2', 'Śniadanie', { folder: true });
   await page.getByRole('button', { name: 'Otwórz folder Śniadanie' }).click();
-  await expect(page.getByRole('navigation')).toContainText('Start›Jedzenie›Śniadanie');
+  await expect(page.getByRole('navigation')).toContainText('Jedzenie›Śniadanie');
   await addTile(page, 'wiersz 2, kolumna 3', 'chleb');
   await expect(editTile(page, 'chleb').locator('img')).toHaveAttribute('src', /\.webp$/);
 
@@ -104,7 +104,7 @@ test('Jedzenie → Śniadanie → chleb built from an empty board, then spoken (
   await page.getByRole('button', { name: 'Śniadanie, folder' }).click();
   await page.getByRole('button', { name: 'chleb', exact: true }).click();
   await expect(page.getByTestId('sentence-item')).toHaveText(['chleb']);
-  await expect(current(page)).toHaveText('Start');
+  await expect(current(page)).toHaveText('Pulpit');
   await page.getByRole('button', { name: 'Powiedz zdanie' }).click();
   expect((await spoken(page)).at(-1)?.text).toBe('chleb');
 
@@ -207,19 +207,20 @@ test('PIN, grid size, moving between boards and deleting', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Tryb edycji' })).toBeVisible();
 
   // Shrinking the grid under existing tiles is refused with an explanation.
-  await page.getByRole('button', { name: 'Nazwa i siatka' }).click();
+  await page.getByRole('button', { name: 'Siatka', exact: true }).click();
   await dialog(page).getByLabel('Wiersze').selectOption('2');
   await dialog(page).getByRole('button', { name: 'Zapisz' }).click();
   await expect(dialog(page).getByRole('alert')).toContainText('nie zmieści się');
   await dialog(page).getByLabel('Wiersze').selectOption('4');
-  await dialog(page).getByLabel('Nazwa').fill('Mój pulpit');
+  // The home board has no name of its own to change.
+  await expect(dialog(page).getByLabel('Nazwa')).toHaveCount(0);
   await dialog(page).getByRole('button', { name: 'Zapisz' }).click();
-  await expect(current(page)).toHaveText('Mój pulpit');
+  await expect(dialog(page)).toHaveCount(0);
 
   // Moving a tile into a folder (the keyboard-friendly way, no dragging).
   await editTile(page, 'pomocy').click();
   await dialog(page).getByRole('button', { name: 'Przenieś…' }).click();
-  await dialog(page).getByLabel('Tablica').selectOption({ label: 'Mój pulpit › Osoby' });
+  await dialog(page).getByLabel('Tablica').selectOption({ label: 'Pulpit › Osoby' });
   await dialog(page)
     .getByRole('button', { name: /: puste$/ })
     .first()
@@ -361,7 +362,7 @@ test('a label typed as a search takes the word of the symbol picked; new boards 
   await place.getByRole('button', { name: 'Dodaj tutaj' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(current(page)).toHaveText('Zabawa');
-  await expect(page.getByRole('navigation')).toContainText('Start›Zabawa');
+  await expect(page.getByRole('navigation')).not.toContainText('Pulpit');
   await expect(page.getByRole('button', { name: /^Dodaj kafelek: / })).toHaveCount(15);
 
   // A folder made in the tile editor can have its own grid too.

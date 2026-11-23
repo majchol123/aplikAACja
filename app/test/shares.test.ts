@@ -203,7 +203,7 @@ describe('sharing a board (PLAN §2.8)', () => {
     const own = await home(recipient, 1, 2);
     await send(user, start.id, recipient.email);
     const [entry] = (await recipient.api<ShareLists>('GET', '/api/shares')).body.received;
-    expect(entry).toMatchObject({ name: 'Start', boards: 3, tiles: 4 });
+    expect(entry).toMatchObject({ name: 'Pulpit', boards: 3, tiles: 4 });
     const view = await recipient.api<ReceivedShareView>('GET', `/api/shares/received/${entry!.id}`);
     expect(view.body.package.tile).toBeUndefined();
     const ok = await recipient.api('POST', `/api/shares/received/${entry!.id}/accept`, {

@@ -38,7 +38,7 @@ async function seed(page: Page): Promise<void> {
     const headers = { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' };
     const post = (path: string, body: unknown) =>
       fetch(path, { method: 'POST', headers, body: JSON.stringify(body) }).then((r) => r.json());
-    const home = await post('/api/boards/home', { name: 'Start', rows: 4, cols: 6 });
+    const home = await post('/api/boards/home', { rows: 4, cols: 6 });
     let board = home.boards[0];
     for (const [label, row, col] of [
       ['a', 0, 1],
@@ -129,7 +129,7 @@ test.describe('on a phone', () => {
     await form.getByRole('button', { name: 'Zapisz' }).click();
     await expect(form).toHaveCount(0);
     expect(await storedTiles(page)).toEqual(['a@0,1', 'b@0,2', 'c@1,1', 'jabłko@0,3']);
-    await page.getByRole('button', { name: 'Nazwa i siatka' }).click();
+    await page.getByRole('button', { name: 'Siatka', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('wiersze widać jako kolumny');
     await page.getByRole('button', { name: 'Anuluj' }).click();
 
@@ -180,7 +180,7 @@ async function seedGrid(
       const headers = { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' };
       const post = (path: string, body: unknown) =>
         fetch(path, { method: 'POST', headers, body: JSON.stringify(body) }).then((r) => r.json());
-      const home = await post('/api/boards/home', { name: 'Start', rows, cols });
+      const home = await post('/api/boards/home', { rows, cols });
       let board = home.boards[0];
       for (const [label, row, col] of tiles) {
         const changes = await post(`/api/boards/${board.id}/tiles`, {
@@ -257,7 +257,7 @@ test('the editor scrolls a tall board too and offers 40 rows', async ({ page }) 
   await freshLogin(page, 'Wysoka edycja');
   await seedGrid(page, 12, 4, [['pierwszy', 0, 1]]);
   await holdEditLock(page);
-  await page.getByRole('button', { name: 'Nazwa i siatka' }).click();
+  await page.getByRole('button', { name: 'Siatka', exact: true }).click();
   const rows = page.getByRole('dialog').getByLabel('Wiersze');
   await expect(rows.locator('option')).toHaveCount(40);
   await rows.selectOption('40');

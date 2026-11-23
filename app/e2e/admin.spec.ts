@@ -19,7 +19,7 @@ async function seedAccount(page: Page): Promise<void> {
     const home = await fetch('/api/boards/home', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ name: 'Start', rows: 2, cols: 3 }),
+      body: JSON.stringify({ rows: 2, cols: 3 }),
     });
     const { boards } = (await home.json()) as { boards: { id: string }[] };
     const tile = await fetch(`/api/boards/${boards[0]!.id}/tiles`, {

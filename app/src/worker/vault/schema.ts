@@ -1,4 +1,4 @@
-import { BOARD_LIMITS } from '@aplikaacja/shared';
+import { BOARD_LIMITS, HOME_NAME } from '@aplikaacja/shared';
 
 /** SQL, or code for a data change SQL alone cannot express; both run in one transaction. */
 export type Migration = string | ((sql: SqlStorage) => void);
@@ -54,6 +54,24 @@ function freeReservedCell(sql: SqlStorage): void {
     there.id,
   );
   sql.exec('UPDATE boards SET rev = rev + 1, updated_at = ? WHERE id = ?', now, home.id);
+  sql.exec('UPDATE vault_meta SET version = version + 1 WHERE id = 1');
+}
+
+/**
+ * v11 — the home board is named HOME_NAME: the 🏠 button and the first step of the path are
+ * the same board. A home named otherwise is renamed, with a new revision.
+ */
+function nameHome(sql: SqlStorage): void {
+  const home = sql
+    .exec<{ id: string; name: string }>('SELECT id, name FROM boards WHERE parent_board_id IS NULL')
+    .toArray()[0];
+  if (!home || home.name === HOME_NAME) return;
+  sql.exec(
+    'UPDATE boards SET name = ?, rev = rev + 1, updated_at = ? WHERE id = ?',
+    HOME_NAME,
+    Date.now(),
+    home.id,
+  );
   sql.exec('UPDATE vault_meta SET version = version + 1 WHERE id = 1');
 }
 
@@ -343,6 +361,8 @@ export const VAULT_MIGRATIONS: readonly Migration[] = [
 
   // v10 — "Wszystkie symbole" in the home board's first cell (see freeReservedCell).
   freeReservedCell,
+  // v11 — the home board is always "Pulpit" (see nameHome).
+  nameHome,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {

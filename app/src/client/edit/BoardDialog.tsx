@@ -1,4 +1,10 @@
-import { BOARD_LIMITS, type Board, type GridSize, type PatchBoard } from '@aplikaacja/shared';
+import {
+  BOARD_LIMITS,
+  HOME_NAME,
+  type Board,
+  type GridSize,
+  type PatchBoard,
+} from '@aplikaacja/shared';
 import { useState } from 'react';
 import { useGridLayout } from '../boards/layout.ts';
 import { Dialog } from './Dialog.tsx';
@@ -67,9 +73,12 @@ export function BoardDialog({
   const trimmed = name.trim();
   const turned = useGridLayout({ rows, cols }).transposed;
 
+  // The home board is always HOME_NAME: only its grid changes.
+  const home = board.parentId === null;
+
   async function save(): Promise<void> {
     const input: Omit<PatchBoard, 'rev'> = {};
-    if (trimmed && trimmed !== board.name) input.name = trimmed;
+    if (!home && trimmed && trimmed !== board.name) input.name = trimmed;
     if (rows !== board.rows) input.rows = rows;
     if (cols !== board.cols) input.cols = cols;
     if (Object.keys(input).length === 0) return onClose();
@@ -80,7 +89,7 @@ export function BoardDialog({
   }
 
   return (
-    <Dialog title="Tablica: nazwa i siatka" onClose={onClose}>
+    <Dialog title={home ? `${HOME_NAME}: siatka` : 'Tablica: nazwa i siatka'} onClose={onClose}>
       <form
         className="mt-4 space-y-4"
         onSubmit={(e) => {
@@ -88,20 +97,27 @@ export function BoardDialog({
           void save();
         }}
       >
-        <label className={ui.field}>
-          Nazwa
-          <input
-            value={name}
-            maxLength={BOARD_LIMITS.nameMax}
-            onChange={(e) => setName(e.target.value)}
-            className={ui.input}
-            required
-          />
-        </label>
-        {board.parentId && (
-          <p className="text-sm text-slate-600">
-            To także etykieta folderu, który otwiera tę tablicę.
+        {home ? (
+          <p className="text-slate-700">
+            Pulpit to tablica otwierana przyciskiem z domkiem, więc ma stałą nazwę. Każda inna
+            tablica to folder na pulpicie albo głębiej i ma własną nazwę.
           </p>
+        ) : (
+          <>
+            <label className={ui.field}>
+              Nazwa
+              <input
+                value={name}
+                maxLength={BOARD_LIMITS.nameMax}
+                onChange={(e) => setName(e.target.value)}
+                className={ui.input}
+                required
+              />
+            </label>
+            <p className="text-sm text-slate-600">
+              To także etykieta folderu, który otwiera tę tablicę.
+            </p>
+          </>
         )}
         <GridFields
           grid={{ rows, cols }}
@@ -129,7 +145,7 @@ export function BoardDialog({
           <button type="button" className={ui.secondary} onClick={onClose}>
             Anuluj
           </button>
-          <button type="submit" className={ui.primary} disabled={busy || !trimmed}>
+          <button type="submit" className={ui.primary} disabled={busy || (!home && !trimmed)}>
             {busy ? 'Zapisywanie…' : 'Zapisz'}
           </button>
         </div>

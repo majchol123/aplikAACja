@@ -106,7 +106,7 @@ describe('encrypted backups (F7, PLAN §6)', () => {
 
     const vault = await open<Dump>(await get(`/api/backup/users/${owner.id}`), identity);
     expect(vault.kind).toBe('vault');
-    expect(rowsOf(vault.tables.boards!).map((b) => b.name)).toEqual(['Start']);
+    expect(rowsOf(vault.tables.boards!).map((b) => b.name)).toEqual(['Pulpit']);
     expect(rowsOf(vault.tables.media!).map((m) => m.label)).toEqual(['Mama']);
     expect(vault.tables._schema).toBeDefined();
     // Photo bytes travel one by one, and never inside the dump.

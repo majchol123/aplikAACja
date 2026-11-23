@@ -72,10 +72,11 @@ describe('board tree', () => {
     expect(etag).toMatch(/^W\/"[0-9a-f]{16}\.0"$/);
     expect(empty.res.headers.get('Cache-Control')).toBe('no-store');
 
+    // The name sent (as clients did before HOME_NAME) is ignored.
     const board = await home(api);
     expect(board).toEqual({
       id: expect.stringMatching(/^[a-z2-7]{26}$/),
-      name: 'Start',
+      name: 'Pulpit',
       parentId: null,
       rows: 4,
       cols: 5,
@@ -105,7 +106,7 @@ describe('board tree', () => {
     // PLAN §2.7: home, 8 folders, 4 meal boards under Jedzenie.
     expect(t.boards).toHaveLength(13);
     const start = find(t, t.homeId!);
-    expect(start).toMatchObject({ name: 'Start', rows: 4, cols: 6, parentId: null });
+    expect(start).toMatchObject({ name: 'Pulpit', rows: 4, cols: 6, parentId: null });
     expect(start.tiles).toHaveLength(17);
     const food = start.tiles.find((x) => x.label === 'Jedzenie')!;
     expect(food).toMatchObject({ kind: 'folder', symbol: { set: 'arasaac', ref: '4610' } });
@@ -299,14 +300,16 @@ describe('board tree', () => {
     board = (await addTile(api, board, { row: 2, col: 3, label: 'pić' })).board;
     const shrink = await api('PATCH', `/api/boards/${board.id}`, { rev: board.rev, rows: 2 });
     expect(shrink.body).toEqual({ error: 'out_of_bounds' });
+    // The home board keeps its name.
+    const renamed = await api('PATCH', `/api/boards/${board.id}`, { rev: board.rev, name: 'Dom' });
+    expect(renamed.body).toEqual({ error: 'invalid_request' });
     const ok = await api<BoardChanges>('PATCH', `/api/boards/${board.id}`, {
       rev: board.rev,
       rows: 3,
       cols: 4,
-      name: 'Dom',
     });
     expect(ok.status).toBe(200);
-    expect(changed(ok, board.id)).toMatchObject({ rows: 3, cols: 4, name: 'Dom', rev: 3 });
+    expect(changed(ok, board.id)).toMatchObject({ rows: 3, cols: 4, name: 'Pulpit', rev: 3 });
     const tooBig = await api('PATCH', `/api/boards/${board.id}`, { rev: 3, cols: 13 });
     expect(tooBig.status).toBe(400);
     expect((await api('PATCH', `/api/boards/${board.id}`, { rev: 3, rows: 41 })).status).toBe(400);
