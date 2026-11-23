@@ -56,7 +56,7 @@
         {
           "binding": "DB",
           "database_name": "aplikaacja-core-staging",
-          "database_id": "11f4fceb-81c0-40a1-8a01-18a5e3900391",
+          "database_id": "57448bfe-f19d-467d-bd0f-25bd862d4d29",
           "migrations_dir": "migrations",
         },
       ],
@@ -82,7 +82,7 @@
         {
           "binding": "DB",
           "database_name": "aplikaacja-core",
-          "database_id": "8f0d0e8c-9ea4-4f75-a806-08a1c0584b18",
+          "database_id": "d6328dbb-0ee3-4f6f-8776-e770b457129c",
           "migrations_dir": "migrations",
         },
       ],
