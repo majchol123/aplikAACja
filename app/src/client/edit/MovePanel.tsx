@@ -1,5 +1,6 @@
 import type { Board, Tile } from '@aplikaacja/shared';
 import { useId, useMemo, useState } from 'react';
+import { ALL_SYMBOLS_ID } from '../boards/allSymbols.ts';
 import { boardOptions } from '../boards/BoardNav.tsx';
 import { CellGrid, cellClass } from './CellGrid.tsx';
 import { ui } from './ui.ts';
@@ -72,17 +73,20 @@ export function MovePanel({
       <CellGrid board={target} label={`Pola tablicy ${target.name}`} describedBy={`${id}-hint`}>
         {({ row, col }, where, other) => {
           const here = other?.id === tile.id;
+          const fixed = other?.id === ALL_SYMBOLS_ID;
           return (
             <button
               key={`${row},${col}`}
               type="button"
-              disabled={busy || here}
+              disabled={busy || here || fixed}
               aria-label={
                 here
                   ? `${where}: tu jest teraz`
-                  : other
-                    ? `${where}: zamień z „${other.label}”`
-                    : `${where}: puste`
+                  : fixed
+                    ? `${where}: ${other.label} (stałe pole)`
+                    : other
+                      ? `${where}: zamień z „${other.label}”`
+                      : `${where}: puste`
               }
               onClick={() => onMove(target.id, row, col)}
               className={cellClass(here ? 'here' : other ? 'taken' : 'empty')}

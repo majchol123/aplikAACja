@@ -40,7 +40,10 @@ export const SettingsSchema = z
       })
       .strict(),
     uppercaseLabels: z.boolean(),
-    /** Communication mode offers the category folders of the sets (F3; off by default). */
+    /**
+     * The folder "Wszystkie symbole" in the first cell of the home board: the category
+     * folders of the active sets (F3). On by default; off leaves that cell empty.
+     */
     showAllSymbols: z.boolean(),
     /**
      * Communication mode offers the phrase generator (F5; on by default). Settings are merged
@@ -67,7 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
   contentFilter: { hideSexual: true, hideViolence: false },
   speech: { preset: 'woman', rate: 1, pitch: 1 },
   uppercaseLabels: false,
-  showAllSymbols: false,
+  showAllSymbols: true,
   showPhraseGenerator: true,
   keepHistory: true,
   policyNotice: 0,

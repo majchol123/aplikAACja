@@ -79,7 +79,11 @@ test('Jedzenie → Śniadanie → chleb built from an empty board, then spoken (
   await startEditing(page, 'Edytor', 'Pusta tablica');
   await axe(page);
 
-  await addTile(page, 'wiersz 1, kolumna 1', 'Jedzenie', { folder: true });
+  // The first cell is the app's "Wszystkie symbole".
+  await expect(
+    page.getByRole('button', { name: /^Dodaj kafelek: wiersz 1, kolumna 1$/ }),
+  ).toHaveCount(0);
+  await addTile(page, 'wiersz 1, kolumna 2', 'Jedzenie', { folder: true });
   await page.getByRole('button', { name: 'Otwórz folder Jedzenie' }).click();
   await expect(current(page)).toHaveText('Jedzenie');
 
@@ -119,8 +123,10 @@ test('tiles are dragged, restyled, and the chosen variant of a word is remembere
 
   // Drop on a tile: the two swap places.
   await drag(page, editTile(page, 'ja'), editTile(page, 'ty'));
-  await expect(labels().nth(0)).toHaveText('ty');
-  await expect(labels().nth(1)).toHaveText('ja');
+  // The first cell is "Wszystkie symbole".
+  await expect(labels().nth(0)).toHaveText('Wszystkie symbole');
+  await expect(labels().nth(1)).toHaveText('ty');
+  await expect(labels().nth(2)).toHaveText('ja');
   // Drop on an empty cell: the tile moves there (the last cell of the 4 × 6 home is free).
   await drag(
     page,
@@ -144,8 +150,8 @@ test('tiles are dragged, restyled, and the chosen variant of a word is remembere
   await expect(nie.locator(':first-child')).toHaveClass(/tile-label/);
 
   // Two symbols match "nos": pick the second one, it comes first (starred) next time.
-  await addTile(page, 'wiersz 2, kolumna 4', 'nos', { variant: 1 });
-  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 5' }).click();
+  await addTile(page, 'wiersz 2, kolumna 5', 'nos', { variant: 1 });
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 6' }).click();
   await dialog(page).getByLabel('Etykieta').fill('nos');
   const first = dialog(page).getByTestId('symbol-results').getByRole('button').first();
   await expect(first).toHaveAccessibleName(/, ARASAAC, nr 30000, ulubiony wariant$/);
@@ -154,14 +160,15 @@ test('tiles are dragged, restyled, and the chosen variant of a word is remembere
   // Everything above is stored on the server.
   await page.reload();
   const comm = page.getByTestId('board-grid').locator('.tile-label');
-  await expect(comm.nth(0)).toHaveText('ty');
-  await expect(comm.nth(1)).toHaveText('ja');
+  await expect(comm.nth(0)).toHaveText('Wszystkie symbole');
+  await expect(comm.nth(1)).toHaveText('ty');
+  await expect(comm.nth(2)).toHaveText('ja');
   await expect(page.getByRole('button', { name: 'nie', exact: true })).toHaveClass(/bg-red-200/);
 });
 
 test('a symbol is picked from the category folders of the set', async ({ page }) => {
   await startEditing(page, 'Kategorie w edytorze', 'Pusta tablica');
-  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 1' }).click();
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 2' }).click();
   const form = dialog(page);
   await form.getByText('Kategorie', { exact: true }).click();
   await form.getByRole('button', { name: /^Komunikacja, kategoria/ }).click();
@@ -250,7 +257,8 @@ test('a hidden tile keeps its cell: out of communication mode and its search, di
   const grid = page.getByTestId('board-grid');
   const neighbour = grid.getByRole('button', { name: 'Picie, folder', exact: true });
   const before = await neighbour.boundingBox();
-  await expect(grid.getByRole('button')).toHaveCount(17);
+  // 17 tiles and "Wszystkie symbole".
+  await expect(grid.getByRole('button')).toHaveCount(18);
 
   await holdEditLock(page);
   await editTile(page, 'Jedzenie').click();
@@ -273,7 +281,7 @@ test('a hidden tile keeps its cell: out of communication mode and its search, di
 
   await page.getByRole('button', { name: 'Gotowe' }).click();
   await expect(grid.getByRole('button', { name: 'Jedzenie, folder' })).toHaveCount(0);
-  await expect(grid.getByRole('button')).toHaveCount(16);
+  await expect(grid.getByRole('button')).toHaveCount(17);
   expect(await neighbour.boundingBox()).toEqual(before);
   await page.getByRole('button', { name: 'Szukaj' }).click();
   const search = page.getByRole('dialog', { name: 'Szukaj' });
@@ -294,7 +302,7 @@ test('a hidden tile keeps its cell: out of communication mode and its search, di
 
 test('a tile says its own words; the sentence bar keeps its label', async ({ page }) => {
   await startEditing(page, 'Co powiedziec', 'Pusta tablica');
-  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 1' }).click();
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 2' }).click();
   const form = dialog(page);
   await form.getByLabel('Etykieta').fill('pić');
   await form.getByLabel(/Co powiedzieć/).fill('Chcę się napić, proszę');

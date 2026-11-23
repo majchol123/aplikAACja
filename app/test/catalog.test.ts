@@ -32,7 +32,7 @@ async function adminBoard() {
   const folder = await admin.api<BoardChanges>('POST', `/api/boards/${start.id}/tiles`, {
     rev: start.rev,
     row: 0,
-    col: 0,
+    col: 1,
     kind: 'folder',
     label: 'Poranek',
   });

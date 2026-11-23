@@ -1,9 +1,68 @@
+import { BOARD_LIMITS } from '@aplikaacja/shared';
+
+/** SQL, or code for a data change SQL alone cannot express; both run in one transaction. */
+export type Migration = string | ((sql: SqlStorage) => void);
+
+export function applyMigration(sql: SqlStorage, migration: Migration): void {
+  if (typeof migration === 'string') sql.exec(migration);
+  else migration(sql);
+}
+
+/**
+ * v10 — the home board's first cell becomes the app's folder "Wszystkie symbole"
+ * (isReservedCell). A tile already there moves to the first free cell of the home board in
+ * reading order, or to a new last row when the board is full (at the row limit it stays,
+ * and the app shows it instead of the folder). The board gets a new revision.
+ */
+function freeReservedCell(sql: SqlStorage): void {
+  const home = sql
+    .exec<{ id: string; rows: number; cols: number }>(
+      'SELECT id, rows, cols FROM boards WHERE parent_board_id IS NULL',
+    )
+    .toArray()[0];
+  if (!home) return;
+  const there = sql
+    .exec<{ id: string }>(
+      'SELECT id FROM tiles WHERE board_id = ? AND row = 0 AND col = 0',
+      home.id,
+    )
+    .toArray()[0];
+  if (!there) return;
+  const taken = new Set(
+    sql
+      .exec<{ row: number; col: number }>('SELECT row, col FROM tiles WHERE board_id = ?', home.id)
+      .toArray()
+      .map((t) => `${t.row},${t.col}`),
+  );
+  let cell: { row: number; col: number } | null = null;
+  for (let i = 1; i < home.rows * home.cols && !cell; i++) {
+    const row = Math.floor(i / home.cols);
+    const col = i % home.cols;
+    if (!taken.has(`${row},${col}`)) cell = { row, col };
+  }
+  const now = Date.now();
+  if (!cell) {
+    if (home.rows >= BOARD_LIMITS.maxRows) return;
+    cell = { row: home.rows, col: 0 };
+    sql.exec('UPDATE boards SET rows = rows + 1 WHERE id = ?', home.id);
+  }
+  sql.exec(
+    'UPDATE tiles SET row = ?, col = ?, updated_at = ? WHERE id = ?',
+    cell.row,
+    cell.col,
+    now,
+    there.id,
+  );
+  sql.exec('UPDATE boards SET rev = rev + 1, updated_at = ? WHERE id = ?', now, home.id);
+  sql.exec('UPDATE vault_meta SET version = version + 1 WHERE id = 1');
+}
+
 /**
  * Forward-only schema migrations of the per-user SQLite database. Applied lazily on the
  * first access of each Durable Object (inside blockConcurrencyWhile), so every migration
  * must stay backward compatible with the currently deployed code.
  */
-export const VAULT_MIGRATIONS: readonly string[] = [
+export const VAULT_MIGRATIONS: readonly Migration[] = [
   // v1
   `CREATE TABLE boards (
      id TEXT PRIMARY KEY,
@@ -281,6 +340,9 @@ export const VAULT_MIGRATIONS: readonly string[] = [
    UPDATE vault_meta
       SET boards = (SELECT COUNT(*) FROM boards), tiles = (SELECT COUNT(*) FROM tiles)
     WHERE id = 1;`,
+
+  // v10 — "Wszystkie symbole" in the home board's first cell (see freeReservedCell).
+  freeReservedCell,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {
@@ -300,7 +362,7 @@ export function migrateVault(storage: DurableObjectStorage): number {
   }
   storage.transactionSync(() => {
     for (const migration of VAULT_MIGRATIONS.slice(current)) {
-      sql.exec(migration);
+      applyMigration(sql, migration);
     }
     sql.exec(
       'INSERT INTO _schema (id, version) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET version = excluded.version',

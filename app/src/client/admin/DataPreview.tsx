@@ -131,7 +131,7 @@ function SettingsPreview({ settings }: { settings: Settings }) {
       `${PRESET_LABELS[settings.speech.preset]}, tempo ${factor(settings.speech.rate)}, wysokość ${factor(settings.speech.pitch)}`,
     ],
     ['Wielkie litery na kafelkach', settings.uppercaseLabels ? 'tak' : 'nie'],
-    ['Przycisk „Wszystkie symbole”', settings.showAllSymbols ? 'tak' : 'nie'],
+    ['Folder „Wszystkie symbole” na pulpicie', settings.showAllSymbols ? 'tak' : 'nie'],
     ['Przycisk „Generator fraz”', settings.showPhraseGenerator ? 'tak' : 'nie'],
     // Whether, not what: the history itself is not part of this view.
     ['Historia wypowiedzi na koncie', settings.keepHistory ? 'zapisywana' : 'wyłączona'],

@@ -101,7 +101,7 @@ test('a photo is cropped, stored without its GPS position, used, found and delet
   expect(original.includes(GPS)).toBe(true);
   expect(original.length).toBeGreaterThan(2 * 1024 * 1024);
 
-  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 4' }).click();
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 5' }).click();
   await dialog(page).getByLabel('Etykieta').fill('Jabłko z ogrodu');
   await pickPhoto(page, { name: 'IMG_0001.jpg', mimeType: 'image/jpeg', buffer: original });
 
@@ -142,7 +142,7 @@ test('a photo is cropped, stored without its GPS position, used, found and delet
 
   // Found by its name among the symbols, first and starred (it was chosen for this word).
   await holdEditLock(page);
-  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 5' }).click();
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 6' }).click();
   await dialog(page).getByLabel('Etykieta').fill('jablk');
   const results = dialog(page).getByTestId('symbol-results').getByRole('button');
   await expect(results.first()).toHaveAccessibleName(
@@ -182,7 +182,7 @@ test('without WebP encoding (Safari) the photo is stored as JPEG; non-images are
     };
   });
   await startEditing(page, 'Safari');
-  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 4' }).click();
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 5' }).click();
   await dialog(page).getByLabel('Etykieta').fill('Dom');
 
   await pickPhoto(page, {
@@ -215,7 +215,7 @@ test('without WebP encoding (Safari) the photo is stored as JPEG; non-images are
 
 test('a photo lying on its side is turned before it is cropped', async ({ page }) => {
   await startEditing(page, 'Obrot zdjecia');
-  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 4' }).click();
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 5' }).click();
   await dialog(page).getByLabel('Etykieta').fill('Obrócone');
   // Red left half, blue right half: turned clockwise, red is on top and blue below.
   await pickPhoto(page, {

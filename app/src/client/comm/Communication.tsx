@@ -1,6 +1,4 @@
 import {
-  cellAt,
-  TapFilter,
   type Board,
   type BoardTree,
   spokenText,
@@ -9,29 +7,19 @@ import {
   type SymbolRef,
   type Tile,
 } from '@aplikaacja/shared';
-import {
-  Fragment,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent,
-  type ReactNode,
-} from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ALL_SYMBOLS_ID, ALL_SYMBOLS_TILE, withAllSymbols } from '../boards/allSymbols.ts';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
-import { useGridAttributes, useGridLayout } from '../boards/layout.ts';
 import { useDeviceSettings } from '../device.ts';
 import { PhraseGenerator } from '../phrase/PhraseGenerator.tsx';
 import { useSpeaker } from '../speech.ts';
 import { useAccountSettings } from '../settings/account.ts';
-import { AllSymbols } from './AllSymbols.tsx';
+import { BoardGrid } from './BoardGrid.tsx';
 import { HistoryPanel } from './HistoryPanel.tsx';
 import {
   BackspaceIcon,
   ClockIcon,
-  GridIcon,
   KeyboardIcon,
   PencilIcon,
   PinIcon,
@@ -41,7 +29,7 @@ import {
 } from './icons.tsx';
 import { useHistory } from './phrases.ts';
 import { SearchPanel } from './SearchPanel.tsx';
-import { TileView } from './TileView.tsx';
+import { BROWSE_START, SymbolFolders, type Browse, type PickedSymbol } from './SymbolFolders.tsx';
 import { useWakeLock } from './wake-lock.ts';
 
 interface SentenceItem {
@@ -81,11 +69,15 @@ export function Communication({
   const speak = useSpeaker();
   const [device, updateDevice] = useDeviceSettings();
   const account = useAccountSettings();
-  const allTiles = useMemo(() => tree.boards.flatMap((b) => b.tiles), [tree.boards]);
+  const allTiles = useMemo(
+    () => [ALL_SYMBOLS_TILE, ...tree.boards.flatMap((b) => b.tiles)],
+    [tree.boards],
+  );
   const resolve = useSymbolResolver(me, allTiles);
   const [searching, setSearching] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [browsing, setBrowsing] = useState(false);
+  // "Wszystkie symbole" open (drawn instead of the board), and where in it.
+  const [browse, setBrowse] = useState<Browse | null>(null);
   const [phrasing, setPhrasing] = useState(false);
   const history = useHistory(me.id, showHistory);
   const [found, setFound] = useState<string | null>(null);
@@ -106,7 +98,15 @@ export function Communication({
     if (boardId === null && pinned) onBoardChange(pinned);
   }, [boardId, pinned, onBoardChange]);
 
-  if (!board) return null;
+  const home = boards.get(homeId);
+  if (!board || !home) return null;
+  const showAll = account.data?.showAllSymbols ?? true;
+
+  /** To a board, leaving "Wszystkie symbole". */
+  function open(id: string): void {
+    setBrowse(null);
+    onBoardChange(id);
+  }
 
   function add(item: Omit<SentenceItem, 'key'>): void {
     setSentence((items) => [...items, { ...item, key: nextKey.current++ }]);
@@ -115,13 +115,17 @@ export function Communication({
 
   function show(tile: Tile, on: Board): void {
     setSearching(false);
-    onBoardChange(on.id);
+    open(on.id);
     setFound(tile.id);
     window.clearTimeout(foundTimer.current);
     foundTimer.current = window.setTimeout(() => setFound(null), FOUND_MS);
   }
 
   function activate(tile: Tile): void {
+    if (tile.id === ALL_SYMBOLS_ID) {
+      setBrowse(BROWSE_START);
+      return;
+    }
     if (tile.kind === 'folder') {
       if (tile.targetBoardId && boards.has(tile.targetBoardId)) onBoardChange(tile.targetBoardId);
       return;
@@ -134,6 +138,12 @@ export function Communication({
     });
     // A pinned board takes the place of the home board as the one to come back to.
     if ((account.data?.returnToHome ?? true) && board?.id !== back) onBoardChange(back);
+  }
+
+  /** A symbol from "Wszystkie symbole": to the sentence, then back as after a word. */
+  function pick(item: PickedSymbol): void {
+    add(item);
+    if (account.data?.returnToHome ?? true) open(back);
   }
 
   const speakSentence = () => {
@@ -156,6 +166,23 @@ export function Communication({
     history.record(items);
   }
 
+  const uppercase = account.data?.uppercaseLabels ?? false;
+  const tools = (
+    <>
+      <ToolButton label="Szukaj" onClick={() => setSearching(true)}>
+        <SearchIcon />
+      </ToolButton>
+      <ToolButton label="Historia i ulubione" onClick={() => setShowHistory(true)}>
+        <ClockIcon />
+      </ToolButton>
+      {account.data?.showPhraseGenerator && (
+        <ToolButton label="Generator fraz" onClick={() => setPhrasing(true)}>
+          <KeyboardIcon />
+        </ToolButton>
+      )}
+    </>
+  );
+
   return (
     <main className="comm-root h-dvh bg-slate-100">
       <h1 className="sr-only">Tablica: {board.name}</h1>
@@ -165,54 +192,47 @@ export function Communication({
         onBackspace={() => setSentence((items) => items.slice(0, -1))}
         onClear={() => setSentence([])}
       />
-      <BoardNav
-        boards={boards}
-        board={board}
-        homeId={homeId}
-        onOpen={onBoardChange}
-        className="[grid-area:nav]"
-      >
-        <PinButton
-          board={board}
-          pinned={pinned ? boards.get(pinned) : undefined}
-          onPin={(id) => updateDevice({ pinnedBoard: id })}
-          onOpen={onBoardChange}
-        />
-        <ToolButton label="Szukaj" onClick={() => setSearching(true)}>
-          <SearchIcon />
-        </ToolButton>
-        <ToolButton label="Historia i ulubione" onClick={() => setShowHistory(true)}>
-          <ClockIcon />
-        </ToolButton>
-        {account.data?.showAllSymbols && (
-          <ToolButton label="Wszystkie symbole" onClick={() => setBrowsing(true)}>
-            <GridIcon />
-          </ToolButton>
-        )}
-        {account.data?.showPhraseGenerator && (
-          <ToolButton label="Generator fraz" onClick={() => setPhrasing(true)}>
-            <KeyboardIcon />
-          </ToolButton>
-        )}
-      </BoardNav>
-      <EditLock onUnlock={onEditMode} />
-      <BoardGrid
-        board={board}
-        resolve={resolve}
-        uppercase={account.data?.uppercaseLabels ?? false}
-        found={found}
-        onActivate={activate}
-      />
-      {browsing && (
-        <AllSymbols
+      {browse ? (
+        <SymbolFolders
           me={me}
-          onPick={(item) => {
-            setBrowsing(false);
-            add(item);
-          }}
-          onClose={() => setBrowsing(false)}
+          browse={browse}
+          home={home}
+          boards={boards}
+          cols={home.cols}
+          uppercase={uppercase}
+          resolve={resolve}
+          tools={tools}
+          onBrowse={(next) => (next ? setBrowse(next) : open(homeId))}
+          onHome={open}
+          onPick={pick}
         />
+      ) : (
+        <>
+          <BoardNav
+            boards={boards}
+            board={board}
+            homeId={homeId}
+            onOpen={open}
+            className="[grid-area:nav]"
+          >
+            <PinButton
+              board={board}
+              pinned={pinned ? boards.get(pinned) : undefined}
+              onPin={(id) => updateDevice({ pinnedBoard: id })}
+              onOpen={open}
+            />
+            {tools}
+          </BoardNav>
+          <BoardGrid
+            board={withAllSymbols(board, !showAll)}
+            srcOf={(tile) => resolve(tile.symbol)}
+            uppercase={uppercase}
+            found={found}
+            onActivate={activate}
+          />
+        </>
       )}
+      <EditLock onUnlock={onEditMode} />
       {phrasing && (
         <PhraseGenerator
           me={me}
@@ -418,135 +438,6 @@ function BarButton({
     >
       {children}
     </button>
-  );
-}
-
-/** Lifting the finger this far outside the tile still counts as a tap on it (PLAN §2.5). */
-const SLOP_PX = 12;
-const FLASH_MS = 150;
-
-/** Grid of one board. Pointer input goes through the device's motor settings. */
-function BoardGrid({
-  board,
-  resolve,
-  uppercase,
-  found,
-  onActivate,
-}: {
-  board: Board;
-  resolve: (symbol: Tile['symbol']) => string | null;
-  uppercase: boolean;
-  /** Tile found with the search, shown with a ring. */
-  found: string | null;
-  onActivate: (tile: Tile) => void;
-}) {
-  const [device] = useDeviceSettings();
-  const filter = useRef<TapFilter | null>(null);
-  filter.current ??= new TapFilter(device.motor);
-  useEffect(() => filter.current?.configure(device.motor), [device.motor]);
-
-  // Hidden tiles leave their cell empty: nothing else moves (motor planning).
-  const shown = useMemo(() => board.tiles.filter((t) => !t.hidden), [board.tiles]);
-  const byId = useMemo(() => new Map(shown.map((t) => [t.id, t])), [shown]);
-  const layout = useGridLayout(board);
-  const gridAttributes = useGridAttributes(layout);
-  const area = useRef<HTMLDivElement>(null);
-  // Another board starts at its top; a tile found with the search is scrolled into view.
-  // Block bodies: scroll methods return a promise in newer browsers, not a cleanup.
-  useLayoutEffect(() => {
-    area.current?.scrollTo({ top: 0 });
-  }, [board.id]);
-  useEffect(() => {
-    if (found)
-      area.current?.querySelector(`[data-tile="${found}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [found]);
-  const cells = useMemo(() => {
-    const at = new Map(shown.map((t) => [`${t.row},${t.col}`, t]));
-    return Array.from({ length: layout.rows * layout.cols }, (_, i) => {
-      const { row, col } = cellAt(layout, i);
-      return { key: `${row},${col}`, tile: at.get(`${row},${col}`) };
-    });
-  }, [layout, shown]);
-
-  // Where each pointer went down: the tile and its box (touch pointers are captured by that
-  // element, so the lift position is compared with the box instead of hit-testing).
-  const starts = useRef(new Map<number, { id: string | null; box: DOMRect | null }>());
-  const [held, setHeld] = useState<string | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
-  const flashTimer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(flashTimer.current), []);
-  const holdMs = device.motor.activateOn === 'release' ? device.motor.minHoldMs : 0;
-
-  const fire = (id: string | null) => {
-    const tile = id ? byId.get(id) : undefined;
-    if (!tile) return;
-    if (device.feedback) {
-      navigator.vibrate?.(20);
-      setFlash(tile.id);
-      window.clearTimeout(flashTimer.current);
-      flashTimer.current = window.setTimeout(() => setFlash(null), FLASH_MS);
-    }
-    onActivate(tile);
-  };
-  const onPointerDown = (e: PointerEvent) => {
-    const el = (e.target as Element).closest<HTMLElement>('[data-tile]');
-    const id = el?.dataset.tile ?? null;
-    starts.current.set(e.pointerId, { id, box: el?.getBoundingClientRect() ?? null });
-    if (holdMs > 0 && starts.current.size === 1) setHeld(id);
-    fire(filter.current?.down(e.pointerId, id, e.timeStamp) ?? null);
-  };
-  const onPointerUp = (e: PointerEvent) => {
-    const start = starts.current.get(e.pointerId);
-    starts.current.delete(e.pointerId);
-    setHeld(null);
-    const box = start?.box;
-    const inside =
-      box &&
-      e.clientX >= box.left - SLOP_PX &&
-      e.clientX <= box.right + SLOP_PX &&
-      e.clientY >= box.top - SLOP_PX &&
-      e.clientY <= box.bottom + SLOP_PX;
-    fire(filter.current?.up(e.pointerId, inside ? (start?.id ?? null) : null, e.timeStamp) ?? null);
-  };
-  const onPointerCancel = (e: PointerEvent) => {
-    starts.current.delete(e.pointerId);
-    setHeld(null);
-    filter.current?.cancel(e.pointerId);
-  };
-
-  return (
-    <div ref={area} className="board-area [grid-area:board]">
-      <div
-        className="board-grid"
-        {...gridAttributes}
-        onPointerDown={onPointerDown}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        onContextMenu={(e) => e.preventDefault()}
-        // Keyboard and switch access: a click without a pointer (detail 0) activates directly.
-        onClick={(e) => {
-          if (e.detail !== 0) return;
-          const id = (e.target as HTMLElement).closest<HTMLElement>('[data-tile]')?.dataset.tile;
-          fire(id ?? null);
-        }}
-        data-testid="board-grid"
-      >
-        {cells.map(({ key, tile }) => (
-          <div key={key} className="tile-cell">
-            {tile && (
-              <TileView
-                tile={tile}
-                src={resolve(tile.symbol)}
-                uppercase={uppercase}
-                flash={flash === tile.id}
-                found={found === tile.id}
-                holdMs={held === tile.id ? holdMs : 0}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 

@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { Accessibility, Feedback, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
 import {
   cellAt,
+  isReservedCell,
   toScreen,
   type Board,
   type BoardTree,
@@ -10,6 +11,7 @@ import {
   type Tile,
 } from '@aplikaacja/shared';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ALL_SYMBOLS_TILE } from '../boards/allSymbols.ts';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
 import { useGridAttributes, useGridLayout } from '../boards/layout.ts';
@@ -31,7 +33,9 @@ import { AddBoardDialog } from '../shares/AddBoardDialog.tsx';
 import { ShareDialog } from '../shares/ShareDialog.tsx';
 import { useShares } from '../shares/data.ts';
 import { BoardDialog } from './BoardDialog.tsx';
+import { Dialog } from './Dialog.tsx';
 import { TileEditor } from './TileEditor.tsx';
+import { ui } from './ui.ts';
 
 /**
  * Pointer dragging only: a long press (touch) or a short move (mouse) starts it, so a tap
@@ -109,7 +113,10 @@ export function EditMode({
   const boards = useMemo(() => new Map(tree.boards.map((b) => [b.id, b])), [tree.boards]);
   const homeId = tree.homeId ?? '';
   const board = boards.get(boardId ?? homeId) ?? boards.get(homeId);
-  const allTiles = useMemo(() => tree.boards.flatMap((b) => b.tiles), [tree.boards]);
+  const allTiles = useMemo(
+    () => [ALL_SYMBOLS_TILE, ...tree.boards.flatMap((b) => b.tiles)],
+    [tree.boards],
+  );
   const resolve = useSymbolResolver(me, allTiles);
   const account = useAccountSettings();
   const uppercase = account.data?.uppercaseLabels ?? false;
@@ -119,6 +126,7 @@ export function EditMode({
   const [sharing, setSharing] = useState<'share' | 'inbox' | null>(null);
   const [searching, setSearching] = useState(false);
   const [phrasing, setPhrasing] = useState(false);
+  const [aboutAll, setAboutAll] = useState(false);
   const [found, setFound] = useState<string | null>(null);
   // The ring of a tile found with the search fades after a few seconds.
   useEffect(() => {
@@ -254,7 +262,12 @@ export function EditMode({
         board={board}
         resolve={resolve}
         uppercase={uppercase}
+        showAll={account.data?.showAllSymbols ?? true}
         found={found}
+        onAboutAll={() => {
+          writes.dismiss();
+          setAboutAll(true);
+        }}
         onEdit={(tile) => open({ row: tile.row, col: tile.col, tileId: tile.id })}
         onAdd={(row, col) => open({ row, col, tileId: null })}
         onOpen={onBoardChange}
@@ -284,6 +297,25 @@ export function EditMode({
           onClose={() => setEditing(null)}
           onOpenFolder={onBoardChange}
         />
+      )}
+      {aboutAll && (
+        <Dialog title={ALL_SYMBOLS_TILE.label} onClose={() => setAboutAll(false)}>
+          <p className="mt-3 text-slate-700">
+            Ten folder ma stałe miejsce w pierwszym polu pulpitu. Otwiera wszystkie symbole
+            aktywnych zestawów, podzielone na kategorie — także dla osób, które nie czytają.{' '}
+            {(account.data?.showAllSymbols ?? true)
+              ? 'Ukryjesz go w ustawieniach (sekcja „Tablice”); pole zostanie wtedy puste.'
+              : 'Jest teraz ukryty: pokażesz go w ustawieniach (sekcja „Tablice”).'}
+          </p>
+          <div className="mt-5 flex flex-wrap justify-end gap-3">
+            <button type="button" className={ui.secondary} onClick={onSettings}>
+              Ustawienia
+            </button>
+            <button type="button" className={ui.primary} onClick={() => setAboutAll(false)}>
+              Zamknij
+            </button>
+          </div>
+        </Dialog>
       )}
       {sharing === 'share' && (
         <ShareDialog
@@ -315,7 +347,9 @@ function EditGrid({
   board,
   resolve,
   uppercase,
+  showAll,
   found,
+  onAboutAll,
   onEdit,
   onAdd,
   onOpen,
@@ -324,8 +358,12 @@ function EditGrid({
   board: Board;
   resolve: (symbol: Tile['symbol']) => string | null;
   uppercase: boolean;
+  /** "Wszystkie symbole" is shown in communication mode (account setting). */
+  showAll: boolean;
   /** Tile found with the search, shown with a ring. */
   found: string | null;
+  /** The fixed cell of "Wszystkie symbole" was tapped. */
+  onAboutAll: () => void;
   onEdit: (tile: Tile) => void;
   onAdd: (row: number, col: number) => void;
   onOpen: (boardId: string) => void;
@@ -377,6 +415,27 @@ function EditGrid({
             const shown = toScreen(layout, { row, col });
             const where = `wiersz ${shown.row + 1}, kolumna ${shown.col + 1}`;
             const tile = at.get(`${row},${col}`);
+            if (!tile && isReservedCell(board, { row, col })) {
+              // Not a drop target: nothing can be placed in this cell.
+              return (
+                <div key={`${board.id}:${row},${col}`} className="tile-cell" data-where={where}>
+                  <div className={`edit-tile ${showAll ? '' : 'tile-hidden'}`}>
+                    <TileView
+                      tile={ALL_SYMBOLS_TILE}
+                      src={resolve(ALL_SYMBOLS_TILE.symbol)}
+                      uppercase={uppercase}
+                      ariaLabel={`${ALL_SYMBOLS_TILE.label}: stałe pole pulpitu${showAll ? '' : ' (ukryty)'}`}
+                      onClick={onAboutAll}
+                    />
+                    {!showAll && (
+                      <span className="tile-hidden-badge" aria-hidden="true">
+                        ukryty
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            }
             return (
               <EditCell key={`${board.id}:${row},${col}`} row={row} col={col} where={where}>
                 {tile ? (

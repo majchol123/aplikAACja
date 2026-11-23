@@ -105,7 +105,7 @@ interface TemplateTile {
   board?: { tiles: TemplateTile[] };
 }
 
-/** Index items for every pictogram of the starter template, so its tiles get images. */
+/** Index items for every pictogram of the starter template and the app, so tiles get images. */
 function starterItems(): { id: number; f: string; k: string[]; r: string }[] {
   const template = JSON.parse(readFileSync(resolve(ROOT, 'templates/starter.json'), 'utf8')) as {
     board: { tiles: TemplateTile[] };
@@ -121,6 +121,13 @@ function starterItems(): { id: number; f: string; k: string[]; r: string }[] {
     }
   };
   walk(template.board.tiles);
+  // Pictures the app draws itself: "Wszystkie symbole" and its "więcej" cell.
+  for (const [id, label] of [
+    [15018, 'piktogramy'],
+    [5508, 'więcej'],
+  ] as const) {
+    out.set(id, { id, f: `p/${id}.0000abcd.webp`, k: [label], r: 'misc' });
+  }
   return [...out.values()];
 }
 

@@ -42,8 +42,8 @@ async function starterBoard(page: Page, name: string): Promise<string> {
 
 test('a sentence built through a folder is spoken (PLAN F2)', async ({ page }) => {
   await starterBoard(page, 'Zdanie');
-  // PLAN §2.7: 9 words and 8 folders, the rest left for the parent.
-  await expect(page.getByTestId('board-grid').getByRole('button')).toHaveCount(17);
+  // PLAN §2.7: 9 words and 8 folders, the rest left for the parent; "Wszystkie symbole" first.
+  await expect(page.getByTestId('board-grid').getByRole('button')).toHaveCount(18);
   await expect(tile(page, 'chcę').locator('img')).toHaveAttribute(
     'src',
     '/sym/arasaac/p/5441.0000abcd.webp',
@@ -165,7 +165,7 @@ test('on a phone, upright and sideways, tiles keep their shape and whole-word la
         };
       }),
     );
-    expect(tiles).toHaveLength(17);
+    expect(tiles).toHaveLength(18);
     for (const t of tiles) {
       const where = `${t.label} at ${viewport.width}×${viewport.height}`;
       // The whole board fits the screen, tiles are neither strips nor towers.
@@ -322,30 +322,49 @@ test('spoken sentences come back from the history; both follow the account (F3)'
   await expect(recent.getByRole('listitem')).toHaveCount(0);
 });
 
-test('"Wszystkie symbole" opens the category folders when switched on (F3)', async ({ page }) => {
+test('"Wszystkie symbole" in the first cell opens the category folders like boards (F3)', async ({
+  page,
+}) => {
   await starterBoard(page, 'Wszystkie symbole');
-  await expect(page.getByRole('button', { name: 'Wszystkie symbole' })).toBeHidden();
+  const grid = page.getByTestId('board-grid');
+  const all = tile(page, 'Wszystkie symbole, folder');
+  // The first cell of the home board, on by default, with its ARASAAC picture.
+  await expect(grid.getByRole('button').first()).toHaveAccessibleName('Wszystkie symbole, folder');
+  await expect(all.locator('img')).toHaveAttribute('src', '/sym/arasaac/p/15018.0000abcd.webp');
+  await all.click();
+  await expect(page.getByRole('navigation')).toContainText('Start›Wszystkie symbole');
+  await tile(page, 'Odżywianie się, folder').click();
+  await tile(page, 'Jedzenie, folder').click();
+  await expect(current(page)).toHaveText('Jedzenie');
+  // "Wstecz" goes up one category, the path leads anywhere above.
+  await page.getByRole('button', { name: 'Wstecz' }).click();
+  await expect(current(page)).toHaveText('Odżywianie się');
+  await tile(page, 'Jedzenie, folder').click();
+  await tile(page, 'Owoce, folder').click();
+  await expect(page.getByRole('navigation')).toContainText(
+    'Start›Wszystkie symbole›Odżywianie się›Jedzenie›Owoce',
+  );
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(axe.violations).toEqual([]);
+  // A symbol goes to the sentence like a tile, and the home board comes back.
+  await tile(page, 'jabłko').click();
+  await expect(sentence(page)).toHaveText(['jabłko']);
+  expect((await spoken(page)).at(-1)).toMatchObject({ text: 'jabłko' });
+  await expect(current(page)).toHaveText('Start');
+
+  // Switched off in the settings, the cell stays empty: nothing else moves.
+  const ja = (await tile(page, 'ja').boundingBox())!;
   const status = await page.evaluate(async () => {
     const res = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' },
-      body: JSON.stringify({ showAllSymbols: true }),
+      body: JSON.stringify({ showAllSymbols: false }),
     });
     return res.status;
   });
   expect(status).toBe(200);
   await page.reload();
-  await page.getByRole('button', { name: 'Wszystkie symbole' }).click();
-  const browser = page.getByRole('dialog', { name: 'Wszystkie symbole' });
-  await browser.getByRole('button', { name: /^Odżywianie się, kategoria/ }).click();
-  await browser.getByRole('button', { name: /^Jedzenie, kategoria/ }).click();
-  await browser.getByRole('button', { name: /^Owoce, kategoria/ }).click();
-  const axe = await new AxeBuilder({ page }).include('dialog').analyze();
-  expect(axe.violations).toEqual([]);
-  await browser
-    .getByTestId('category-symbols')
-    .getByRole('button', { name: 'jabłko', exact: true })
-    .click();
-  await expect(browser).toBeHidden();
-  await expect(sentence(page)).toHaveText(['jabłko']);
+  await expect(tile(page, 'ja')).toBeVisible();
+  await expect(all).toHaveCount(0);
+  expect(await tile(page, 'ja').boundingBox()).toEqual(ja);
 });

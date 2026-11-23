@@ -1,11 +1,20 @@
-import { cellAt, toScreen, type Board, type Cell, type Tile } from '@aplikaacja/shared';
+import {
+  cellAt,
+  isReservedCell,
+  toScreen,
+  type Board,
+  type Cell,
+  type Tile,
+} from '@aplikaacja/shared';
 import type { ReactNode } from 'react';
+import { ALL_SYMBOLS_TILE } from '../boards/allSymbols.ts';
 import { useGridLayout } from '../boards/layout.ts';
 
 /**
  * The cells of a board as small buttons, laid out as the board looks on this screen
  * (grid.ts): where to move a tile, where to add a ready board. `where` names the cell as
- * seen ("Wiersz 1, kolumna 2"); `cell` is its stored place.
+ * seen ("Wiersz 1, kolumna 2"); `cell` is its stored place. The home board's first cell
+ * comes with the folder "Wszystkie symbole" as its tile: nothing can go there.
  */
 export function CellGrid({
   board,
@@ -32,7 +41,10 @@ export function CellGrid({
         const cell = cellAt(layout, i);
         const shown = toScreen(layout, cell);
         const where = `Wiersz ${shown.row + 1}, kolumna ${shown.col + 1}`;
-        return children(cell, where, at.get(`${cell.row},${cell.col}`));
+        const tile =
+          at.get(`${cell.row},${cell.col}`) ??
+          (isReservedCell(board, cell) ? ALL_SYMBOLS_TILE : undefined);
+        return children(cell, where, tile);
       })}
     </div>
   );

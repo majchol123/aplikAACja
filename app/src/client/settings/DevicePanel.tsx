@@ -337,8 +337,8 @@ export function DevicePanel() {
           Etykiety wielkimi literami
         </AccountToggle>
         <AccountToggle pick={(s) => s.showAllSymbols} patch={(v) => ({ showAllSymbols: v })}>
-          Przycisk „Wszystkie symbole” przy tablicy: kategorie zestawów symboli, także dla osób,
-          które nie czytają
+          Folder „Wszystkie symbole” w pierwszym polu pulpitu: kategorie zestawów symboli, także dla
+          osób, które nie czytają (wyłączony zostawia to pole puste)
         </AccountToggle>
         <AccountToggle
           pick={(s) => s.showPhraseGenerator}

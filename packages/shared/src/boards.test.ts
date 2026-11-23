@@ -45,6 +45,8 @@ describe('templates', () => {
       'Ubrania',
     ]);
     expect(template.board).toMatchObject({ rows: 4, cols: 6 });
+    // The first cell is the app's "Wszystkie symbole".
+    expect(template.board.tiles.some((t) => t.row === 0 && t.col === 0)).toBe(false);
   });
 
   it('reports structural problems', () => {
@@ -69,6 +71,7 @@ describe('templates', () => {
       'T › d: board iff folder',
       'T › e: cell 0,1 taken twice',
       'T › e: board iff folder',
+      'T: the first cell is kept for „Wszystkie symbole”',
     ]);
   });
 });

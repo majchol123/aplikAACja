@@ -69,6 +69,8 @@ export function BoardNav({
   board,
   homeId,
   onOpen,
+  trail = [],
+  onBack,
   className = '',
   children,
 }: {
@@ -76,40 +78,52 @@ export function BoardNav({
   board: Board;
   homeId: string;
   onOpen: (boardId: string) => void;
+  /** Levels below `board` that are no boards (the folders of "Wszystkie symbole"). */
+  trail?: { key: string; name: string; onOpen: () => void }[];
+  /** "Wstecz" when `trail` is not empty. */
+  onBack?: () => void;
   className?: string;
   children?: ReactNode;
 }) {
-  const path = boardPath(boards, board);
+  const crumbs = [
+    ...boardPath(boards, board).map((b) => ({
+      key: b.id,
+      name: b.name,
+      onOpen: () => onOpen(b.id),
+    })),
+    ...trail,
+  ];
+  const below = trail.length > 0;
   return (
     <nav
       className={`flex min-w-0 items-center gap-2 ${className}`}
       aria-label="Nawigacja po tablicach"
     >
-      <NavButton label="Pulpit" disabled={!board.parentId} onClick={() => onOpen(homeId)}>
+      <NavButton label="Pulpit" disabled={!board.parentId && !below} onClick={() => onOpen(homeId)}>
         <HomeIcon />
       </NavButton>
       <NavButton
         label="Wstecz"
-        disabled={!board.parentId}
-        onClick={() => board.parentId && onOpen(board.parentId)}
+        disabled={!board.parentId && !below}
+        onClick={() => (below ? onBack?.() : board.parentId && onOpen(board.parentId))}
       >
         <ArrowBackIcon />
       </NavButton>
       <ol className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-lg font-semibold text-slate-700">
-        {path.map((b, i) => (
-          <li key={b.id} className="flex min-w-0 items-center gap-1">
+        {crumbs.map((crumb, i) => (
+          <li key={crumb.key} className="flex min-w-0 items-center gap-1">
             {i > 0 && <span aria-hidden="true">›</span>}
-            {i === path.length - 1 ? (
-              <span className="truncate" aria-current="page" data-testid="current-board">
-                {b.name}
+            {i === crumbs.length - 1 ? (
+              <span className="truncate px-1" aria-current="page" data-testid="current-board">
+                {crumb.name}
               </span>
             ) : (
               <button
                 type="button"
                 className="truncate rounded-lg px-1 underline-offset-4 hover:underline"
-                onClick={() => onOpen(b.id)}
+                onClick={crumb.onOpen}
               >
-                {b.name}
+                {crumb.name}
               </button>
             )}
           </li>

@@ -129,7 +129,7 @@ describe('board tree', () => {
     let start = await home(api);
     const jedzenie = await addTile(api, start, {
       row: 0,
-      col: 0,
+      col: 1,
       kind: 'folder',
       label: 'Jedzenie',
       symbol: { set: 'arasaac', ref: '4610' },
@@ -196,12 +196,12 @@ describe('board tree', () => {
   it('refuses stale revisions (two parent devices at once)', async () => {
     const { api } = await setup();
     const board = await home(api);
-    const first = await addTile(api, board, { row: 0, col: 0, label: 'tak' });
+    const first = await addTile(api, board, { row: 0, col: 1, label: 'tak' });
     // Second device still holds rev 1.
     const late = await api('POST', `/api/boards/${board.id}/tiles`, {
       rev: 1,
       row: 0,
-      col: 1,
+      col: 2,
       kind: 'word',
       label: 'nie',
     });
@@ -225,6 +225,10 @@ describe('board tree', () => {
     expect((await post({ row: 2, col: 0, label: 'tata' })).body).toEqual({
       error: 'out_of_bounds',
     });
+    // The home board's first cell is the app's "Wszystkie symbole".
+    expect((await post({ row: 0, col: 0, label: 'tata' })).body).toEqual({
+      error: 'cell_occupied',
+    });
     for (const bad of [
       { row: 0, col: 0, label: '' },
       { row: 0, col: 0, label: '   ' },
@@ -245,7 +249,7 @@ describe('board tree', () => {
       expect(res.status, JSON.stringify(bad)).toBe(400);
     }
     // Trimmed and NFC-normalized (decomposed accents from some keyboards).
-    const trimmed = await post({ row: 0, col: 0, label: '  Czes\u0301c\u0301  ' });
+    const trimmed = await post({ row: 0, col: 1, label: '  Czes\u0301c\u0301  ' });
     expect(trimmed.status).toBe(201);
     expect(changed(trimmed as { body: BoardChanges }, board.id).tiles[0]!.label).toBe('Cześć');
 
@@ -259,7 +263,7 @@ describe('board tree', () => {
     const own = await api('POST', `/api/boards/${board.id}/tiles`, {
       rev: 1,
       row: 0,
-      col: 0,
+      col: 1,
       kind: 'word',
       label: 'kot',
       symbol: { set: 'own', ref: 'aaaaaaaaaaaaaaaaaaaaaaaaaa' },
@@ -270,7 +274,7 @@ describe('board tree', () => {
     const refused = await api('POST', `/api/boards/${board.id}/tiles`, {
       rev: 1,
       row: 0,
-      col: 0,
+      col: 1,
       kind: 'word',
       label: 'kot',
       symbol: extra,
@@ -282,7 +286,7 @@ describe('board tree', () => {
     const grantedHome = await home(granted.api);
     const ok = await addTile(granted.api, grantedHome, {
       row: 0,
-      col: 0,
+      col: 1,
       label: 'kot',
       symbol: extra,
     });
@@ -315,7 +319,7 @@ describe('board tree', () => {
   it('keeps a folder label and its board name in sync', async () => {
     const { api, user } = await setup();
     const start = await home(api);
-    const folder = await addTile(api, start, { row: 0, col: 0, kind: 'folder', label: 'Zabawki' });
+    const folder = await addTile(api, start, { row: 0, col: 1, kind: 'folder', label: 'Zabawki' });
     const renamed = await api<BoardChanges>('PATCH', `/api/tiles/${folder.tile.id}`, {
       rev: folder.board.rev,
       label: 'Zabawa',
@@ -332,8 +336,8 @@ describe('board tree', () => {
   it('moves and swaps tiles within a board and across boards', async () => {
     const { api, user } = await setup();
     let start = await home(api);
-    const a = await addTile(api, start, { row: 0, col: 0, label: 'A' });
-    const b = await addTile(api, a.board, { row: 0, col: 1, label: 'B' });
+    const a = await addTile(api, start, { row: 0, col: 1, label: 'A' });
+    const b = await addTile(api, a.board, { row: 0, col: 2, label: 'B' });
     start = b.board;
     const move = (body: Record<string, unknown>) =>
       api<BoardChanges>('POST', '/api/tiles/move', body);
@@ -344,21 +348,30 @@ describe('board tree', () => {
       rev: start.rev,
       toBoardId: start.id,
       row: 0,
-      col: 0,
+      col: 1,
     });
     expect(changed(noop, start.id).rev).toBe(start.rev);
+    // The home board's first cell is the app's "Wszystkie symbole".
+    const reserved = await move({
+      tileId: a.tile.id,
+      rev: start.rev,
+      toBoardId: start.id,
+      row: 0,
+      col: 0,
+    });
+    expect(reserved.body).toEqual({ error: 'cell_occupied' });
 
     const swap = await move({
       tileId: a.tile.id,
       rev: start.rev,
       toBoardId: start.id,
       row: 0,
-      col: 1,
+      col: 2,
     });
     start = changed(swap, start.id);
     expect(start.tiles.map((t) => [t.label, t.row, t.col])).toEqual([
-      ['B', 0, 0],
-      ['A', 0, 1],
+      ['B', 0, 1],
+      ['A', 0, 2],
     ]);
 
     const folder = await addTile(api, start, { row: 1, col: 0, kind: 'folder', label: 'Więcej' });
@@ -391,7 +404,7 @@ describe('board tree', () => {
   it('re-parents folders and refuses cycles', async () => {
     const { api, user } = await setup();
     const start = await home(api);
-    const outer = await addTile(api, start, { row: 0, col: 0, kind: 'folder', label: 'Dom' });
+    const outer = await addTile(api, start, { row: 0, col: 1, kind: 'folder', label: 'Dom' });
     const inner = await addTile(api, outer.child!, {
       row: 0,
       col: 0,
@@ -423,7 +436,7 @@ describe('board tree', () => {
       toBoardId: start.id,
       toRev: outer.board.rev,
       row: 0,
-      col: 1,
+      col: 2,
     });
     expect(up.status).toBe(200);
     expect(changed(up, inner.child!.id)).toMatchObject({ parentId: start.id, rev: 2 });
@@ -451,13 +464,14 @@ describe('board tree', () => {
 
   it('limits folder depth on create and on move', async () => {
     const { api, user } = await setup();
-    const start = await home(api, 1, 2);
+    const start = await home(api, 1, 3);
     let parent = start;
     const chain: { tileId: string; board: Board }[] = [];
     for (let level = 1; level <= BOARD_LIMITS.maxDepth; level++) {
       const added = await addTile(api, parent, {
         row: 0,
-        col: 0,
+        // The home board's first cell is "Wszystkie symbole".
+        col: level === 1 ? 1 : 0,
         kind: 'folder',
         label: `L${level}`,
       });
@@ -478,7 +492,7 @@ describe('board tree', () => {
     // A two-level branch moved onto the depth-9 board would reach depth 11.
     const t = await tree(api);
     const startNow = find(t, start.id);
-    const branch = await addTile(api, startNow, { row: 0, col: 1, kind: 'folder', label: 'B1' });
+    const branch = await addTile(api, startNow, { row: 0, col: 2, kind: 'folder', label: 'B1' });
     await addTile(api, branch.child!, { row: 0, col: 0, kind: 'folder', label: 'B2' });
     const level9 = find(await tree(api), chain[9]!.board.id);
     const res = await api('POST', '/api/tiles/move', {
@@ -497,7 +511,7 @@ describe('board tree', () => {
   it('deletes a folder with its whole subtree and keeps the counters right', async () => {
     const { api, user } = await setup();
     const start = await home(api);
-    const folder = await addTile(api, start, { row: 0, col: 0, kind: 'folder', label: 'Jedzenie' });
+    const folder = await addTile(api, start, { row: 0, col: 1, kind: 'folder', label: 'Jedzenie' });
     const sub = await addTile(api, folder.child!, {
       row: 0,
       col: 0,
@@ -506,7 +520,7 @@ describe('board tree', () => {
     });
     await addTile(api, sub.child!, { row: 0, col: 0, label: 'jabłko' });
     await addTile(api, sub.board, { row: 0, col: 1, label: 'zupa' });
-    const keep = await addTile(api, folder.board, { row: 0, col: 1, label: 'pić' });
+    const keep = await addTile(api, folder.board, { row: 0, col: 2, label: 'pić' });
 
     const del = await api<BoardChanges>(
       'DELETE',
@@ -528,7 +542,7 @@ describe('board tree', () => {
   it('converts words to folders and back', async () => {
     const { api, user } = await setup();
     const start = await home(api);
-    const word = await addTile(api, start, { row: 0, col: 0, label: 'Zwierzęta' });
+    const word = await addTile(api, start, { row: 0, col: 1, label: 'Zwierzęta' });
     const toFolder = await api<BoardChanges>('PATCH', `/api/tiles/${word.tile.id}`, {
       rev: word.board.rev,
       kind: 'folder',
@@ -562,7 +576,7 @@ describe('board tree', () => {
     const start = await home(api);
     const tile = await addTile(api, start, {
       row: 0,
-      col: 0,
+      col: 1,
       label: 'chcę',
       symbol: { set: 'arasaac', ref: '5441' },
       colorRole: 'verb',
@@ -627,7 +641,7 @@ describe('board tree', () => {
     const start = await home(api);
     const tile = await addTile(api, start, {
       row: 0,
-      col: 0,
+      col: 1,
       label: 'pić',
       speech: '  Chcę się napić, proszę  ',
     });
@@ -660,16 +674,16 @@ describe('board tree', () => {
     const folder = await api('POST', `/api/boards/${start.id}/tiles`, {
       rev: 1,
       row: 0,
-      col: 0,
+      col: 1,
       kind: 'folder',
       label: 'Więcej',
     });
     expect(folder.body).toEqual({ error: 'quota_exceeded' });
-    const last = await addTile(api, start, { row: 0, col: 0, label: 'ostatni' });
+    const last = await addTile(api, start, { row: 0, col: 1, label: 'ostatni' });
     const over = await api('POST', `/api/boards/${start.id}/tiles`, {
       rev: last.board.rev,
       row: 0,
-      col: 1,
+      col: 2,
       kind: 'word',
       label: 'za dużo',
     });
@@ -691,12 +705,12 @@ describe('board tree', () => {
   it('isolates vaults: IDs from another account behave like missing ones', async () => {
     const owner = await setup();
     const start = await home(owner.api);
-    const tile = await addTile(owner.api, start, { row: 0, col: 0, kind: 'folder', label: 'Moje' });
+    const tile = await addTile(owner.api, start, { row: 0, col: 1, kind: 'folder', label: 'Moje' });
     const before = await tree(owner.api);
 
     const intruder = await setup();
     const other = await home(intruder.api);
-    const mine = await addTile(intruder.api, other, { row: 0, col: 0, label: 'moje' });
+    const mine = await addTile(intruder.api, other, { row: 0, col: 1, label: 'moje' });
     const attempts: [string, string, unknown?][] = [
       ['PATCH', `/api/boards/${start.id}`, { rev: tile.board.rev, name: 'X' }],
       [

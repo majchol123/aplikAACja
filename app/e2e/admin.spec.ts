@@ -25,7 +25,7 @@ async function seedAccount(page: Page): Promise<void> {
     const tile = await fetch(`/api/boards/${boards[0]!.id}/tiles`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ rev: 1, row: 0, col: 0, kind: 'word', label: 'pić' }),
+      body: JSON.stringify({ rev: 1, row: 0, col: 1, kind: 'word', label: 'pić' }),
     });
     const form = new FormData();
     form.set('label', 'Dom');

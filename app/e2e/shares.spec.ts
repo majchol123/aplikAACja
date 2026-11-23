@@ -29,7 +29,7 @@ async function seed(page: Page, { empty = false } = {}): Promise<void> {
       const folder = await post(`/api/boards/${start.id}/tiles`, {
         rev: 1,
         row: 0,
-        col: 0,
+        col: 1,
         kind: 'folder',
         label: 'Jedzenie',
       });
@@ -108,14 +108,18 @@ test('a board is sent to another account, looked at and accepted there', async (
   // Where it goes: the first free cell comes preselected, another one is a tap away.
   await item.getByRole('button', { name: 'Dodaj…' }).click();
   const place = recipient.getByRole('dialog', { name: 'Gdzie dodać „Start”?' });
+  // The home board's first cell is "Wszystkie symbole".
   await expect(
-    place.getByRole('button', { name: 'Wiersz 1, kolumna 1: tu będzie „Start”' }),
+    place.getByRole('button', { name: 'Wiersz 1, kolumna 1: Wszystkie symbole (stałe pole)' }),
+  ).toBeDisabled();
+  await expect(
+    place.getByRole('button', { name: 'Wiersz 1, kolumna 2: tu będzie „Start”' }),
   ).toHaveAttribute('aria-pressed', 'true');
   await place.getByRole('button', { name: 'Wiersz 2, kolumna 2: puste' }).click();
   await expect(
     place.getByRole('button', { name: 'Wiersz 2, kolumna 2: tu będzie „Start”' }),
   ).toHaveAttribute('aria-pressed', 'true');
-  await expect(place.getByRole('button', { name: 'Wiersz 1, kolumna 1: puste' })).toHaveAttribute(
+  await expect(place.getByRole('button', { name: 'Wiersz 1, kolumna 2: puste' })).toHaveAttribute(
     'aria-pressed',
     'false',
   );
@@ -128,7 +132,7 @@ test('a board is sent to another account, looked at and accepted there', async (
   await inbox.getByRole('button', { name: 'Zamknij' }).click();
   await expect(recipient.getByRole('button', { name: /^Zmień kafelek: Start/ })).toBeVisible();
   await expect(
-    recipient.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 1' }),
+    recipient.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 2' }),
   ).toBeVisible();
   await expect(
     recipient.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 2' }),

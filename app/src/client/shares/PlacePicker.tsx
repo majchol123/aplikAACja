@@ -1,5 +1,6 @@
-import type { Board, Cell } from '@aplikaacja/shared';
+import { isReservedCell, type Board, type Cell } from '@aplikaacja/shared';
 import { useId, useMemo, useState } from 'react';
+import { ALL_SYMBOLS_ID } from '../boards/allSymbols.ts';
 import { boardOptions } from '../boards/BoardNav.tsx';
 import { useBoardTree } from '../boards/data.ts';
 import { CellGrid, cellClass } from '../edit/CellGrid.tsx';
@@ -14,6 +15,7 @@ export interface Place {
 const isFree = (board: Board, cell: Cell) =>
   cell.row < board.rows &&
   cell.col < board.cols &&
+  !isReservedCell(board, cell) &&
   !board.tiles.some((t) => t.row === cell.row && t.col === cell.col);
 
 function firstFree(board: Board): Cell | null {
@@ -99,11 +101,13 @@ export function PlacePicker({
                     disabled={locked || tile !== undefined}
                     aria-pressed={tile ? undefined : selected}
                     aria-label={
-                      tile
-                        ? `${where}: zajęte („${tile.label}”)`
-                        : selected
-                          ? `${where}: tu będzie „${name}”`
-                          : `${where}: puste`
+                      tile?.id === ALL_SYMBOLS_ID
+                        ? `${where}: ${tile.label} (stałe pole)`
+                        : tile
+                          ? `${where}: zajęte („${tile.label}”)`
+                          : selected
+                            ? `${where}: tu będzie „${name}”`
+                            : `${where}: puste`
                     }
                     onClick={() => setPicked({ boardId: target.id, cell })}
                     className={cellClass(selected ? 'here' : tile ? 'taken' : 'empty')}

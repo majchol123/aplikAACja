@@ -11,6 +11,7 @@ import {
   type BoardPackage,
   type TemplateBoard,
   type Tile,
+  isReservedCell,
   subtreePackage,
   treeShape,
 } from '@aplikaacja/shared';
@@ -98,6 +99,9 @@ function toTile(row: TileRow): Tile {
     speech: row.speech,
   };
 }
+
+const reserved = (board: BoardRow, row: number, col: number) =>
+  isReservedCell({ parentId: board.parent_board_id }, { row, col });
 
 function toBoard(row: BoardRow, tiles: Tile[]): Board {
   return {
@@ -301,6 +305,11 @@ export class BoardStore {
     if (row >= board.rows || col >= board.cols) throw new Abort('out_of_bounds');
   }
 
+  /** The home board's first cell is the app's "Wszystkie symbole" (isReservedCell). */
+  private assertNotReserved(board: BoardRow, row: number, col: number): void {
+    if (reserved(board, row, col)) throw new Abort('cell_occupied');
+  }
+
   private assertQuota(newBoards: number, newTiles: number): void {
     const meta = this.meta();
     if (
@@ -488,6 +497,7 @@ export class BoardStore {
     return this.write((changes, now) => {
       const board = this.boardAt(boardId, input.rev);
       this.assertInGrid(board, input.row, input.col);
+      this.assertNotReserved(board, input.row, input.col);
       if (this.tileAt(boardId, input.row, input.col)) throw new Abort('cell_occupied');
       this.assertQuota(input.kind === 'folder' ? 1 : 0, 1);
       this.assertSymbol(input.symbol);
@@ -574,6 +584,7 @@ export class BoardStore {
       const from = this.boardAt(tile.board_id, input.rev);
       const to = input.toBoardId === from.id ? from : this.boardAt(input.toBoardId, input.toRev);
       this.assertInGrid(to, input.row, input.col);
+      this.assertNotReserved(to, input.row, input.col);
       if (to.id === from.id && tile.row === input.row && tile.col === input.col) {
         changes.unchanged.add(from.id);
         return;
@@ -691,13 +702,14 @@ export class BoardStore {
       let cell: { row: number; col: number } | undefined;
       if (at) {
         this.assertInGrid(board, at.row, at.col);
+        this.assertNotReserved(board, at.row, at.col);
         if (taken.has(`${at.row},${at.col}`)) throw new Abort('cell_occupied');
         cell = at;
       }
       for (let i = 0; i < board.rows * board.cols && !cell; i++) {
         const row = Math.floor(i / board.cols);
         const col = i % board.cols;
-        if (!taken.has(`${row},${col}`)) cell = { row, col };
+        if (!taken.has(`${row},${col}`) && !reserved(board, row, col)) cell = { row, col };
       }
       if (!cell) throw new Abort('board_full');
       // The folder and the package's root board, then everything below it.
@@ -767,6 +779,12 @@ export class BoardStore {
         WHERE t.row < 0 OR t.col < 0 OR t.row >= b.rows OR t.col >= b.cols`,
     )) {
       problems.push(`tile ${r.id}: outside the grid`);
+    }
+    for (const r of q<{ id: string }>(
+      `SELECT t.id FROM tiles t JOIN boards b ON b.id = t.board_id
+        WHERE b.parent_board_id IS NULL AND t.row = 0 AND t.col = 0`,
+    )) {
+      problems.push(`tile ${r.id}: in the home board's reserved first cell`);
     }
     if (counts && counts.boards > 0) {
       try {

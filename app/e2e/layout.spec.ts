@@ -29,7 +29,10 @@ test.beforeEach(async ({ page }) => {
 const grid = (page: Page) => page.getByTestId('board-grid');
 const tile = (page: Page, label: string) => page.getByRole('button', { name: label, exact: true });
 
-/** Home board 4×6 (rows × columns) with "a" at (0, 0), "b" at (0, 1) and "c" at (1, 0). */
+/**
+ * Home board 4×6 (rows × columns) with "a" at (0, 1), "b" at (0, 2) and "c" at (1, 1); its
+ * first cell is "Wszystkie symbole".
+ */
 async function seed(page: Page): Promise<void> {
   const ok = await page.evaluate(async () => {
     const headers = { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' };
@@ -38,9 +41,9 @@ async function seed(page: Page): Promise<void> {
     const home = await post('/api/boards/home', { name: 'Start', rows: 4, cols: 6 });
     let board = home.boards[0];
     for (const [label, row, col] of [
-      ['a', 0, 0],
-      ['b', 0, 1],
-      ['c', 1, 0],
+      ['a', 0, 1],
+      ['b', 0, 2],
+      ['c', 1, 1],
     ] as const) {
       const changes = await post(`/api/boards/${board.id}/tiles`, {
         rev: board.rev,
@@ -119,13 +122,13 @@ test.describe('on a phone', () => {
     await expect(
       page.getByRole('button', { name: /^Dodaj kafelek: wiersz \d, kolumna [56]$/ }),
     ).toHaveCount(0);
-    await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 3, kolumna 1' }).click();
+    await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 4, kolumna 1' }).click();
     const form = page.getByRole('dialog');
     await form.getByLabel('Etykieta').fill('jabłko');
     await form.getByTestId('symbol-results').getByRole('button').first().click();
     await form.getByRole('button', { name: 'Zapisz' }).click();
     await expect(form).toHaveCount(0);
-    expect(await storedTiles(page)).toEqual(['a@0,0', 'b@0,1', 'c@1,0', 'jabłko@0,2']);
+    expect(await storedTiles(page)).toEqual(['a@0,1', 'b@0,2', 'c@1,1', 'jabłko@0,3']);
     await page.getByRole('button', { name: 'Nazwa i siatka' }).click();
     await expect(page.getByRole('dialog')).toContainText('wiersze widać jako kolumny');
     await page.getByRole('button', { name: 'Anuluj' }).click();

@@ -24,6 +24,24 @@ export const BOARD_LIMITS = {
   speechMax: 200,
 } as const;
 
+/**
+ * The first cell of the home board belongs to the folder "Wszystkie symbole" (every symbol
+ * of the active sets by category, drawn by the app, not stored): no tile may take it.
+ */
+export const RESERVED_HOME_CELL = { row: 0, col: 0 } as const;
+
+/** Whether `cell` of `board` is kept for "Wszystkie symbole" (the home board's first cell). */
+export function isReservedCell(
+  board: { parentId: string | null },
+  cell: { row: number; col: number },
+): boolean {
+  return (
+    board.parentId === null &&
+    cell.row === RESERVED_HOME_CELL.row &&
+    cell.col === RESERVED_HOME_CELL.col
+  );
+}
+
 export const TILE_KINDS = ['word', 'folder'] as const;
 export const LABEL_POSITIONS = ['top', 'bottom'] as const;
 export const FONT_SIZES = ['S', 'M', 'L', 'XL'] as const;
@@ -359,6 +377,10 @@ export function templateProblems(template: Template): string[] {
   const { problems, boards, tiles } = treeShape(template.board, template.name, {
     allowOwn: false,
   });
+  // A template becomes a home board.
+  if (template.board.tiles.some((t) => isReservedCell({ parentId: null }, t))) {
+    problems.push(`${template.name}: the first cell is kept for „Wszystkie symbole”`);
+  }
   if (boards > BOARD_LIMITS.maxBoards || tiles > BOARD_LIMITS.maxTiles) {
     problems.push(`too big: ${boards} boards, ${tiles} tiles`);
   }

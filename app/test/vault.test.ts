@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { DEFAULT_SETTINGS } from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
 import { BoardStore } from '../src/worker/vault/boards.ts';
-import { VAULT_MIGRATIONS, migrateVault } from '../src/worker/vault/schema.ts';
+import { VAULT_MIGRATIONS, applyMigration, migrateVault } from '../src/worker/vault/schema.ts';
 import { vaultFor, type UserVault } from '../src/worker/vault/user-vault.ts';
 import { insertUser, makeApp, sessionCookie, writeHeaders } from './helpers.ts';
 
@@ -41,7 +41,7 @@ describe('UserVault', () => {
       sql.exec(
         'CREATE TABLE _schema (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)',
       );
-      sql.exec(VAULT_MIGRATIONS[0]!);
+      applyMigration(sql, VAULT_MIGRATIONS[0]!);
       sql.exec('INSERT INTO _schema (id, version) VALUES (1, 1)');
       sql.exec(`INSERT INTO settings (key, value) VALUES ('activeSets', '["extra","arasaac"]')`);
 
@@ -69,7 +69,7 @@ describe('UserVault', () => {
       sql.exec(
         'CREATE TABLE _schema (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)',
       );
-      for (const migration of VAULT_MIGRATIONS.slice(0, 8)) sql.exec(migration);
+      for (const migration of VAULT_MIGRATIONS.slice(0, 8)) applyMigration(sql, migration);
       sql.exec('INSERT INTO _schema (id, version) VALUES (1, 8)');
       const [home, food] = ['h'.repeat(26), 'f'.repeat(26)];
       sql.exec(
@@ -130,6 +130,93 @@ describe('UserVault', () => {
         boards: 1,
         tiles: 1,
       });
+    });
+  });
+
+  it('frees the first cell of the home board for "Wszystkie symbole" (v10)', async () => {
+    /** A v9 vault with one home board of `rows` × `cols` and tiles at the given cells. */
+    const v9 = async (
+      name: string,
+      rows: number,
+      cols: number,
+      cells: [string, number, number][],
+    ) => {
+      const stub = vaultFor(env, name);
+      await runInDurableObject(stub, async (_i: UserVault, state) => {
+        await state.storage.deleteAll();
+        const sql = state.storage.sql;
+        sql.exec(
+          'CREATE TABLE _schema (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)',
+        );
+        for (const migration of VAULT_MIGRATIONS.slice(0, 9)) applyMigration(sql, migration);
+        sql.exec('INSERT INTO _schema (id, version) VALUES (1, 9)');
+        sql.exec(
+          `INSERT INTO boards (id, name, parent_board_id, rows, cols, rev, created_at, updated_at)
+           VALUES (?, 'Start', NULL, ?, ?, 5, 1, 2)`,
+          'h'.repeat(26),
+          rows,
+          cols,
+        );
+        for (const [label, row, col] of cells) {
+          sql.exec(
+            `INSERT INTO tiles (id, board_id, row, col, kind, label, created_at, updated_at)
+             VALUES (?, ?, ?, ?, 'word', ?, 1, 2)`,
+            label.padEnd(26, 'a'),
+            'h'.repeat(26),
+            row,
+            col,
+            label,
+          );
+        }
+      });
+      return stub;
+    };
+    const after = (stub: DurableObjectStub<UserVault>) =>
+      runInDurableObject(stub, (_i: UserVault, state) => {
+        migrateVault(state.storage);
+        const sql = state.storage.sql;
+        return {
+          tiles: sql
+            .exec<{ label: string; row: number; col: number }>(
+              'SELECT label, row, col FROM tiles ORDER BY label',
+            )
+            .toArray()
+            .map((t) => `${t.label}@${t.row},${t.col}`),
+          board: sql.exec('SELECT rows, cols, rev FROM boards').one(),
+          version: sql.exec<{ version: number }>('SELECT version FROM vault_meta').one().version,
+          problems: new BoardStore(state.storage).integrity(),
+        };
+      });
+
+    // The tile there takes the first free cell in reading order.
+    expect(
+      await after(
+        await v9('vault-v9-free', 2, 2, [
+          ['ja', 0, 0],
+          ['ty', 0, 1],
+          ['nie', 1, 1],
+        ]),
+      ),
+    ).toEqual({
+      tiles: ['ja@1,0', 'nie@1,1', 'ty@0,1'],
+      board: { rows: 2, cols: 2, rev: 6 },
+      version: 1,
+      problems: [],
+    });
+    // A full board grows by a row for it.
+    expect(
+      await after(
+        await v9('vault-v9-full', 1, 2, [
+          ['ja', 0, 0],
+          ['ty', 0, 1],
+        ]),
+      ),
+    ).toMatchObject({ tiles: ['ja@1,0', 'ty@0,1'], board: { rows: 2, cols: 2 }, problems: [] });
+    // Nothing there: nothing changes.
+    expect(await after(await v9('vault-v9-empty', 2, 2, [['ty', 0, 1]]))).toMatchObject({
+      tiles: ['ty@0,1'],
+      board: { rev: 5 },
+      version: 0,
     });
   });
 

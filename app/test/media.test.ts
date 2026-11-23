@@ -186,7 +186,7 @@ describe('own photos API (PLAN §2.2)', () => {
     const missing = { set: 'own', ref: 'a'.repeat(26) };
     const tile = await api('POST', `/api/boards/${boardId}/tiles`, {
       rev: 1,
-      row: 0,
+      row: 1,
       col: 0,
       kind: 'word',
       label: 'babcia',
@@ -224,9 +224,9 @@ describe('own photos API (PLAN §2.2)', () => {
     const boardId = home.body.boards[0]!.id;
     let rev = home.body.boards[0]!.rev;
     for (const [row, col, ref] of [
-      [0, 0, photo.id],
       [0, 1, photo.id],
-      [1, 0, other.id],
+      [1, 0, photo.id],
+      [1, 1, other.id],
     ] as const) {
       const created = await api<BoardChanges>('POST', `/api/boards/${boardId}/tiles`, {
         rev,

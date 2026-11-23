@@ -294,7 +294,7 @@ async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: Tes
   const tile = await api<BoardChanges>('POST', `/api/boards/${boardId}/tiles`, {
     rev: 1,
     row: 0,
-    col: 0,
+    col: 1,
     kind: 'word',
     label: 'jeść',
     symbol: { set: 'own', ref: photo.body.media.id },

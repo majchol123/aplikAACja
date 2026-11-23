@@ -48,7 +48,7 @@ async function withContent(user: Awaited<ReturnType<typeof as>>) {
   await user.api('POST', `/api/boards/${boardId}/tiles`, {
     rev: 1,
     row: 0,
-    col: 0,
+    col: 1,
     kind: 'word',
     label: 'pić',
   });

@@ -40,7 +40,7 @@ async function sender() {
   const folder = await user.api<BoardChanges>('POST', `/api/boards/${start.id}/tiles`, {
     rev: start.rev,
     row: 0,
-    col: 0,
+    col: 1,
     kind: 'folder',
     label: 'Jedzenie',
     colorRole: 'noun',
@@ -136,10 +136,11 @@ describe('sharing a board (PLAN §2.8)', () => {
     expect(accepted.status).toBe(200);
     const tree = (await recipient.api<BoardTree>('GET', '/api/boards')).body;
     const start = tree.boards.find((b) => b.id === own.id)!;
+    // The first free cell: the home board's first one is "Wszystkie symbole".
     expect(start.tiles).toEqual([
       expect.objectContaining({
         row: 0,
-        col: 0,
+        col: 1,
         kind: 'folder',
         label: 'Jedzenie',
         colorRole: 'noun',
@@ -217,7 +218,8 @@ describe('sharing: refusals and limits', () => {
   it('accepting needs a free cell, the current revision and room in the quotas', async () => {
     const { user, food } = await sender();
     const recipient = await account();
-    const tiny = await home(recipient, 1, 1);
+    // Its first cell is "Wszystkie symbole", the second one is for a tile.
+    const tiny = await home(recipient, 1, 2);
     await send(user, food.id, recipient.email);
     const [entry] = (await recipient.api<ShareLists>('GET', '/api/shares')).body.received;
     const accept = (boardId: string, rev: number) =>
@@ -227,7 +229,7 @@ describe('sharing: refusals and limits', () => {
     await recipient.api('POST', `/api/boards/${tiny.id}/tiles`, {
       rev: tiny.rev,
       row: 0,
-      col: 0,
+      col: 1,
       kind: 'word',
       label: 'pełno',
     });
@@ -277,6 +279,10 @@ describe('sharing: refusals and limits', () => {
     expect(await accept(rev, { row: 2, col: 0 })).toMatchObject({
       status: 422,
       body: { error: 'out_of_bounds' },
+    });
+    expect(await accept(rev, { row: 0, col: 0 })).toMatchObject({
+      status: 422,
+      body: { error: 'cell_occupied' },
     });
     expect((await accept(rev, { row: -1, col: 0 })).status).toBe(400);
     expect((await accept(rev, { row: 0, col: 1, extra: 1 })).status).toBe(400);

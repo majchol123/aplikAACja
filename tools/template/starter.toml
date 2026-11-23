@@ -1,11 +1,12 @@
 # Starter board for new accounts (PLAN §2.7). Build: see tools/build_template.py.
 # Token: label[|lookup][#arasaac-id][@fitzgerald-role]; "-" = empty cell for the parent.
+# The first cell of the home board is kept for the app's folder "Wszystkie symbole".
 name = "Start"
 rows = 4
 cols = 6
 words = [
-  "ja@person", "ty@person", "chcę|chcieć@verb", "nie chcę#6156@negation", "tak@social", "nie@negation",
-  "proszę", "dziękuję", "pomocy#32648@social", "-", "-", "-",
+  "-", "ja@person", "ty@person", "chcę|chcieć@verb", "nie chcę#6156@negation", "pomocy#32648@social",
+  "tak@social", "nie@negation", "proszę", "dziękuję", "-", "-",
 ]
 
 [[folders]]
