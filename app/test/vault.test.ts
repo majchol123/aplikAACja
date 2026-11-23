@@ -306,8 +306,10 @@ describe('UserVault', () => {
     const t = makeApp();
     const user = await insertUser();
     const cookie = await sessionCookie(user.id);
+    // Until the first refusal: the bucket refills while the requests run (2 per second), so
+    // a slow machine needs a few more than the burst to drain it.
     const statuses: number[] = [];
-    for (let i = 0; i < 125; i++) {
+    for (let i = 0; i < 400 && statuses.at(-1) !== 429; i++) {
       const res = await t.call('/api/settings', {
         method: 'PATCH',
         headers: writeHeaders(cookie),
@@ -315,8 +317,9 @@ describe('UserVault', () => {
       });
       statuses.push(res.status);
     }
-    expect(statuses.filter((s) => s === 200).length).toBeGreaterThanOrEqual(120);
     expect(statuses.at(-1)).toBe(429);
+    expect(statuses.slice(0, -1).every((s) => s === 200)).toBe(true);
+    expect(statuses.length).toBeGreaterThan(120);
   });
 });
 
