@@ -74,4 +74,4 @@ export const DEFAULT_SETTINGS: Settings = {
  * Version of the privacy policy's last notable change, announced once in the app (the
  * policy promises it). 1: the history of utterances is saved on the account (2026-11-23).
  */
-export const POLICY_VERSION = 1;
+export const POLICY_VERSION = 2;

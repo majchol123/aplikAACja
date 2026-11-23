@@ -17,7 +17,8 @@ export function PolicyNotice() {
       <p className="min-w-0 flex-1">
         <strong>Zmiana polityki prywatności (23.11.2026):</strong> ostatnie wypowiedzi (do 50)
         zapisują się teraz na koncie, więc historia jest taka sama na każdym urządzeniu. Można ją
-        wyłączyć w Ustawieniach („Zapisuj historię wypowiedzi”).{' '}
+        wyłączyć w Ustawieniach („Zapisuj historię wypowiedzi”). Dane kont mają też zaszyfrowane
+        kopie zapasowe, przechowywane na terenie UE do 30 dni.{' '}
         <a className="font-semibold underline" href="/prywatnosc">
           Polityka prywatności
         </a>

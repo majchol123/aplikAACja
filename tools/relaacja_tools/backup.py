@@ -13,7 +13,9 @@ that is not an age file. Layout of the backup directory:
     media/<user id>/<photo id>.age            photos never change: fetched once
     catalog/<entry id>/<key>.age
 
-Only complete snapshots count; the newest `keep` of them stay, with the photos they name.
+Only complete snapshots count; the newest `keep` of them stay, with the photos they name,
+and none older than `max_age` (the privacy policy promises that a deleted account leaves the
+backups within 30 days).
 """
 
 from __future__ import annotations
@@ -26,10 +28,12 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 AGE_MAGIC = b"age-encryption.org/v1\n"
+MAX_AGE = timedelta(days=30)
+STAMP = "%Y-%m-%dT%H-%M-%SZ"
 SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 USER_AGENT = "relaacja-backup/1"
 
@@ -114,9 +118,17 @@ def _write(path: Path, data: bytes) -> None:
     partial.replace(path)
 
 
-def run_backup(client: Client, out: Path, *, keep: int, now: datetime | None = None) -> Stats:
+def run_backup(
+    client: Client,
+    out: Path,
+    *,
+    keep: int,
+    max_age: timedelta = MAX_AGE,
+    now: datetime | None = None,
+) -> Stats:
     stats = Stats()
-    stamp = (now or datetime.now(UTC)).strftime("%Y-%m-%dT%H-%M-%SZ")
+    now = now or datetime.now(UTC)
+    stamp = now.strftime(STAMP)
     snapshot = out / "snapshots" / stamp
     if snapshot.exists():
         raise BackupError(f"{snapshot} exists")
@@ -157,7 +169,7 @@ def run_backup(client: Client, out: Path, *, keep: int, now: datetime | None = N
         stats.users += 1
 
     _write(snapshot / "COMPLETE", stamp.encode())
-    stats.snapshots_removed = prune(out, keep=keep)
+    stats.snapshots_removed = prune(out, keep=keep, max_age=max_age, now=now)
     return stats
 
 
@@ -168,18 +180,33 @@ def complete_snapshots(out: Path) -> list[Path]:
     return sorted(p for p in root.iterdir() if (p / "COMPLETE").is_file())
 
 
-def prune(out: Path, *, keep: int) -> list[str]:
-    """Keeps the newest `keep` complete snapshots and the photos they name."""
+def _taken(snapshot: Path) -> datetime:
+    try:
+        return datetime.strptime(snapshot.name, STAMP).replace(tzinfo=UTC)
+    except ValueError:
+        return datetime.min.replace(tzinfo=UTC)  # not ours: as good as expired
+
+
+def prune(
+    out: Path, *, keep: int, max_age: timedelta = MAX_AGE, now: datetime | None = None
+) -> list[str]:
+    """Keeps the newest `keep` complete snapshots younger than `max_age` and their photos.
+
+    The age limit holds even when no new snapshot could be made: an old snapshot is removed
+    although nothing replaces it (the job reports every failed run long before that).
+    """
     if keep < 1:
         raise BackupError("keep at least one snapshot")
+    cutoff = (now or datetime.now(UTC)) - max_age
     snapshots = complete_snapshots(out)
-    kept = snapshots[-keep:]
+    kept = [p for p in snapshots[-keep:] if _taken(p) >= cutoff]
     removed = []
     newest = kept[-1] if kept else None
     for path in sorted((out / "snapshots").iterdir()) if (out / "snapshots").is_dir() else []:
         # Incomplete snapshots older than the newest complete one are failed runs.
         failed = not (path / "COMPLETE").is_file() and newest is not None and path < newest
-        if (path in snapshots and path not in kept) or failed:
+        expired = _taken(path) < cutoff
+        if (path in snapshots and path not in kept) or failed or expired:
             shutil.rmtree(path)
             removed.append(path.name)
     referenced: set[tuple[str, str]] = set()

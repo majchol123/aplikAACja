@@ -1,12 +1,19 @@
 import json
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
 
-from relaacja_tools.backup import AGE_MAGIC, BackupError, Client, complete_snapshots, run_backup
+from relaacja_tools.backup import (
+    AGE_MAGIC,
+    BackupError,
+    Client,
+    complete_snapshots,
+    prune,
+    run_backup,
+)
 
 TOKEN = "t" * 43
 
@@ -120,6 +127,28 @@ def test_photos_are_fetched_once_and_old_snapshots_go_with_their_photos(server, 
     ]
     assert not (tmp_path / "media/usera/m1.age").exists()
     assert (tmp_path / "media/usera/m3.age").is_file()
+
+
+def test_no_snapshot_outlives_the_age_limit_of_the_privacy_policy(server, tmp_path: Path):
+    run_backup(client(server), tmp_path, keep=30, now=at(0))
+    server.users = {"userb": []}  # usera deleted their account
+    run_backup(client(server), tmp_path, keep=30, now=at(0) + timedelta(days=29))
+    assert (tmp_path / "media/usera/m1.age").is_file()  # within 30 days: still there
+    stats = run_backup(client(server), tmp_path, keep=30, now=at(0) + timedelta(days=30, minutes=1))
+    assert stats.snapshots_removed == ["2026-11-23T04-00-00Z"]
+    assert not (tmp_path / "media/usera").exists()
+    assert len(complete_snapshots(tmp_path)) == 2
+
+
+def test_the_age_limit_holds_when_no_new_snapshot_can_be_made(server, tmp_path: Path):
+    run_backup(client(server), tmp_path, keep=30, now=at(0))
+    (tmp_path / "snapshots/2026-11-23T05-00-00Z").mkdir()  # a run that failed
+    assert prune(tmp_path, keep=30, now=at(0) + timedelta(days=29)) == []
+    removed = prune(tmp_path, keep=30, now=at(0) + timedelta(days=31))
+    assert removed == ["2026-11-23T04-00-00Z", "2026-11-23T05-00-00Z"]
+    assert complete_snapshots(tmp_path) == []
+    assert not (tmp_path / "media/usera").exists()
+    assert not (tmp_path / "catalog/entry1").exists()
 
 
 def test_plaintext_is_never_stored(server, tmp_path: Path):
