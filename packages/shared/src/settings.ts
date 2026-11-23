@@ -42,7 +42,10 @@ export const SettingsSchema = z
     uppercaseLabels: z.boolean(),
     /** Communication mode offers the category folders of the sets (F3; off by default). */
     showAllSymbols: z.boolean(),
-    /** Communication mode offers the phrase generator (F5; off by default). */
+    /**
+     * Communication mode offers the phrase generator (F5; on by default). Settings are merged
+     * with these defaults per key, so accounts that never switched it see it too.
+     */
     showPhraseGenerator: z.boolean(),
     /** The last utterances are saved on the account (on by default; off clears them). */
     keepHistory: z.boolean(),
@@ -65,7 +68,7 @@ export const DEFAULT_SETTINGS: Settings = {
   speech: { preset: 'woman', rate: 1, pitch: 1 },
   uppercaseLabels: false,
   showAllSymbols: false,
-  showPhraseGenerator: false,
+  showPhraseGenerator: true,
   keepHistory: true,
   policyNotice: 0,
 };

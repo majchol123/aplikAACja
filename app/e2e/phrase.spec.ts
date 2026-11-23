@@ -54,6 +54,10 @@ test('the phrase generator turns a sentence into symbols for the sentence bar (F
   page,
 }) => {
   await emptyBoard(page, 'Generator fraz');
+  // On by default; the account setting hides it.
+  await setSetting(page, { showPhraseGenerator: false });
+  await page.reload();
+  await expect(current(page)).toHaveText('Start');
   await expect(page.getByRole('button', { name: 'Generator fraz' })).toBeHidden();
   await setSetting(page, { showPhraseGenerator: true });
   await page.reload();
