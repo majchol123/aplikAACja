@@ -15,6 +15,7 @@ describe('service worker routing (PLAN D11, §4.1)', () => {
     expect(at('/', 'navigate')).toBe('page');
     expect(at('/prywatnosc?x=1', 'navigate')).toBe('page');
     expect(at('/o-aplikacji', 'navigate')).toBe('page');
+    expect(at('/pomoc', 'navigate')).toBe('page');
   });
 
   it('never touches the API, own photos, the extra set or the login flow', () => {

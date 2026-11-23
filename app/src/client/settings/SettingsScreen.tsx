@@ -107,6 +107,9 @@ export function SettingsScreen({
 
       <footer className="mt-8 pb-2 text-center text-sm text-slate-500">
         <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+          <a href="/pomoc" className="underline underline-offset-2">
+            Pomoc
+          </a>
           <a href="/prywatnosc" className="underline underline-offset-2">
             Polityka prywatności
           </a>

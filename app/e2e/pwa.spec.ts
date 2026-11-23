@@ -108,3 +108,33 @@ test('the about page credits ARASAAC and PoliMorf', async ({ page }) => {
   await expect(page.locator('a[href^="mailto:"]')).toHaveCount(1);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
+
+test('the help page explains the device settings and is reachable from every page', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Pomoc' }).click();
+  await expect(page).toHaveURL(/\/pomoc$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Pomoc' })).toBeVisible();
+  for (const id of ['start', 'mowienie', 'edycja', 'glos', 'instalacja', 'blokada']) {
+    await expect(page.locator(`#${id} h2`)).toBeVisible();
+  }
+  await expect(page.locator('#blokada')).toContainText('Dostęp nadzorowany');
+  await expect(page.locator('#blokada')).toContainText('Przypinanie aplikacji');
+  // Every entry of the table of contents leads to its section.
+  const targets = await page
+    .getByRole('navigation', { name: 'Spis treści' })
+    .getByRole('link')
+    .evaluateAll((links) => links.map((a) => (a as HTMLAnchorElement).hash));
+  expect(targets.length).toBeGreaterThan(5);
+  for (const hash of targets) await expect(page.locator(hash)).toHaveCount(1);
+  await expect(page.locator('a[href^="mailto:"]')).toHaveCount(1);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  for (const path of ['/o-aplikacji', '/prywatnosc']) {
+    await page.goto(path);
+    await expect(page.getByRole('link', { name: 'Pomoc', exact: true })).toHaveAttribute(
+      'href',
+      '/pomoc',
+    );
+  }
+});

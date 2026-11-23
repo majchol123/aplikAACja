@@ -96,6 +96,7 @@ export default defineConfig({
             main: resolve(import.meta.dirname, 'index.html'),
             privacy: resolve(import.meta.dirname, 'prywatnosc.html'),
             about: resolve(import.meta.dirname, 'o-aplikacji.html'),
+            help: resolve(import.meta.dirname, 'pomoc.html'),
             sw: resolve(import.meta.dirname, 'src/sw/sw.ts'),
           },
           output: {

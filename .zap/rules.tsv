@@ -1,0 +1,2 @@
+# ZAP baseline rules (.github/workflows/zap.yml): <alert id> TAB <IGNORE|WARN|FAIL> TAB (<name>)
+# Every IGNORE names the reason it is accepted. Alerts not listed fail the run.

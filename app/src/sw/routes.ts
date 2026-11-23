@@ -1,7 +1,7 @@
 /**
  * What the service worker does with a request (PLAN D11, §4.1 "shared tablet"). It caches
- * only what is public and identical for every account: hashed app files, the three static
- * pages and the ARASAAC mirror. The API, own photos and the extra set (licensed per
+ * only what is public and identical for every account: hashed app files, the static pages
+ * and the ARASAAC mirror. The API, own photos and the extra set (licensed per
  * account) are never touched, so nothing personal outlives a logout in CacheStorage.
  */
 export type Strategy = 'network' | 'page' | 'shell' | 'symbols';
@@ -17,7 +17,7 @@ export const CACHES = {
 export const LIMITS = { shell: 200, symbols: 4000 } as const;
 
 /** The static documents (index.html is both the landing page and the app). */
-export const PAGES: ReadonlySet<string> = new Set(['/', '/prywatnosc', '/o-aplikacji']);
+export const PAGES: ReadonlySet<string> = new Set(['/', '/prywatnosc', '/o-aplikacji', '/pomoc']);
 
 const ARASAAC_FILE =
   /^\/sym\/arasaac\/(?:p\/[0-9]{1,10}\.[0-9a-f]{8}\.webp|(?:index|forms|categories)\.[0-9a-f]{8}\.json)$/;
