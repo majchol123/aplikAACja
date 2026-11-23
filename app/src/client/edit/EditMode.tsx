@@ -17,6 +17,7 @@ import {
 } from '../comm/icons.tsx';
 import { TileView } from '../comm/TileView.tsx';
 import { useAccountSettings } from '../settings/account.ts';
+import { PolicyNotice } from '../settings/PolicyNotice.tsx';
 import { SearchPanel } from '../comm/SearchPanel.tsx';
 import { PhraseGenerator } from '../phrase/PhraseGenerator.tsx';
 import { AddBoardDialog } from '../shares/AddBoardDialog.tsx';
@@ -198,6 +199,7 @@ export function EditMode({
           </button>
         </div>
       )}
+      <PolicyNotice />
       <BoardNav boards={boards} board={board} homeId={homeId} onOpen={onBoardChange}>
         <button
           type="button"

@@ -207,6 +207,13 @@ export const VAULT_MIGRATIONS: readonly string[] = [
 
   // v7 — what a tile says instead of its label (backlog); NULL says the label.
   `ALTER TABLE tiles ADD COLUMN speech TEXT;`,
+  // v8 — the last utterances on the account (history.ts); the same words once.
+  `CREATE TABLE history (
+     text TEXT PRIMARY KEY,
+     items TEXT NOT NULL,
+     at INTEGER NOT NULL
+   );
+   CREATE INDEX history_at ON history (at);`,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {

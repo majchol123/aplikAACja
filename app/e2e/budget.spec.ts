@@ -45,7 +45,8 @@ test('a typical day with the app stays within the request budget (PLAN §3.2)', 
   const firstStart = [...requests];
   expect(firstStart.length, firstStart.join('\n')).toBeLessThanOrEqual(LIMITS.firstStart);
 
-  // Speaking costs no request at all: boards, sentence and history are in the browser.
+  // Speaking costs no request: boards and sentence are in the browser, and the history goes
+  // to the account in batches (here: once, when the history is opened).
   requests.length = 0;
   for (let round = 0; round < 3; round++) {
     await page.getByRole('button', { name: 'chcę', exact: true }).click();
@@ -56,9 +57,9 @@ test('a typical day with the app stays within the request budget (PLAN §3.2)', 
   }
   await page.getByRole('button', { name: 'Historia i ulubione' }).click();
   await page.getByRole('dialog', { name: 'Historia i ulubione' }).press('Escape');
-  const speaking = [...requests];
-  // The favourites are read once when the history opens.
-  expect(speaking, speaking.join('\n')).toEqual(['GET /api/favorites']);
+  const speaking = [...requests].sort();
+  // Opening the history sends the batch (its answer is the history) and reads the favourites.
+  expect(speaking, speaking.join('\n')).toEqual(['GET /api/favorites', 'POST /api/history']);
 
   requests.length = 0;
   await page.reload();

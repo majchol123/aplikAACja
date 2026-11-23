@@ -325,6 +325,10 @@ export function DevicePanel() {
         >
           Przycisk „Generator fraz” przy tablicy: zdanie wpisane z klawiatury zamienia się w symbole
         </AccountToggle>
+        <AccountToggle pick={(s) => s.keepHistory} patch={(v) => ({ keepHistory: v })}>
+          Zapisuj historię wypowiedzi: ostatnie 50 na koncie, takie same na każdym urządzeniu
+          (wyłączenie usuwa zapisaną historię)
+        </AccountToggle>
       </section>
     </>
   );

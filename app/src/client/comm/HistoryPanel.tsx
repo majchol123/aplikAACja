@@ -1,5 +1,5 @@
 import { PHRASE_LIMITS, phraseText, type PhraseItem, type Tile } from '@relaacja/shared';
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Dialog } from '../edit/Dialog.tsx';
 import { ui } from '../edit/ui.ts';
 import { StarIcon } from './icons.tsx';
@@ -36,23 +36,31 @@ function Phrase({
 }
 
 /**
- * Last utterances of this device and the account's favourite phrases (PLAN §2.1): one tap
- * says a phrase again and puts it in the sentence bar.
+ * Last utterances and favourite phrases of the account (PLAN §2.1): one tap says a phrase
+ * again and puts it in the sentence bar.
  */
 export function HistoryPanel({
   history,
+  keep,
+  loading,
+  clearing,
   resolve,
   onPlay,
   onClearHistory,
   onClose,
 }: {
   history: HistoryEntry[];
+  /** The account keeps a history (Settings.keepHistory). */
+  keep: boolean;
+  loading: boolean;
+  clearing: boolean;
   resolve: (symbol: Tile['symbol']) => string | null;
   onPlay: (items: PhraseItem[]) => void;
   onClearHistory: () => void;
   onClose: () => void;
 }) {
   const id = useId();
+  const [confirming, setConfirming] = useState(false);
   const favorites = useFavorites();
   const add = useAddFavorite();
   const remove = useRemoveFavorite();
@@ -97,10 +105,17 @@ export function HistoryPanel({
 
       <section className="mt-5 border-t border-slate-200 pt-4" aria-labelledby={`${id}-recent`}>
         <h3 id={`${id}-recent`} className="font-bold text-brand-900">
-          Ostatnie wypowiedzi (na tym urządzeniu)
+          Ostatnie wypowiedzi
         </h3>
-        {history.length === 0 && (
-          <p className="mt-1 text-slate-600">Jeszcze nic nie powiedziano.</p>
+        {!keep && (
+          <p className="mt-1 text-slate-600">
+            Historia jest wyłączona (Ustawienia → „Zapisuj historię wypowiedzi”).
+          </p>
+        )}
+        {keep && history.length === 0 && (
+          <p className="mt-1 text-slate-600" role={loading ? 'status' : undefined}>
+            {loading ? 'Wczytywanie…' : 'Jeszcze nic nie powiedziano.'}
+          </p>
         )}
         <ul className="mt-2 space-y-2" aria-label="Ostatnie wypowiedzi">
           {history.map((entry) => {
@@ -129,10 +144,33 @@ export function HistoryPanel({
             );
           })}
         </ul>
-        {history.length > 0 && (
-          <button type="button" className={`${ui.secondary} mt-3`} onClick={onClearHistory}>
-            Wyczyść historię na tym urządzeniu
+        {history.length > 0 && !confirming && (
+          <button
+            type="button"
+            className={`${ui.secondary} mt-3`}
+            onClick={() => setConfirming(true)}
+          >
+            Wyczyść historię
           </button>
+        )}
+        {history.length > 0 && confirming && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span className="text-slate-800">Wyczyścić historię na wszystkich urządzeniach?</span>
+            <button
+              type="button"
+              className={ui.danger}
+              disabled={clearing}
+              onClick={() => {
+                onClearHistory();
+                setConfirming(false);
+              }}
+            >
+              Tak, wyczyść
+            </button>
+            <button type="button" className={ui.secondary} onClick={() => setConfirming(false)}>
+              Anuluj
+            </button>
+          </div>
         )}
       </section>
       {(add.isError || remove.isError) && (

@@ -127,6 +127,12 @@ const EXPECTED: Record<string, Row> = {
     path: (f) => `/api/favorites/${f.favoriteId}`,
     status: { ...ownedByA, userA: 204 },
   },
+  'GET /api/history': { status: userOnly },
+  'POST /api/history': {
+    body: { entries: [{ at: 1, items: [{ label: 'tak', symbol: null }] }] },
+    status: userOnly,
+  },
+  'DELETE /api/history': { status: { ...all(204), anon: 401, blocked: 403 } },
   'GET /api/media': { status: userOnly },
   'POST /api/media': {
     form: () => photoForm('Mama', webp(64, 64)),

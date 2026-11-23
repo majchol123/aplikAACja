@@ -85,7 +85,7 @@ export function Communication({
   const [showHistory, setShowHistory] = useState(false);
   const [browsing, setBrowsing] = useState(false);
   const [phrasing, setPhrasing] = useState(false);
-  const history = useHistory(me.id);
+  const history = useHistory(me.id, showHistory);
   const [found, setFound] = useState<string | null>(null);
   const foundTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(foundTimer.current), []);
@@ -207,9 +207,12 @@ export function Communication({
       {showHistory && (
         <HistoryPanel
           history={history.entries}
+          keep={history.keep}
+          loading={history.loading}
+          clearing={history.clear.isPending}
           resolve={resolve}
           onPlay={replay}
-          onClearHistory={history.clear}
+          onClearHistory={() => history.clear.mutate()}
           onClose={() => setShowHistory(false)}
         />
       )}

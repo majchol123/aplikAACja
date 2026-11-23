@@ -1,11 +1,12 @@
 import type { Me } from '@relaacja/shared';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.ts';
-import { forgetHistory } from '../comm/phrases.ts';
+import { forgetHistory, sendHistoryNow } from '../comm/phrases.ts';
 import { Library } from '../library/Library.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
 import { LockPanel } from './LockPanel.tsx';
 import { PhotosPanel } from './PhotosPanel.tsx';
+import { PolicyNotice } from './PolicyNotice.tsx';
 import { SharesPanel } from './SharesPanel.tsx';
 
 function goHome(): void {
@@ -26,12 +27,19 @@ export function SettingsScreen({
   onAdmin: () => void;
 }) {
   const isAdmin = me.role === 'admin' || me.role === 'superadmin';
+  const queryClient = useQueryClient();
   const logout = useMutation({
-    mutationFn: () => api('/api/auth/logout', { method: 'POST' }),
+    mutationFn: async () => {
+      await sendHistoryNow(me.id, queryClient);
+      return api('/api/auth/logout', { method: 'POST' });
+    },
     onSettled: goHome,
   });
   const logoutAll = useMutation({
-    mutationFn: () => api('/api/auth/logout-all', { method: 'POST' }),
+    mutationFn: async () => {
+      await sendHistoryNow(me.id, queryClient);
+      return api('/api/auth/logout-all', { method: 'POST' });
+    },
     onSettled: goHome,
   });
 
@@ -63,6 +71,7 @@ export function SettingsScreen({
       </header>
 
       <main className="mt-6 flex-1 space-y-6">
+        <PolicyNotice />
         <DevicePanel />
         <LockPanel />
         <Library me={me} />

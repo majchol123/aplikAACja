@@ -37,6 +37,7 @@ import * as boards from './routes/boards.ts';
 import * as catalog from './routes/catalog.ts';
 import * as categories from './routes/categories.ts';
 import * as favorites from './routes/favorites.ts';
+import * as history from './routes/history.ts';
 import * as media from './routes/media.ts';
 import * as shares from './routes/shares.ts';
 import * as symbols from './routes/symbols.ts';
@@ -366,6 +367,9 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.listFavorites, favorites.listFavorites);
   defineRoute(ROUTES.addFavorite, favorites.addFavorite);
   defineRoute(ROUTES.removeFavorite, favorites.removeFavorite);
+  defineRoute(ROUTES.listHistory, history.listHistory);
+  defineRoute(ROUTES.addHistory, history.addHistory);
+  defineRoute(ROUTES.clearHistory, history.clearHistory);
   defineRoute(ROUTES.listMedia, media.listMedia);
   defineRoute(ROUTES.uploadMedia, media.uploadMedia);
   defineRoute(ROUTES.getMedia, media.getMedia);

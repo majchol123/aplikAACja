@@ -35,6 +35,8 @@ export interface RouteDef {
 }
 
 export const JSON_BODY_LIMIT = 16 * 1024;
+/** A batch of utterances: devices send at most HISTORY_BATCH of them (phrases.ts). */
+export const HISTORY_BODY_LIMIT = 256 * 1024;
 /** One photo plus the multipart framing and its name. */
 export const MEDIA_BODY_LIMIT = MEDIA_LIMITS.maxFileBytes + 16 * 1024;
 
@@ -72,6 +74,14 @@ export const ROUTES = {
   listFavorites: { method: 'GET', path: '/api/favorites', access: 'user' },
   addFavorite: { method: 'POST', path: '/api/favorites', access: 'user' },
   removeFavorite: { method: 'DELETE', path: '/api/favorites/:id', access: 'user' },
+  listHistory: { method: 'GET', path: '/api/history', access: 'user' },
+  addHistory: {
+    method: 'POST',
+    path: '/api/history',
+    access: 'user',
+    maxBody: HISTORY_BODY_LIMIT,
+  },
+  clearHistory: { method: 'DELETE', path: '/api/history', access: 'user' },
   // Own photos (PLAN §2.2); IDs are only looked up inside the caller's own vault.
   listMedia: { method: 'GET', path: '/api/media', access: 'user' },
   uploadMedia: {

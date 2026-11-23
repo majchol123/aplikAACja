@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import {
+  devLogin,
   failOnConsoleErrors,
   freshLogin,
   holdEditLock,
@@ -32,10 +33,11 @@ const tile = (page: Page, name: string) => page.getByRole('button', { name, exac
 const sentence = (page: Page) => page.getByTestId('sentence-item');
 const current = (page: Page) => page.getByTestId('current-board');
 
-async function starterBoard(page: Page, name: string) {
-  await freshLogin(page, name);
+async function starterBoard(page: Page, name: string): Promise<string> {
+  const sub = await freshLogin(page, name);
   await page.getByRole('button', { name: /Tablica startowa/ }).click();
   await expect(current(page)).toHaveText('Start');
+  return sub;
 }
 
 test('a sentence built through a folder is spoken (PLAN F2)', async ({ page }) => {
@@ -213,10 +215,11 @@ test('the search finds own tiles by an inflected word and adds library symbols (
   expect((await spoken(page)).at(-1)).toMatchObject({ text: 'jabłko' });
 });
 
-test('spoken sentences come back from the history; favourites follow the account (F3)', async ({
+test('spoken sentences come back from the history; both follow the account (F3)', async ({
   page,
+  browser,
 }) => {
-  await starterBoard(page, 'Historia');
+  const sub = await starterBoard(page, 'Historia');
   await tile(page, 'chcę').click();
   await tile(page, 'pomocy').click();
   await page.getByRole('button', { name: 'Powiedz zdanie' }).click();
@@ -237,15 +240,77 @@ test('spoken sentences come back from the history; favourites follow the account
   await expect(sentence(page)).toHaveText(['chcę', 'pomocy']);
   expect((await spoken(page)).at(-1)).toMatchObject({ text: 'chcę pomocy' });
 
-  // Favourites are on the account; the history stays on this device until sign-out.
+  // Favourites and the history are on the account: another device shows both.
   await page.reload();
   await page.getByRole('button', { name: 'Historia i ulubione' }).click();
   await expect(favorites.getByRole('listitem')).toHaveCount(1);
   await expect(recent.getByRole('listitem')).toHaveCount(1);
-  await panel.getByRole('button', { name: 'Wyczyść historię na tym urządzeniu' }).click();
+  await panel.getByRole('button', { name: 'Zamknij' }).click();
+  const other = await browser.newContext({ serviceWorkers: 'block' });
+  const phone = await other.newPage();
+  await mockArasaac(phone, { withStarter: true });
+  await devLogin(phone, { sub, email: `${sub}@example.com`, name: 'Historia' });
+  await phone.getByRole('button', { name: 'Historia i ulubione' }).click();
+  const phonePanel = phone.getByRole('dialog', { name: 'Historia i ulubione' });
+  const phoneRecent = phonePanel.getByRole('list', { name: 'Ostatnie wypowiedzi' });
+  await expect(phoneRecent.getByRole('listitem')).toHaveCount(1);
+  await expect(phoneRecent.getByRole('button', { name: 'Powiedz: chcę pomocy' })).toBeVisible();
+  await other.close();
+
+  // Clearing empties it on every device; switched off, nothing more is kept.
+  await page.getByRole('button', { name: 'Historia i ulubione' }).click();
+  await panel.getByRole('button', { name: 'Wyczyść historię' }).click();
+  await panel.getByRole('button', { name: 'Tak, wyczyść' }).click();
   await expect(panel).toContainText('Jeszcze nic nie powiedziano.');
   await favorites.getByRole('button', { name: 'Usuń z ulubionych: chcę pomocy' }).click();
   await expect(favorites.getByRole('listitem')).toHaveCount(0);
+  await panel.getByRole('button', { name: 'Zamknij' }).click();
+  const status = await page.evaluate(async () => {
+    const res = await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Relaacja': '1' },
+      body: JSON.stringify({ keepHistory: false }),
+    });
+    return res.status;
+  });
+  expect(status).toBe(200);
+  await page.reload();
+  await tile(page, 'tak').click();
+  await page.getByRole('button', { name: 'Powiedz zdanie' }).click();
+  await page.getByRole('button', { name: 'Historia i ulubione' }).click();
+  await expect(panel).toContainText('Historia jest wyłączona');
+  await expect(recent.getByRole('listitem')).toHaveCount(0);
+});
+
+test('the device-only history of earlier versions moves to the account once', async ({ page }) => {
+  await starterBoard(page, 'Stara historia');
+  const me = await page.evaluate(() => fetch('/api/me').then((r) => r.json()));
+  await page.evaluate((id: string) => {
+    localStorage.setItem(
+      `relaacja.history.v1.${id}`,
+      JSON.stringify([
+        { at: Date.now() - 60_000, items: [{ label: 'dzień dobry', symbol: null }] },
+      ]),
+    );
+  }, me.id);
+  await page.reload();
+  await page.getByRole('button', { name: 'Historia i ulubione' }).click();
+  const recent = page
+    .getByRole('dialog', { name: 'Historia i ulubione' })
+    .getByRole('list', { name: 'Ostatnie wypowiedzi' });
+  await expect(recent.getByRole('listitem')).toHaveText(['dzień dobry']);
+  // The panel shows what waits at once; the batch reaches the account a moment later.
+  await expect
+    .poll(() =>
+      page.evaluate(async (id: string) => {
+        const list = await fetch('/api/history').then((r) => r.json());
+        return {
+          server: list.entries.map((e: { items: { label: string }[] }) => e.items[0]!.label),
+          legacy: localStorage.getItem(`relaacja.history.v1.${id}`),
+        };
+      }, me.id),
+    )
+    .toEqual({ server: ['dzień dobry'], legacy: null });
 });
 
 test('"Wszystkie symbole" opens the category folders when switched on (F3)', async ({ page }) => {

@@ -44,6 +44,10 @@ export const SettingsSchema = z
     showAllSymbols: z.boolean(),
     /** Communication mode offers the phrase generator (F5; off by default). */
     showPhraseGenerator: z.boolean(),
+    /** The last utterances are saved on the account (on by default; off clears them). */
+    keepHistory: z.boolean(),
+    /** Last privacy-policy change the account was told about (POLICY_VERSION). */
+    policyNotice: z.number().int().min(0).max(1000),
   })
   .strict();
 export type Settings = z.infer<typeof SettingsSchema>;
@@ -62,4 +66,12 @@ export const DEFAULT_SETTINGS: Settings = {
   uppercaseLabels: false,
   showAllSymbols: false,
   showPhraseGenerator: false,
+  keepHistory: true,
+  policyNotice: 0,
 };
+
+/**
+ * Version of the privacy policy's last notable change, announced once in the app (the
+ * policy promises it). 1: the history of utterances is saved on the account (2026-11-23).
+ */
+export const POLICY_VERSION = 1;

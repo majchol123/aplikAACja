@@ -312,3 +312,38 @@ test('a tile says its own words; the sentence bar keeps its label', async ({ pag
   expect((await spoken(page)).at(-1)?.text).toBe('Chcę się napić, proszę');
   await expect(page.getByTestId('sentence-item')).toHaveText(['pić']);
 });
+
+test('a notable privacy-policy change is announced once, where the account is looked after', async ({
+  page,
+}) => {
+  await startEditing(page, 'Polityka', 'Pusta tablica');
+  const notice = page.getByRole('region', { name: 'Zmiana polityki prywatności' });
+  // A new account starts under the current policy.
+  await expect(notice).toHaveCount(0);
+  // An account from before the change.
+  const status = await page.evaluate(async () => {
+    const res = await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Relaacja': '1' },
+      body: JSON.stringify({ policyNotice: 0 }),
+    });
+    return res.status;
+  });
+  expect(status).toBe(200);
+  await page.reload();
+  // Not in communication mode: the person who talks with the boards is not interrupted.
+  await expect(notice).toHaveCount(0);
+  await holdEditLock(page);
+  await expect(notice).toContainText('zapisują się teraz na koncie');
+  await expect(notice.getByRole('link', { name: 'Polityka prywatności' })).toHaveAttribute(
+    'href',
+    '/prywatnosc',
+  );
+  await axe(page);
+  await notice.getByRole('button', { name: 'Rozumiem' }).click();
+  await expect(notice).toHaveCount(0);
+  await page.reload();
+  await holdEditLock(page);
+  await expect(page.getByRole('heading', { name: 'Tryb edycji' })).toBeVisible();
+  await expect(notice).toHaveCount(0);
+});

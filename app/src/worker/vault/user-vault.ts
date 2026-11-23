@@ -2,12 +2,14 @@ import { DurableObject } from 'cloudflare:workers';
 import {
   BoardPackageSchema,
   DEFAULT_SETTINGS,
+  POLICY_VERSION,
   ImportPackageSchema,
   treeShape,
   type BoardPackage,
   type Cell,
   type Favorite,
   type FavoriteList,
+  type HistoryList,
   type ImportPackage,
   type PhraseItem,
   type ShareCounts,
@@ -36,6 +38,7 @@ import { dumpTables, sealFor } from '../lib/backup.ts';
 import type { CleanImage } from '../media/image.ts';
 import { BoardStore, type BoardError } from './boards.ts';
 import { FavoriteStore } from './favorites.ts';
+import { HistoryStore } from './history.ts';
 import { MediaStore, type MediaError, type PackagePhoto } from './media.ts';
 import { PreferredStore, type PreferredError } from './preferred.ts';
 import { migrateVault } from './schema.ts';
@@ -113,6 +116,7 @@ export class UserVault extends DurableObject<AppEnv> {
   private readonly media: MediaStore;
   private readonly shares: ShareStore;
   private readonly favorites: FavoriteStore;
+  private readonly history: HistoryStore;
 
   constructor(ctx: DurableObjectState, env: AppEnv) {
     super(ctx, env);
@@ -124,6 +128,7 @@ export class UserVault extends DurableObject<AppEnv> {
     this.media = new MediaStore(ctx.storage);
     this.shares = new ShareStore(ctx.storage);
     this.favorites = new FavoriteStore(ctx.storage);
+    this.history = new HistoryStore(ctx.storage);
   }
 
   private totals(): VaultTotals {
@@ -180,6 +185,8 @@ export class UserVault extends DurableObject<AppEnv> {
           JSON.stringify(value),
         );
       }
+      // Switching the history off forgets what it held.
+      if (patch.keepHistory === false) this.history.clear();
     });
     return this.getSettings();
   }
@@ -192,7 +199,16 @@ export class UserVault extends DurableObject<AppEnv> {
   }
 
   createHomeBoard(input: CreateHome): BoardResult {
-    return this.spendWrite() ? this.counted(this.boards.createHome(input)) : RATE_LIMITED;
+    if (!this.spendWrite()) return RATE_LIMITED;
+    const result = this.boards.createHome(input);
+    if (!('error' in result)) {
+      // A new account starts under the current privacy policy: no notice of past changes.
+      this.ctx.storage.sql.exec(
+        `INSERT INTO settings (key, value) VALUES ('policyNotice', ?) ON CONFLICT (key) DO NOTHING`,
+        JSON.stringify(POLICY_VERSION),
+      );
+    }
+    return this.counted(result);
   }
 
   patchBoard(id: string, input: PatchBoard): BoardResult {
@@ -299,6 +315,28 @@ export class UserVault extends DurableObject<AppEnv> {
 
   removeFavorite(id: string): boolean | RateLimited {
     return this.spendWrite() ? this.favorites.remove(id) : RATE_LIMITED;
+  }
+
+  // --- history of utterances (on the account, unless switched off) -----------------
+
+  listHistory(): HistoryList {
+    return { entries: this.history.list() };
+  }
+
+  /**
+   * A device's batch (validated with AddHistorySchema by the caller). With the history
+   * switched off nothing is kept: a device may not know yet.
+   */
+  addHistory(entries: { at: number; items: PhraseItem[] }[]): HistoryList | RateLimited {
+    if (!this.spendWrite()) return RATE_LIMITED;
+    if (!this.getSettings().keepHistory) return { entries: [] };
+    return { entries: this.history.add(entries, Date.now()) };
+  }
+
+  clearHistory(): true | RateLimited {
+    if (!this.spendWrite()) return RATE_LIMITED;
+    this.history.clear();
+    return true;
   }
 
   // --- sharing boards (F6, PLAN §2.8) -------------------------------------------------

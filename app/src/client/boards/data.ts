@@ -1,5 +1,6 @@
 import {
   mediaUrl,
+  POLICY_VERSION,
   preferredKey,
   SET_BASE,
   type BoardChanges,
@@ -7,6 +8,7 @@ import {
   type CreateHome,
   type LibrarySet,
   type Me,
+  type Settings,
   type Tile,
 } from '@relaacja/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
@@ -72,7 +74,13 @@ export function useCreateHome() {
   return useMutation({
     mutationFn: (input: CreateHome) =>
       api<BoardChanges>('/api/boards/home', { method: 'POST', json: input }),
-    onSuccess: (changes) => applyChanges(queryClient, changes),
+    onSuccess: (changes) => {
+      applyChanges(queryClient, changes);
+      // The vault marks a new account as told about the current privacy policy.
+      queryClient.setQueryData<Settings>(['settings'], (s) =>
+        s ? { ...s, policyNotice: Math.max(s.policyNotice, POLICY_VERSION) } : s,
+      );
+    },
     onSettled: () => queryClient.invalidateQueries({ queryKey: TREE_KEY }),
   });
 }

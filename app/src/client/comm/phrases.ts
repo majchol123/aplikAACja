@@ -1,23 +1,35 @@
 import {
+  HistoryItemSchema,
   PHRASE_LIMITS,
-  PhraseSchema,
   phraseText,
   type Favorite,
   type FavoriteList,
+  type HistoryEntry,
+  type HistoryList,
   type PhraseItem,
 } from '@relaacja/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useSyncExternalStore } from 'react';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { z } from 'zod';
 import { api } from '../api.ts';
+import { useAccountSettings } from '../settings/account.ts';
+
+export type { HistoryEntry };
 
 /**
- * Last utterances (PLAN §2.1): on this device only, never sent to the server (the privacy
- * policy says so), per account, and forgotten at sign-out.
+ * Last utterances (PLAN §2.1), saved on the account unless switched off in the settings,
+ * so every device shows the same. A device collects them and sends them in batches —
+ * after HISTORY_BATCH utterances, FLUSH_MS after the first unsent one, when the page is
+ * hidden, and before the history is shown — to spare the request budget (PLAN §3.2).
+ * Unsent ones wait in localStorage, per account; sign-out forgets them.
  */
-const PREFIX = 'relaacja.history.v1.';
-const HistorySchema = z.array(z.object({ at: z.number(), items: PhraseSchema }));
-export type HistoryEntry = z.infer<typeof HistorySchema>[number];
+const PREFIX = 'relaacja.history.pending.v1.';
+/** The device-only history of earlier versions: sent once, then removed. */
+const LEGACY = 'relaacja.history.v1.';
+export const HISTORY_BATCH = 10;
+const FLUSH_MS = 5 * 60_000;
+const HISTORY_KEY = ['history'] as const;
+const HistorySchema = z.array(HistoryItemSchema);
 
 const listeners = new Set<() => void>();
 const cache = new Map<string, { raw: string | null; value: HistoryEntry[] }>();
@@ -62,35 +74,157 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
-export function useHistory(userId: string) {
-  const key = PREFIX + userId;
-  const entries = useSyncExternalStore(subscribe, () => read(key));
-  /** Newest first; saying the same again only moves it to the top. */
-  const record = useCallback(
-    (items: PhraseItem[]) => {
-      if (items.length === 0) return;
-      const text = phraseText(items);
-      const rest = read(key).filter((e) => phraseText(e.items) !== text);
-      write(
-        key,
-        [{ at: Date.now(), items: items.slice(0, PHRASE_LIMITS.maxItems) }, ...rest].slice(
-          0,
-          PHRASE_LIMITS.historySize,
-        ),
-      );
-    },
-    [key],
-  );
-  const clear = useCallback(() => write(key, []), [key]);
-  return { entries, record, clear };
+/** Newest first, the same words once (the first, newest, copy wins). */
+function merge(...lists: HistoryEntry[][]): HistoryEntry[] {
+  const seen = new Set<string>();
+  return lists
+    .flat()
+    .sort((a, b) => b.at - a.at)
+    .filter((e) => {
+      const text = phraseText(e.items);
+      if (seen.has(text)) return false;
+      seen.add(text);
+      return true;
+    })
+    .slice(0, PHRASE_LIMITS.historySize);
 }
 
-/** Sign-out: the next person on this device does not see what was said. */
+let timer: number | undefined;
+let inFlight: Promise<HistoryList | null> | null = null;
+
+/**
+ * Sends what waits, oldest first, HISTORY_BATCH at a time; resolves with the account's
+ * history after the last batch (null when nothing waited). What fails stays for later.
+ */
+function sendPending(
+  userId: string,
+  queryClient: QueryClient,
+  keepalive = false,
+): Promise<HistoryList | null> {
+  window.clearTimeout(timer);
+  timer = undefined;
+  inFlight ??= (async () => {
+    const key = PREFIX + userId;
+    let last: HistoryList | null = null;
+    for (let left = read(key); left.length > 0; left = read(key)) {
+      const batch = left.slice(-HISTORY_BATCH);
+      last = await api<HistoryList>('/api/history', {
+        method: 'POST',
+        json: { entries: batch },
+        keepalive,
+      });
+      const sent = new Set(batch.map((e) => `${e.at}|${phraseText(e.items)}`));
+      write(
+        key,
+        read(key).filter((e) => !sent.has(`${e.at}|${phraseText(e.items)}`)),
+      );
+      queryClient.setQueryData(HISTORY_KEY, last);
+    }
+    return last;
+  })().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+/**
+ * The history as this device knows it: the account's (fetched when `open`) and what waits
+ * to be sent. `record` keeps an utterance, `clear` empties the history on every device.
+ */
+export function useHistory(userId: string, open: boolean) {
+  const queryClient = useQueryClient();
+  const settings = useAccountSettings();
+  const keep = settings.data?.keepHistory ?? true;
+  const key = PREFIX + userId;
+  const pending = useSyncExternalStore(subscribe, () => read(key));
+  const remote = useQuery({
+    queryKey: HISTORY_KEY,
+    // Sending first answers with the whole history: no second request.
+    queryFn: async () =>
+      (await sendPending(userId, queryClient).catch(() => null)) ??
+      api<HistoryList>('/api/history'),
+    enabled: open && keep,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    // The device-only history of earlier versions joins the account's once.
+    const legacy = read(LEGACY + userId);
+    if (legacy.length > 0) {
+      if (keep) write(key, merge(read(key), legacy));
+      try {
+        localStorage.removeItem(LEGACY + userId);
+      } catch {
+        // Storage disabled: nothing to move.
+      }
+    }
+    if (!keep) {
+      if (read(key).length > 0) write(key, []);
+      return;
+    }
+    if (read(key).length > 0) {
+      timer ??= window.setTimeout(
+        () => void sendPending(userId, queryClient).catch(() => {}),
+        FLUSH_MS,
+      );
+    }
+    const onHide = () => {
+      if (document.visibilityState === 'hidden' && read(key).length > 0) {
+        void sendPending(userId, queryClient, true).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, [userId, key, keep, queryClient]);
+
+  const record = useCallback(
+    (items: PhraseItem[]) => {
+      if (items.length === 0 || !keep) return;
+      const entry = { at: Date.now(), items: items.slice(0, PHRASE_LIMITS.maxItems) };
+      const waiting = merge([entry], read(key));
+      write(key, waiting);
+      if (waiting.length >= HISTORY_BATCH) {
+        void sendPending(userId, queryClient).catch(() => {});
+      } else {
+        timer ??= window.setTimeout(
+          () => void sendPending(userId, queryClient).catch(() => {}),
+          FLUSH_MS,
+        );
+      }
+    },
+    [key, keep, userId, queryClient],
+  );
+  const clear = useMutation({
+    mutationFn: () => api('/api/history', { method: 'DELETE' }),
+    onSuccess: () => {
+      write(key, []);
+      queryClient.setQueryData<HistoryList>(HISTORY_KEY, { entries: [] });
+    },
+  });
+  const entries = useMemo(
+    () => (keep ? merge(pending, remote.data?.entries ?? []) : []),
+    [keep, pending, remote.data],
+  );
+  return {
+    entries,
+    keep,
+    loading: open && keep && remote.isPending,
+    record,
+    clear,
+  };
+}
+
+/** Before signing out: what waits goes to the account (if it can). */
+export async function sendHistoryNow(userId: string, queryClient: QueryClient): Promise<void> {
+  await sendPending(userId, queryClient).catch(() => null);
+}
+
+/** Sign-out: nothing of the history stays on the device. */
 export function forgetHistory(): void {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k?.startsWith(PREFIX)) localStorage.removeItem(k);
+      if (k?.startsWith(PREFIX) || k?.startsWith(LEGACY)) localStorage.removeItem(k);
     }
   } catch {
     // Storage disabled: nothing was kept.
