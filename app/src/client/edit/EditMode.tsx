@@ -9,10 +9,10 @@ import {
   type Me,
   type Tile,
 } from '@aplikaacja/shared';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
-import { useGridLayout } from '../boards/layout.ts';
+import { useGridAttributes, useGridLayout } from '../boards/layout.ts';
 import { useBoardWrites } from '../boards/writes.ts';
 import {
   GearIcon,
@@ -334,6 +334,17 @@ function EditGrid({
   const at = useMemo(() => new Map(board.tiles.map((t) => [`${t.row},${t.col}`, t])), [board]);
   const byId = useMemo(() => new Map(board.tiles.map((t) => [t.id, t])), [board]);
   const layout = useGridLayout(board);
+  const gridAttributes = useGridAttributes(layout);
+  const area = useRef<HTMLDivElement>(null);
+  // Another board starts at its top; a tile found with the search is scrolled into view.
+  // Block bodies: scroll methods return a promise in newer browsers, not a cleanup.
+  useLayoutEffect(() => {
+    area.current?.scrollTo({ top: 0 });
+  }, [board.id]);
+  useEffect(() => {
+    if (found)
+      area.current?.querySelector(`[data-tile="${found}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [found]);
   // The click that ends a drag must not open the tile dialog.
   const dragging = useRef(false);
 
@@ -354,10 +365,10 @@ function EditGrid({
         if (row !== tile.row || col !== tile.col) onMove(tile, row, col);
       }}
     >
-      <div className="board-area">
+      <div ref={area} className="board-area">
         <div
           className="board-grid"
-          style={{ '--cols': layout.cols, '--rows': layout.rows } as CSSProperties}
+          {...gridAttributes}
           onContextMenu={(e) => e.preventDefault()}
           data-testid="edit-grid"
         >

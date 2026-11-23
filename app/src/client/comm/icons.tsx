@@ -35,10 +35,18 @@ export const ArrowBackIcon = ({ className = 'size-7' }) => (
     <path d="M15 5l-7 7 7 7" />
   </svg>
 );
-export const LockIcon = ({ className = 'size-6' }) => (
+/** Edit mode (the button in communication mode that opens it). */
+export const PencilIcon = ({ className = 'size-6' }) => (
   <svg {...common} className={className}>
-    <rect x="5" y="11" width="14" height="10" rx="2" />
-    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" />
+    <path d="m13.5 6.5 4 4" />
+  </svg>
+);
+/** Pushpin: a board pinned in communication mode (filled while one is). */
+export const PinIcon = ({ className = 'size-7', filled = false }) => (
+  <svg {...common} className={className}>
+    <path d="M9 3h6l-1 6.5 3.5 3.5h-11L10 9.5z" fill={filled ? 'currentColor' : 'none'} />
+    <path d="M12 13v8" />
   </svg>
 );
 export const FolderIcon = ({ className = 'size-5' }) => (

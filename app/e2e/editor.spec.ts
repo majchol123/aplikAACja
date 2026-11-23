@@ -189,7 +189,8 @@ test('PIN, grid size, moving between boards and deleting', async ({ page }) => {
   await expect(page.getByTestId('pin-state')).toHaveText('PIN jest ustawiony.');
   await page.getByRole('button', { name: 'Wróć do edycji' }).click();
   await page.getByRole('button', { name: 'Gotowe' }).click();
-  await holdEditLock(page);
+  // With a PIN one tap asks for it: the PIN guards the editor instead of the long hold.
+  await page.getByRole('button', { name: 'Tryb edycji (wymaga PIN-u)' }).click();
   const pad = dialog(page);
   await expect(pad.getByRole('heading', { name: 'Podaj PIN' })).toBeVisible();
   await axe(page);
@@ -276,6 +277,7 @@ test('a hidden tile keeps its cell: out of communication mode and its search, di
   expect(await neighbour.boundingBox()).toEqual(before);
   await page.getByRole('button', { name: 'Szukaj' }).click();
   const search = page.getByRole('dialog', { name: 'Szukaj' });
+  await search.getByRole('tab', { name: 'Moje kafelki' }).click();
   await search.getByRole('searchbox').fill('jablka');
   await expect(search).toContainText('Nic nie znaleziono.');
   await search.getByRole('button', { name: 'Zamknij' }).click();

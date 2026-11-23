@@ -8,7 +8,11 @@ import type { SymbolSet } from './settings.ts';
  * the server can rule out cycles and orphans by construction.
  */
 export const BOARD_LIMITS = {
-  maxRows: 12,
+  /**
+   * Rows beyond the screen scroll down; columns always fit its width, so a board never
+   * scrolls sideways (the vault's CHECK constraints repeat both, schema.ts v9).
+   */
+  maxRows: 40,
   maxCols: 12,
   /** Folder levels below the home board. */
   maxDepth: 10,

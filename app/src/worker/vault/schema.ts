@@ -214,6 +214,73 @@ export const VAULT_MIGRATIONS: readonly string[] = [
      at INTEGER NOT NULL
    );
    CREATE INDEX history_at ON history (at);`,
+
+  // v9 — taller boards (up to 40 rows, scrolled; BOARD_LIMITS). SQLite cannot change a CHECK,
+  // so both tables are rebuilt: dropping `boards` alone would cascade into `tiles`, and
+  // ON DELETE CASCADE runs even with deferred foreign keys. The old tiles go first (nothing
+  // references them), then the old boards; renaming the copies rewrites the REFERENCES
+  // clauses that name them. Dropping a table drops its indexes and triggers, so both come
+  // back as in v2/v4, and the counters are recounted rather than trusted.
+  `CREATE TABLE boards_v9 (
+     id TEXT PRIMARY KEY,
+     name TEXT NOT NULL,
+     parent_board_id TEXT REFERENCES boards_v9 (id) ON DELETE CASCADE,
+     rows INTEGER NOT NULL CHECK (rows BETWEEN 1 AND 40),
+     cols INTEGER NOT NULL CHECK (cols BETWEEN 1 AND 12),
+     rev INTEGER NOT NULL DEFAULT 1,
+     created_at INTEGER NOT NULL,
+     updated_at INTEGER NOT NULL
+   );
+   INSERT INTO boards_v9 (id, name, parent_board_id, rows, cols, rev, created_at, updated_at)
+     SELECT id, name, parent_board_id, rows, cols, rev, created_at, updated_at FROM boards;
+   CREATE TABLE tiles_v9 (
+     id TEXT PRIMARY KEY,
+     board_id TEXT NOT NULL REFERENCES boards_v9 (id) ON DELETE CASCADE,
+     row INTEGER NOT NULL,
+     col INTEGER NOT NULL,
+     kind TEXT NOT NULL CHECK (kind IN ('word', 'folder')),
+     target_board_id TEXT UNIQUE REFERENCES boards_v9 (id) ON DELETE CASCADE,
+     label TEXT NOT NULL,
+     label_position TEXT NOT NULL DEFAULT 'bottom' CHECK (label_position IN ('top', 'bottom')),
+     font_size TEXT NOT NULL DEFAULT 'M' CHECK (font_size IN ('S', 'M', 'L', 'XL')),
+     color_role TEXT CHECK (color_role IN
+       ('person', 'noun', 'verb', 'descriptor', 'social', 'question', 'negation', 'misc')),
+     color_mode TEXT NOT NULL DEFAULT 'border' CHECK (color_mode IN ('background', 'border')),
+     symbol_set TEXT CHECK (symbol_set IN ('arasaac', 'extra', 'own')),
+     symbol_ref TEXT,
+     created_at INTEGER NOT NULL,
+     updated_at INTEGER NOT NULL,
+     hidden INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1)),
+     speech TEXT,
+     UNIQUE (board_id, row, col),
+     CHECK ((kind = 'folder') = (target_board_id IS NOT NULL)),
+     CHECK ((symbol_set IS NULL) = (symbol_ref IS NULL))
+   );
+   INSERT INTO tiles_v9 (id, board_id, row, col, kind, target_board_id, label, label_position,
+                         font_size, color_role, color_mode, symbol_set, symbol_ref, created_at,
+                         updated_at, hidden, speech)
+     SELECT id, board_id, row, col, kind, target_board_id, label, label_position, font_size,
+            color_role, color_mode, symbol_set, symbol_ref, created_at, updated_at, hidden, speech
+       FROM tiles;
+   DROP TABLE tiles;
+   DROP TABLE boards;
+   ALTER TABLE boards_v9 RENAME TO boards;
+   ALTER TABLE tiles_v9 RENAME TO tiles;
+   CREATE INDEX idx_boards_parent ON boards (parent_board_id);
+   CREATE UNIQUE INDEX idx_boards_home ON boards ((parent_board_id IS NULL))
+     WHERE parent_board_id IS NULL;
+   CREATE INDEX idx_tiles_own ON tiles (symbol_ref) WHERE symbol_set = 'own';
+   CREATE TRIGGER boards_counted AFTER INSERT ON boards
+     BEGIN UPDATE vault_meta SET boards = boards + 1 WHERE id = 1; END;
+   CREATE TRIGGER boards_uncounted AFTER DELETE ON boards
+     BEGIN UPDATE vault_meta SET boards = boards - 1 WHERE id = 1; END;
+   CREATE TRIGGER tiles_counted AFTER INSERT ON tiles
+     BEGIN UPDATE vault_meta SET tiles = tiles + 1 WHERE id = 1; END;
+   CREATE TRIGGER tiles_uncounted AFTER DELETE ON tiles
+     BEGIN UPDATE vault_meta SET tiles = tiles - 1 WHERE id = 1; END;
+   UPDATE vault_meta
+      SET boards = (SELECT COUNT(*) FROM boards), tiles = (SELECT COUNT(*) FROM tiles)
+    WHERE id = 1;`,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {

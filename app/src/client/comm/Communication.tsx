@@ -10,17 +10,18 @@ import {
   type Tile,
 } from '@aplikaacja/shared';
 import {
+  Fragment,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type PointerEvent,
   type ReactNode,
 } from 'react';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
-import { useGridLayout } from '../boards/layout.ts';
+import { useGridAttributes, useGridLayout } from '../boards/layout.ts';
 import { useDeviceSettings } from '../device.ts';
 import { PhraseGenerator } from '../phrase/PhraseGenerator.tsx';
 import { useSpeaker } from '../speech.ts';
@@ -32,7 +33,8 @@ import {
   ClockIcon,
   GridIcon,
   KeyboardIcon,
-  LockIcon,
+  PencilIcon,
+  PinIcon,
   PlayIcon,
   SearchIcon,
   TrashIcon,
@@ -77,7 +79,7 @@ export function Communication({
   const [sentence, setSentence] = useState<SentenceItem[]>([]);
   const nextKey = useRef(0);
   const speak = useSpeaker();
-  const [device] = useDeviceSettings();
+  const [device, updateDevice] = useDeviceSettings();
   const account = useAccountSettings();
   const allTiles = useMemo(() => tree.boards.flatMap((b) => b.tiles), [tree.boards]);
   const resolve = useSymbolResolver(me, allTiles);
@@ -90,6 +92,19 @@ export function Communication({
   const foundTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(foundTimer.current), []);
   useWakeLock();
+  // A pinned board deleted meanwhile (another device) is forgotten.
+  const pinned = device.pinnedBoard && boards.has(device.pinnedBoard) ? device.pinnedBoard : null;
+  useEffect(() => {
+    if (device.pinnedBoard && !pinned) updateDevice({ pinnedBoard: null });
+  }, [device.pinnedBoard, pinned, updateDevice]);
+  const back = pinned ?? homeId;
+  // Opening the app (boardId not chosen yet) shows the pinned board, as after a word.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current) return;
+    opened.current = true;
+    if (boardId === null && pinned) onBoardChange(pinned);
+  }, [boardId, pinned, onBoardChange]);
 
   if (!board) return null;
 
@@ -117,7 +132,8 @@ export function Communication({
       symbol: tile.symbol,
       ...(tile.speech ? { speech: tile.speech } : {}),
     });
-    if ((account.data?.returnToHome ?? true) && board?.parentId) onBoardChange(homeId);
+    // A pinned board takes the place of the home board as the one to come back to.
+    if ((account.data?.returnToHome ?? true) && board?.id !== back) onBoardChange(back);
   }
 
   const speakSentence = () => {
@@ -156,6 +172,12 @@ export function Communication({
         onOpen={onBoardChange}
         className="[grid-area:nav]"
       >
+        <PinButton
+          board={board}
+          pinned={pinned ? boards.get(pinned) : undefined}
+          onPin={(id) => updateDevice({ pinnedBoard: id })}
+          onOpen={onBoardChange}
+        />
         <ToolButton label="Szukaj" onClick={() => setSearching(true)}>
           <SearchIcon />
         </ToolButton>
@@ -264,24 +286,27 @@ function SentenceBar({
         data-testid="sentence"
         className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto rounded-2xl bg-white px-3 shadow-sm ring-1 ring-slate-200"
       >
-        {items.map((item) => (
-          <span
-            key={item.key}
-            className="flex h-full max-h-24 shrink-0 flex-col items-center justify-center py-1 short:py-0.5"
-            data-testid="sentence-item"
-          >
-            {item.src && (
-              <img
-                src={item.src}
-                alt=""
-                draggable={false}
-                className="min-h-0 w-16 flex-1 object-contain short:w-10"
-              />
-            )}
-            <span className="text-base font-bold leading-tight text-slate-800 short:text-sm">
-              {item.label}
+        {items.map((item, i) => (
+          <Fragment key={item.key}>
+            {/* Not drawn between flex items; keeps the words apart in the accessible text. */}
+            {i > 0 && ' '}
+            <span
+              className="flex h-full max-h-24 shrink-0 flex-col items-center justify-center py-1 short:py-0.5"
+              data-testid="sentence-item"
+            >
+              {item.src && (
+                <img
+                  src={item.src}
+                  alt=""
+                  draggable={false}
+                  className="min-h-0 w-16 flex-1 object-contain short:w-10"
+                />
+              )}
+              <span className="text-base font-bold leading-tight text-slate-800 short:text-sm">
+                {item.label}
+              </span>
             </span>
-          </span>
+          </Fragment>
         ))}
       </div>
       <BarButton label="Usuń ostatnie słowo" disabled={empty} onClick={onBackspace}>
@@ -294,6 +319,55 @@ function SentenceBar({
         <PlayIcon />
       </BarButton>
     </div>
+  );
+}
+
+/**
+ * Pins the open board (a game, a lesson) on this device: choosing a word comes back to it
+ * instead of the home board. On the pinned board it unpins; elsewhere it leads back to it.
+ */
+function PinButton({
+  board,
+  pinned,
+  onPin,
+  onOpen,
+}: {
+  board: Board;
+  pinned: Board | undefined;
+  onPin: (boardId: string | null) => void;
+  onOpen: (boardId: string) => void;
+}) {
+  const look = (on: boolean) =>
+    `flex size-12 shrink-0 items-center justify-center rounded-xl shadow-sm ${
+      on
+        ? 'bg-amber-300 text-amber-950 ring-2 ring-amber-600'
+        : 'bg-white text-slate-700 ring-1 ring-slate-200'
+    }`;
+  if (pinned && pinned.id !== board.id) {
+    return (
+      <button
+        type="button"
+        aria-label={`Wróć do przypiętej tablicy: ${pinned.name}`}
+        onClick={() => onOpen(pinned.id)}
+        className={look(true)}
+      >
+        <PinIcon filled />
+      </button>
+    );
+  }
+  // The home board is where everything comes back to anyway.
+  if (!pinned && !board.parentId) return null;
+  const on = pinned?.id === board.id;
+  return (
+    <button
+      type="button"
+      aria-label="Przypnij tablicę"
+      aria-pressed={on}
+      onClick={() => onPin(on ? null : board.id)}
+      className={look(on)}
+    >
+      <PinIcon filled={on} />
+    </button>
   );
 }
 
@@ -375,6 +449,17 @@ function BoardGrid({
   const shown = useMemo(() => board.tiles.filter((t) => !t.hidden), [board.tiles]);
   const byId = useMemo(() => new Map(shown.map((t) => [t.id, t])), [shown]);
   const layout = useGridLayout(board);
+  const gridAttributes = useGridAttributes(layout);
+  const area = useRef<HTMLDivElement>(null);
+  // Another board starts at its top; a tile found with the search is scrolled into view.
+  // Block bodies: scroll methods return a promise in newer browsers, not a cleanup.
+  useLayoutEffect(() => {
+    area.current?.scrollTo({ top: 0 });
+  }, [board.id]);
+  useEffect(() => {
+    if (found)
+      area.current?.querySelector(`[data-tile="${found}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [found]);
   const cells = useMemo(() => {
     const at = new Map(shown.map((t) => [`${t.row},${t.col}`, t]));
     return Array.from({ length: layout.rows * layout.cols }, (_, i) => {
@@ -430,11 +515,10 @@ function BoardGrid({
   };
 
   return (
-    <div className="board-area [grid-area:board]">
+    <div ref={area} className="board-area [grid-area:board]">
       <div
         className="board-grid"
-        style={{ '--cols': layout.cols, '--rows': layout.rows } as CSSProperties}
-        data-transposed={layout.transposed || undefined}
+        {...gridAttributes}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
@@ -466,12 +550,34 @@ function BoardGrid({
   );
 }
 
-/** Edit mode only after holding the button for 2 s, so it does not open by chance. */
+/**
+ * Opens edit mode. With a PIN on this device one tap asks for it; without one the button must
+ * be held for 2 s, so a chance touch of the board does not open the editor.
+ */
 function EditLock({ onUnlock }: { onUnlock: () => void }) {
+  const [device] = useDeviceSettings();
   const [holding, setHolding] = useState(false);
   const [hint, setHint] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
+  const button =
+    'relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-slate-600 shadow-sm ring-1 ring-slate-200';
+
+  if (device.pin) {
+    return (
+      <div className="relative self-center [grid-area:lock]">
+        <button
+          type="button"
+          aria-label="Tryb edycji (wymaga PIN-u)"
+          onClick={onUnlock}
+          onContextMenu={(e) => e.preventDefault()}
+          className={button}
+        >
+          <PencilIcon />
+        </button>
+      </div>
+    );
+  }
 
   const start = () => {
     window.clearTimeout(timer.current);
@@ -503,9 +609,9 @@ function EditLock({ onUnlock }: { onUnlock: () => void }) {
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && !e.repeat && start()}
         onKeyUp={stop}
         onContextMenu={(e) => e.preventDefault()}
-        className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-slate-500 shadow-sm ring-1 ring-slate-200"
+        className={button}
       >
-        <LockIcon />
+        <PencilIcon />
         <span className="hold-progress absolute inset-x-0 bottom-0 h-1.5 bg-brand-600" />
       </button>
       {hint && (

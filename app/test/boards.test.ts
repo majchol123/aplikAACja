@@ -305,6 +305,11 @@ describe('board tree', () => {
     expect(changed(ok, board.id)).toMatchObject({ rows: 3, cols: 4, name: 'Dom', rev: 3 });
     const tooBig = await api('PATCH', `/api/boards/${board.id}`, { rev: 3, cols: 13 });
     expect(tooBig.status).toBe(400);
+    expect((await api('PATCH', `/api/boards/${board.id}`, { rev: 3, rows: 41 })).status).toBe(400);
+    // Up to 40 rows (scrolled): the vault's CHECK constraint agrees with the schema (v9).
+    const tall = await api<BoardChanges>('PATCH', `/api/boards/${board.id}`, { rev: 3, rows: 40 });
+    expect(tall.status, JSON.stringify(tall.body)).toBe(200);
+    expect(changed(tall, board.id)).toMatchObject({ rows: 40, cols: 4 });
   });
 
   it('keeps a folder label and its board name in sync', async () => {

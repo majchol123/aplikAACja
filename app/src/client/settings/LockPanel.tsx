@@ -37,8 +37,9 @@ export function LockPanel() {
         Blokada trybu edycji (na tym urządzeniu)
       </h2>
       <p className="mt-1 text-slate-600">
-        Tryb edycji otwiera się po przytrzymaniu kłódki przez 2 sekundy. PIN dodatkowo chroni
-        tablice i ustawienia przed przypadkową zmianą — działa tylko na tym urządzeniu.
+        Bez PIN-u tryb edycji otwiera się po przytrzymaniu ołówka przez 2 sekundy. Z PIN-em
+        wystarczy dotknąć ołówka i podać PIN — chroni on tablice i ustawienia przed przypadkową
+        zmianą i działa tylko na tym urządzeniu.
       </p>
       {editing ? (
         <form

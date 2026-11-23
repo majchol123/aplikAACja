@@ -60,7 +60,8 @@ function useTileSearch(me: Me, tree: BoardTree, includeHidden: boolean) {
 /**
  * The search of communication mode (PLAN §2.1): own tiles (with where they are; tapping
  * one shows it on its board) and the symbol library (tapping one says it and adds it to
- * the sentence). Which of them, and in what order, comes from the account settings.
+ * the sentence). Which of them comes from the account settings; with both, the library is
+ * searched first.
  */
 export function SearchPanel({
   me,
@@ -85,8 +86,9 @@ export function SearchPanel({
   const id = useId();
   const [query, setQuery] = useState('');
   const deferred = useDeferredValue(query);
-  const available: Source[] = sources === 'both' ? ['tiles', 'library'] : [sources];
-  const [source, setSource] = useState<Source>(available[0] ?? 'tiles');
+  // The library first: most searches look for a symbol the boards do not have yet.
+  const available: Source[] = sources === 'both' ? ['library', 'tiles'] : [sources];
+  const [source, setSource] = useState<Source>(available[0] ?? 'library');
   const findTiles = useTileSearch(me, tree, includeHidden);
   const library = useLibrary(me);
   const boards = useMemo(() => new Map(tree.boards.map((b) => [b.id, b])), [tree.boards]);

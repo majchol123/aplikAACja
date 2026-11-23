@@ -6,6 +6,7 @@ import {
   type MotorSettings,
   type Settings,
   type SettingsPatch,
+  type TileMin,
   type VoiceInfo,
   type VoicePreset,
 } from '@aplikaacja/shared';
@@ -292,6 +293,26 @@ export function DevicePanel() {
               className="mt-3 w-full accent-brand-700"
             />
           </label>
+          <div>
+            <label className={field}>
+              Najmniejsze kafelki
+              <select
+                className={select}
+                value={device.tileMin}
+                aria-describedby={`${id}-tile-min`}
+                onChange={(e) => update({ tileMin: e.target.value as TileMin })}
+              >
+                <option value="S">małe</option>
+                <option value="M">średnie</option>
+                <option value="L">duże</option>
+                <option value="fit">bez przewijania: cała tablica na ekranie</option>
+              </select>
+            </label>
+            <p id={`${id}-tile-min`} className="mt-1 text-sm text-slate-600">
+              Tablica do sześciu rzędów zawsze mieści się na ekranie. Większa, na której kafelki
+              byłyby mniejsze, przewija się w dół — palcem albo paskiem.
+            </p>
+          </div>
         </div>
         <DeviceToggle checked={device.feedback} onChange={(v) => update({ feedback: v })}>
           Podświetlenie i wibracja po dotknięciu

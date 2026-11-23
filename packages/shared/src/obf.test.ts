@@ -289,7 +289,7 @@ describe('Open Board Format', () => {
         { id: 6, label: 'weird', image_id: 12 },
       ],
       grid: {
-        rows: 13,
+        rows: 41,
         columns: 2,
         order: [
           [1, 2],
@@ -317,7 +317,7 @@ describe('Open Board Format', () => {
     });
     const result = obzToPackage(files);
     expect(result.package.name).toBe('Moja tablica');
-    expect(result.package.board.rows).toBe(12);
+    expect(result.package.board.rows).toBe(40);
     expect(result.package.board.tiles.map((t) => [t.row, t.col, t.label, t.kind])).toEqual([
       [0, 0, 'happy', 'word'],
       [0, 1, 'drinks', 'folder'],

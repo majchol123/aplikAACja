@@ -12,8 +12,8 @@ import { SettingsScreen } from './settings/SettingsScreen.tsx';
 type Mode = 'communicate' | 'edit' | 'settings' | 'admin';
 
 /**
- * Opens in communication mode. Edit mode and settings are behind a 2-second hold and an
- * optional PIN of this device (PLAN §2.2).
+ * Opens in communication mode. Edit mode and settings are behind the PIN of this device or,
+ * without one, a 2-second hold (PLAN §2.2).
  */
 export function App({ me }: { me: Me }) {
   const [mode, setMode] = useState<Mode>('communicate');

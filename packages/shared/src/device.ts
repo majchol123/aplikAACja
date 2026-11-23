@@ -1,10 +1,16 @@
 import { z } from 'zod';
+import { ObjectIdSchema } from './boards.ts';
 
 /*
  * Settings of one device (tablet, phone), kept in its localStorage: system voices and touch
  * behaviour differ between devices of the same account (PLAN §2.4, §2.5). Account-wide
  * settings live in the vault (settings.ts).
  */
+
+/** Smallest tile heights (rem) before a board scrolls; 'fit' never scrolls. */
+export const TILE_MINS = ['fit', 'S', 'M', 'L'] as const;
+export type TileMin = (typeof TILE_MINS)[number];
+export const TILE_MIN_REM: Record<TileMin, number> = { fit: 0, S: 4.5, M: 6, L: 8 };
 
 /** Minimum hold choices (PLAN §2.5); 0 = off. */
 export const MIN_HOLD_STEPS = [0, 150, 300, 500, 800, 1200] as const;
@@ -53,6 +59,16 @@ export const DeviceSettingsSchema = z
      * (where small tiles hurt most and the orientation rarely changes), off elsewhere.
      */
     fitGrid: z.boolean().nullable(),
+    /**
+     * Smallest tile height before a board scrolls down instead of shrinking its tiles
+     * (TILE_MIN_REM); 'fit' keeps every board on one screen, however small its tiles get.
+     */
+    tileMin: z.enum(TILE_MINS),
+    /**
+     * Board pinned in communication mode (a game, a lesson): choosing a word returns to it
+     * instead of the home board, until it is unpinned. Ignored once the board is gone.
+     */
+    pinnedBoard: ObjectIdSchema.nullable(),
   })
   .strict();
 export type DeviceSettings = z.infer<typeof DeviceSettingsSchema>;
@@ -64,6 +80,8 @@ export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
   motor: { activateOn: 'release', minHoldMs: 0, sameTileGuardMs: 400, globalGuardMs: 150 },
   pin: null,
   fitGrid: null,
+  tileMin: 'M',
+  pinnedBoard: null,
 };
 
 /** Stored values from older versions fall back to defaults key by key. */

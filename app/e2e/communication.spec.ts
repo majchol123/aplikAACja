@@ -183,12 +183,53 @@ test('on a phone, upright and sideways, tiles keep their shape and whole-word la
   expect(grid.y).toBeLessThan(90);
 });
 
+test('a pinned board is where choosing a word comes back to, until unpinned', async ({ page }) => {
+  await starterBoard(page, 'Pinezka');
+  // Nothing to pin on the home board itself.
+  await expect(page.getByRole('button', { name: 'Przypnij tablicę' })).toHaveCount(0);
+  await tile(page, 'Picie, folder').click();
+  const pin = page.getByRole('button', { name: 'Przypnij tablicę' });
+  await expect(pin).toHaveAttribute('aria-pressed', 'false');
+  await pin.click();
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+
+  // Words on the pinned board keep it on screen...
+  await tile(page, 'sok').click();
+  await expect(current(page)).toHaveText('Picie');
+  // ...and a word anywhere else comes back to it, the home board's words too.
+  await page.getByRole('button', { name: 'Pulpit' }).click();
+  await expect(current(page)).toHaveText('Start');
+  await tile(page, 'chcę').click();
+  await expect(current(page)).toHaveText('Picie');
+  await page.getByRole('button', { name: 'Pulpit' }).click();
+  await page.getByRole('button', { name: 'Wróć do przypiętej tablicy: Picie' }).click();
+  await expect(current(page)).toHaveText('Picie');
+  await expect(sentence(page)).toHaveText(['sok', 'chcę']);
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(axe.violations).toEqual([]);
+
+  // Kept on this device: the app opens on it again. Unpinned, words lead home again.
+  await page.reload();
+  await expect(current(page)).toHaveText('Picie');
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+  await pin.click();
+  await expect(pin).toHaveAttribute('aria-pressed', 'false');
+  await tile(page, 'woda').click();
+  await expect(current(page)).toHaveText('Start');
+});
+
 test('the search finds own tiles by an inflected word and adds library symbols (F3)', async ({
   page,
 }) => {
   await starterBoard(page, 'Szukanie');
   await page.getByRole('button', { name: 'Szukaj' }).click();
   const search = page.getByRole('dialog', { name: 'Szukaj' });
+  // The library is searched first; own tiles are one tab away.
+  await expect(search.getByRole('tab', { name: 'Biblioteka symboli' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await search.getByRole('tab', { name: 'Moje kafelki' }).click();
   await search.getByRole('searchbox').fill('jablka');
   const found = search.getByRole('list', { name: 'Znalezione kafelki' }).getByRole('button');
   await expect(found).toHaveCount(1);
@@ -203,7 +244,6 @@ test('the search finds own tiles by an inflected word and adds library symbols (
   await expect(sentence(page)).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Szukaj' }).click();
-  await search.getByRole('tab', { name: 'Biblioteka symboli' }).click();
   await search.getByRole('searchbox').fill('jablka');
   await search
     .getByRole('list', { name: 'Znalezione symbole' })

@@ -2,6 +2,7 @@ import { runInDurableObject } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
 import { DEFAULT_SETTINGS } from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
+import { BoardStore } from '../src/worker/vault/boards.ts';
 import { VAULT_MIGRATIONS, migrateVault } from '../src/worker/vault/schema.ts';
 import { vaultFor, type UserVault } from '../src/worker/vault/user-vault.ts';
 import { insertUser, makeApp, sessionCookie, writeHeaders } from './helpers.ts';
@@ -58,6 +59,78 @@ describe('UserVault', () => {
       });
     });
     expect((await stub.getSettings()).activeSets).toEqual(['extra', 'arasaac']);
+  });
+
+  it('upgrades a v8 vault: boards and tiles survive the rebuild for taller grids (v9)', async () => {
+    const stub = vaultFor(env, 'vault-v8');
+    await runInDurableObject(stub, async (_i: UserVault, state) => {
+      await state.storage.deleteAll();
+      const sql = state.storage.sql;
+      sql.exec(
+        'CREATE TABLE _schema (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)',
+      );
+      for (const migration of VAULT_MIGRATIONS.slice(0, 8)) sql.exec(migration);
+      sql.exec('INSERT INTO _schema (id, version) VALUES (1, 8)');
+      const [home, food] = ['h'.repeat(26), 'f'.repeat(26)];
+      sql.exec(
+        `INSERT INTO boards (id, name, parent_board_id, rows, cols, rev, created_at, updated_at)
+         VALUES (?1, 'Start', NULL, 4, 6, 7, 1, 2), (?2, 'Jedzenie', ?1, 12, 12, 3, 1, 2)`,
+        home,
+        food,
+      );
+      sql.exec(
+        `INSERT INTO tiles (id, board_id, row, col, kind, target_board_id, label, color_role,
+                            symbol_set, symbol_ref, hidden, speech, created_at, updated_at)
+         VALUES ('${'a'.repeat(26)}', ?1, 0, 1, 'folder', ?2, 'Jedzenie', 'noun', NULL, NULL, 0, NULL, 1, 2),
+                ('${'b'.repeat(26)}', ?1, 1, 0, 'word', NULL, 'pić', 'verb', 'arasaac', '6061', 1, 'Chcę pić', 1, 2),
+                ('${'c'.repeat(26)}', ?2, 11, 11, 'word', NULL, 'jabłko', NULL, NULL, NULL, 0, NULL, 1, 2)`,
+        home,
+        food,
+      );
+      const before = sql.exec('SELECT * FROM tiles ORDER BY id').toArray();
+      expect(sql.exec('SELECT boards, tiles FROM vault_meta').one()).toEqual({
+        boards: 2,
+        tiles: 3,
+      });
+
+      expect(migrateVault(state.storage)).toBe(VAULT_MIGRATIONS.length);
+      expect(sql.exec('SELECT * FROM tiles ORDER BY id').toArray()).toEqual(before);
+      expect(sql.exec('SELECT id, rows, cols, rev FROM boards ORDER BY id').toArray()).toEqual([
+        { id: food, rows: 12, cols: 12, rev: 3 },
+        { id: home, rows: 4, cols: 6, rev: 7 },
+      ]);
+      expect(new BoardStore(state.storage).integrity()).toEqual([]);
+      // Nothing points at the copies' temporary names; indexes and counting triggers are back.
+      const schema = sql
+        .exec<{ type: string; name: string; sql: string | null }>(
+          "SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'",
+        )
+        .toArray();
+      expect(schema.filter((o) => o.sql?.includes('_v9'))).toEqual([]);
+      const names = schema.map((o) => o.name);
+      for (const name of [
+        'idx_boards_parent',
+        'idx_boards_home',
+        'idx_tiles_own',
+        'boards_counted',
+        'boards_uncounted',
+        'tiles_counted',
+        'tiles_uncounted',
+      ]) {
+        expect(names).toContain(name);
+      }
+
+      // Up to 40 rows now, still not more; deleting a board still cascades and counts.
+      sql.exec('UPDATE boards SET rows = 40 WHERE id = ?', food);
+      expect(() => sql.exec('UPDATE boards SET rows = 41 WHERE id = ?', food)).toThrow(/CHECK/);
+      expect(() => sql.exec('UPDATE boards SET cols = 13 WHERE id = ?', food)).toThrow(/CHECK/);
+      sql.exec('DELETE FROM boards WHERE id = ?', food);
+      expect(sql.exec('SELECT COUNT(*) AS n FROM tiles').one().n).toBe(1);
+      expect(sql.exec('SELECT boards, tiles FROM vault_meta').one()).toEqual({
+        boards: 1,
+        tiles: 1,
+      });
+    });
   });
 
   it('keeps working on a newer schema after a code rollback', async () => {

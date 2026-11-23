@@ -7,6 +7,8 @@
  * per orientation (motor planning).
  */
 
+import { BOARD_LIMITS } from './boards.ts';
+
 export interface Cell {
   row: number;
   col: number;
@@ -23,7 +25,13 @@ export function gridLayout(
   board: { rows: number; cols: number },
   { fit, portrait }: { fit: boolean; portrait: boolean },
 ): GridLayout {
-  const transposed = fit && (portrait ? board.cols > board.rows : board.rows > board.cols);
+  // A board taller than the widest grid (it scrolls down) stays upright: turned, it would
+  // need more columns than a screen takes.
+  const transposed =
+    fit &&
+    (portrait
+      ? board.cols > board.rows
+      : board.rows > board.cols && board.rows <= BOARD_LIMITS.maxCols);
   return transposed
     ? { rows: board.cols, cols: board.rows, transposed }
     : { rows: board.rows, cols: board.cols, transposed };

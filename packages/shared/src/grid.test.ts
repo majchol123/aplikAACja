@@ -20,6 +20,14 @@ describe('grid layout', () => {
     });
     expect(gridLayout(tall, { fit: true, portrait: true }).transposed).toBe(false);
     expect(gridLayout({ rows: 5, cols: 5 }, { fit: true, portrait: true }).transposed).toBe(false);
+    // Taller than 12 rows: scrolled, never turned into more columns than a grid has.
+    expect(gridLayout({ rows: 12, cols: 4 }, { fit: true, portrait: false }).transposed).toBe(true);
+    expect(gridLayout({ rows: 13, cols: 4 }, { fit: true, portrait: false }).transposed).toBe(
+      false,
+    );
+    expect(gridLayout({ rows: 40, cols: 12 }, { fit: true, portrait: true }).transposed).toBe(
+      false,
+    );
   });
 
   it('keeps the top-left corner and makes the first row the first column', () => {

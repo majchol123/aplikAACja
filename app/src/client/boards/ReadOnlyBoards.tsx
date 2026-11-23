@@ -1,9 +1,9 @@
 import { cellAt, type Board, type BoardTree, type Me } from '@aplikaacja/shared';
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState } from 'react';
 import { TileView } from '../comm/TileView.tsx';
 import { BoardNav } from './BoardNav.tsx';
 import { useSymbolResolver } from './data.ts';
-import { useGridLayout } from './layout.ts';
+import { useGridAttributes, useGridLayout } from './layout.ts';
 
 /**
  * A board tree to look at, not to use: folders open, tiles neither speak nor change.
@@ -53,14 +53,11 @@ function Grid({
   const resolve = useSymbolResolver(me, board.tiles, ownUrl);
   const at = new Map(board.tiles.map((t) => [`${t.row},${t.col}`, t]));
   const layout = useGridLayout(board);
+  const gridAttributes = useGridAttributes(layout);
   return (
     <div className="mt-3 h-[min(60dvh,30rem)] rounded-2xl bg-slate-100 p-2">
       <div className="board-area h-full">
-        <div
-          className="board-grid"
-          style={{ '--cols': layout.cols, '--rows': layout.rows } as CSSProperties}
-          data-testid="preview-grid"
-        >
+        <div className="board-grid" {...gridAttributes} data-testid="preview-grid">
           {Array.from({ length: layout.rows * layout.cols }, (_, i) => {
             const { row, col } = cellAt(layout, i);
             const tile = at.get(`${row},${col}`);

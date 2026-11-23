@@ -211,7 +211,7 @@ export async function spoken(page: Page) {
   );
 }
 
-/** Opens edit mode the way people do: holding the lock button for 2 seconds. */
+/** Opens edit mode the way people do without a PIN: holding the pencil button for 2 seconds. */
 export async function holdEditLock(page: Page) {
   const lock = page.getByRole('button', { name: /Tryb edycji/ });
   const box = (await lock.boundingBox())!;

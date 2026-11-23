@@ -87,7 +87,16 @@ export function TileView({
       className={`tile ${style} ${folder ? 'tile-folder' : ''} ${flash ? 'tile-flash' : ''} ${found ? 'tile-found' : ''}`}
     >
       {tile.labelPosition === 'top' && label}
-      {src && <img src={src} alt="" draggable={false} decoding="async" className="tile-img" />}
+      {src && (
+        <img
+          src={src}
+          alt=""
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+          className="tile-img"
+        />
+      )}
       {tile.labelPosition === 'bottom' && label}
       {holdMs > 0 && (
         <svg className="hold-ring" viewBox="0 0 100 100" aria-hidden="true">
