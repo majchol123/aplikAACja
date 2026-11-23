@@ -1,10 +1,52 @@
-import { BOARD_LIMITS, type Board, type PatchBoard } from '@aplikaacja/shared';
+import { BOARD_LIMITS, type Board, type GridSize, type PatchBoard } from '@aplikaacja/shared';
 import { useState } from 'react';
 import { useGridLayout } from '../boards/layout.ts';
 import { Dialog } from './Dialog.tsx';
 import { ui } from './ui.ts';
 
 const range = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
+
+/** Rows and columns of a board's grid, up to BOARD_LIMITS. */
+export function GridFields({
+  grid,
+  onChange,
+}: {
+  grid: GridSize;
+  onChange: (grid: GridSize) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <label className={ui.field}>
+        Wiersze
+        <select
+          className={ui.input}
+          value={grid.rows}
+          onChange={(e) => onChange({ ...grid, rows: Number(e.target.value) })}
+        >
+          {range(BOARD_LIMITS.maxRows).map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={ui.field}>
+        Kolumny
+        <select
+          className={ui.input}
+          value={grid.cols}
+          onChange={(e) => onChange({ ...grid, cols: Number(e.target.value) })}
+        >
+          {range(BOARD_LIMITS.maxCols).map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
 
 /** Name and grid of a board (PLAN §2.2). */
 export function BoardDialog({
@@ -61,36 +103,13 @@ export function BoardDialog({
             To także etykieta folderu, który otwiera tę tablicę.
           </p>
         )}
-        <div className="grid grid-cols-2 gap-4">
-          <label className={ui.field}>
-            Wiersze
-            <select
-              className={ui.input}
-              value={rows}
-              onChange={(e) => setRows(Number(e.target.value))}
-            >
-              {range(BOARD_LIMITS.maxRows).map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={ui.field}>
-            Kolumny
-            <select
-              className={ui.input}
-              value={cols}
-              onChange={(e) => setCols(Number(e.target.value))}
-            >
-              {range(BOARD_LIMITS.maxCols).map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <GridFields
+          grid={{ rows, cols }}
+          onChange={(grid) => {
+            setRows(grid.rows);
+            setCols(grid.cols);
+          }}
+        />
         <p className="text-sm text-slate-600">
           Kafelki zostają na swoich polach. Siatkę można zmniejszyć tylko wtedy, gdy poza nią nie ma
           kafelków.

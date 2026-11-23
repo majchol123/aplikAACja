@@ -327,7 +327,15 @@ export function EditMode({
         />
       )}
       {sharing === 'inbox' && (
-        <AddBoardDialog me={me} board={board} onClose={() => setSharing(null)} />
+        <AddBoardDialog
+          me={me}
+          board={board}
+          onClose={() => setSharing(null)}
+          onOpenBoard={(id) => {
+            setSharing(null);
+            onBoardChange(id);
+          }}
+        />
       )}
       {boardDialog && (
         <BoardDialog

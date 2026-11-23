@@ -57,7 +57,8 @@ export function SymbolPicker({
   query: string;
   onQuery: (query: string) => void;
   selected: SymbolRef | null;
-  onPick: (item: PickerItem) => void;
+  /** `via`: found by the search or in the category folders. */
+  onPick: (item: PickerItem, via: 'search' | 'browse') => void;
 }) {
   const library = useLibrary(me);
   const photos = useMediaList();
@@ -99,12 +100,12 @@ export function SymbolPicker({
           ? 'Twoje zdjęcia. Wpisz słowo, aby zobaczyć też symbole.'
           : 'Wpisz słowo, aby zobaczyć symbole.';
 
-  const tile = (item: PickerItem) => (
+  const tile = (item: PickerItem, via: 'search' | 'browse') => (
     <PickerTile
       item={item}
       chosen={selected !== null && key(selected) === key(item.symbol)}
       star={isPreferred(preferred.data, item.word, item.symbol)}
-      onPick={onPick}
+      onPick={(picked) => onPick(picked, via)}
     />
   );
 
@@ -159,7 +160,7 @@ export function SymbolPicker({
               data-testid="symbol-results"
             >
               {items.map((item) => (
-                <li key={key(item.symbol)}>{tile(item)}</li>
+                <li key={key(item.symbol)}>{tile(item, 'search')}</li>
               ))}
             </ul>
           )}
@@ -168,7 +169,7 @@ export function SymbolPicker({
         <CategoryBrowser
           me={me}
           className="max-h-80"
-          renderSymbol={(hit, source) => tile(fromHit(hit, source))}
+          renderSymbol={(hit, source) => tile(fromHit(hit, source), 'browse')}
         />
       )}
       {library.usesArasaac && <p className="mt-2 text-xs text-slate-500">{ARASAAC_NOTE}</p>}

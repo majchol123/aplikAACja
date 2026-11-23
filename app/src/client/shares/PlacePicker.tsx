@@ -104,7 +104,7 @@ export function PlacePicker({
                       tile?.id === ALL_SYMBOLS_ID
                         ? `${where}: ${tile.label} (stałe pole)`
                         : tile
-                          ? `${where}: zajęte („${tile.label}”)`
+                          ? `${where}: ${tile.label} (zajęte)`
                           : selected
                             ? `${where}: tu będzie „${name}”`
                             : `${where}: puste`

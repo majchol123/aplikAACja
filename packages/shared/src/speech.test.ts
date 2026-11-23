@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { planSpeech, polishVoices, voiceGender, type VoiceInfo } from './speech.ts';
+import {
+  CHROMIUM_WINDOWS_LOCAL_RATE,
+  localVoiceRate,
+  planSpeech,
+  polishVoices,
+  voiceGender,
+  type VoiceInfo,
+} from './speech.ts';
 
 const voice = (
   name: string,
@@ -96,5 +103,38 @@ describe('voice selection', () => {
     });
     expect(plan).toMatchObject({ voiceURI: null, lang: 'pl-PL', pitch: 1.6 });
     expect(plan.rate).toBeCloseTo(1.575); // speed clamped to 1.5 × preset 1.05
+  });
+
+  it('slows the Windows voices down in Chromium browsers other than Edge only', () => {
+    const ua = (tail: string) =>
+      `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ${tail}`;
+    const chrome = ua('Chrome/142.0.0.0 Safari/537.36');
+    expect(localVoiceRate(chrome)).toBe(CHROMIUM_WINDOWS_LOCAL_RATE);
+    expect(localVoiceRate(ua('Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0'))).toBe(1);
+    expect(localVoiceRate(ua('Chrome/142.0.0.0 Safari/537.36 OPR/120.0.0.0'))).toBe(0.6);
+    expect(
+      localVoiceRate(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0',
+      ),
+    ).toBe(1);
+    expect(
+      localVoiceRate(
+        'Mozilla/5.0 (Linux; Android 14; SM-X210) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+      ),
+    ).toBe(1);
+    expect(
+      localVoiceRate(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+      ),
+    ).toBe(1);
+
+    const prefs = { preset: 'woman', voiceURI: null, rate: 1, pitch: 1 } as const;
+    // The slider's 100% plays the installed voice at 0.6 of the preset's rate…
+    expect(planSpeech(WINDOWS_EDGE, prefs, 0.6).rate).toBeCloseTo(0.57); // 0.95 × 0.6
+    // …but an online voice as it is.
+    const online = 'Microsoft Zofia Online (Natural) - Polish (Poland)';
+    expect(planSpeech(WINDOWS_EDGE, { ...prefs, voiceURI: online }, 0.6).rate).toBeCloseTo(0.95);
+    // The slowest setting still sounds like speech.
+    expect(planSpeech(WINDOWS_EDGE, { ...prefs, rate: 0.5 }, 0.6).rate).toBeCloseTo(0.285);
   });
 });

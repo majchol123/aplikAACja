@@ -9,6 +9,7 @@ import {
   type ColorMode,
   type FitzgeraldRole,
   type FontSize,
+  type GridSize,
   type LabelPosition,
   type Me,
   type SymbolRef,
@@ -22,6 +23,7 @@ import type { BoardWrite } from '../boards/writes.ts';
 import { TileView } from '../comm/TileView.tsx';
 import { photoProblem, useUploadPhoto } from '../media/data.ts';
 import { PhotoCropper } from '../media/PhotoCropper.tsx';
+import { GridFields } from './BoardDialog.tsx';
 import { Dialog } from './Dialog.tsx';
 import { MovePanel } from './MovePanel.tsx';
 import { SymbolPicker, type PickerItem } from './SymbolPicker.tsx';
@@ -58,6 +60,18 @@ interface Draft {
 
 const BOARDS_PL = ['tablica', 'tablice', 'tablic'] as const;
 const TILES_PL = ['kafelek', 'kafelki', 'kafelków'] as const;
+
+/**
+ * Label for a symbol picked from the results of a label typed as a search: the symbol's word,
+ * capitalised like what was typed; what was typed when it is that word already.
+ */
+function completeLabel(typed: string, word: string): string {
+  const text = typed.trim();
+  if (text.toLocaleLowerCase('pl') === word.toLocaleLowerCase('pl')) return text;
+  const first = text.charAt(0);
+  const capital = first !== first.toLocaleLowerCase('pl');
+  return capital ? word.charAt(0).toLocaleUpperCase('pl') + word.slice(1) : word;
+}
 
 /** "1 tablica", "3 tablice", "5 tablic", "22 tablice". */
 export function countPl(n: number, [one, few, many]: readonly [string, string, string]): string {
@@ -167,6 +181,10 @@ export function TileEditor({
   const [autoColor, setAutoColor] = useState(true);
   // null: the search follows the label.
   const [query, setQuery] = useState<string | null>(null);
+  // Adding a tile, the label typed so far is a search: a symbol picked from its results
+  // gives the label its word, and the results stay those of what was typed until the label
+  // is edited again.
+  const [searched, setSearched] = useState<string | null>(null);
   // Keyword of the symbol picked from the search: becomes the word's preferred variant.
   const [picked, setPicked] = useState<{ word: string; symbol: SymbolRef } | null>(null);
   const [step, setStep] = useState<'edit' | 'move' | 'photo' | 'confirm-delete' | 'confirm-word'>(
@@ -180,14 +198,19 @@ export function TileEditor({
   const touch = useMemo(() => matchMedia('(pointer: coarse)').matches, []);
   const [busy, setBusy] = useState(false);
   const [missingLabel, setMissingLabel] = useState(false);
+  const [grid, setGrid] = useState<GridSize>({ rows: board.rows, cols: board.cols });
 
   const change = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
-  const pick = (item: Pick<PickerItem, 'symbol' | 'word' | 'role'>) => {
+  const pick = (item: Pick<PickerItem, 'symbol' | 'word' | 'role'>, via?: 'search' | 'browse') => {
+    const typed = searched ?? draft.label;
+    const fromLabel = !tile && via === 'search' && query === null;
+    if (fromLabel) setSearched(typed);
     setPicked({ word: item.word, symbol: item.symbol });
+    setMissingLabel(false);
     setDraft((d) => ({
       ...d,
       symbol: item.symbol,
-      label: d.label.trim() ? d.label : item.word,
+      label: fromLabel ? completeLabel(typed, item.word) : d.label.trim() ? d.label : item.word,
       colorRole: autoColor && item.role ? item.role : d.colorRole,
     }));
   };
@@ -206,6 +229,8 @@ export function TileEditor({
   };
 
   const folderBoard = tile?.targetBoardId ? boards.get(tile.targetBoardId) : undefined;
+  // A folder opens a board of its own, made empty with the tile (or when a word becomes one).
+  const newFolder = draft.kind === 'folder' && tile?.kind !== 'folder';
   const lost = folderBoard ? subtreeSize(boards, folderBoard.id) : null;
 
   async function run(change: BoardWrite): Promise<boolean> {
@@ -229,9 +254,11 @@ export function TileEditor({
       const input: Partial<Omit<Draft, 'symbol' | 'speech'>> & {
         symbol?: SymbolRef | null;
         speech?: string | null;
+        folder?: GridSize;
       } = {};
       if (label !== tile.label) input.label = label;
       if (draft.kind !== tile.kind) input.kind = draft.kind;
+      if (newFolder) input.folder = grid;
       if (draft.labelPosition !== tile.labelPosition) input.labelPosition = draft.labelPosition;
       if (draft.fontSize !== tile.fontSize) input.fontSize = draft.fontSize;
       if (draft.colorRole !== tile.colorRole) input.colorRole = draft.colorRole;
@@ -249,7 +276,7 @@ export function TileEditor({
       ok = await run({
         op: 'createTile',
         boardId: board.id,
-        input: { ...cell, ...draft, label, speech },
+        input: { ...cell, ...draft, label, speech, ...(newFolder ? { folder: grid } : {}) },
       });
     }
     if (!ok) {
@@ -368,8 +395,29 @@ export function TileEditor({
   };
 
   return (
-    <Dialog title={title} onClose={onClose} wide>
+    <Dialog
+      title={title}
+      onClose={onClose}
+      wide
+      actions={
+        <>
+          {/* Narrower on phones, so that both fit next to the title. */}
+          <button type="button" className={`${ui.secondary} max-sm:px-4`} onClick={onClose}>
+            Anuluj
+          </button>
+          <button
+            type="submit"
+            form={`${id}-form`}
+            className={`${ui.primary} max-sm:px-4`}
+            disabled={busy}
+          >
+            {busy ? 'Zapisywanie…' : 'Zapisz'}
+          </button>
+        </>
+      }
+    >
       <form
+        id={`${id}-form`}
         className="mt-4 grid gap-6 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]"
         onSubmit={(e) => {
           e.preventDefault();
@@ -388,6 +436,7 @@ export function TileEditor({
                 maxLength={BOARD_LIMITS.labelMax}
                 onChange={(e) => {
                   setMissingLabel(false);
+                  setSearched(null);
                   change({ label: e.target.value });
                 }}
                 aria-invalid={missingLabel}
@@ -431,6 +480,14 @@ export function TileEditor({
             onChange={(kind) => change({ kind })}
             render={(k) => (k === 'word' ? 'Słowo' : 'Folder (otwiera tablicę)')}
           />
+          {newFolder && (
+            <fieldset>
+              <legend className={ui.field}>Siatka nowej, pustej tablicy</legend>
+              <div className="mt-1">
+                <GridFields grid={grid} onChange={setGrid} />
+              </div>
+            </fieldset>
+          )}
           <div className="min-w-0 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm text-slate-600">
@@ -480,7 +537,7 @@ export function TileEditor({
             </div>
             <SymbolPicker
               me={me}
-              query={query ?? draft.label}
+              query={query ?? searched ?? draft.label}
               onQuery={setQuery}
               selected={draft.symbol}
               onPick={pick}
@@ -547,44 +604,36 @@ export function TileEditor({
             <span>
               Ukryj w trybie komunikacji
               <span className="block text-sm text-slate-600">
-                Kafelek zostaje na swoim miejscu, więc pozostałe się nie przesuwają. W trybie edycji
-                jest widoczny przygaszony.
+                Np. słowo, którego dopiero będziecie się uczyć, albo coś chwilowo niedostępnego.
+                Kafelek zostaje na swoim miejscu, więc pozostałe się nie przesuwają i ręka trafia
+                tam, gdzie zawsze. W trybie edycji jest widoczny przygaszony.
               </span>
             </span>
           </label>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 md:col-span-2">
-          {tile && (
-            <>
-              <button type="button" className={ui.danger} onClick={() => setStep('confirm-delete')}>
-                Usuń
+        {tile && (
+          <div className="flex flex-wrap items-center gap-3 md:col-span-2">
+            <button type="button" className={ui.danger} onClick={() => setStep('confirm-delete')}>
+              Usuń
+            </button>
+            <button type="button" className={ui.secondary} onClick={() => setStep('move')}>
+              Przenieś…
+            </button>
+            {folderBoard && (
+              <button
+                type="button"
+                className={ui.secondary}
+                onClick={() => {
+                  onClose();
+                  onOpenFolder(folderBoard.id);
+                }}
+              >
+                Otwórz folder
               </button>
-              <button type="button" className={ui.secondary} onClick={() => setStep('move')}>
-                Przenieś…
-              </button>
-              {folderBoard && (
-                <button
-                  type="button"
-                  className={ui.secondary}
-                  onClick={() => {
-                    onClose();
-                    onOpenFolder(folderBoard.id);
-                  }}
-                >
-                  Otwórz folder
-                </button>
-              )}
-            </>
-          )}
-          <span className="flex-1" />
-          <button type="button" className={ui.secondary} onClick={onClose}>
-            Anuluj
-          </button>
-          <button type="submit" className={ui.primary} disabled={busy}>
-            {busy ? 'Zapisywanie…' : 'Zapisz'}
-          </button>
-        </div>
+            )}
+          </div>
+        )}
       </form>
       {errorBox}
     </Dialog>

@@ -77,14 +77,38 @@ export function polishVoices(voices: readonly VoiceInfo[]): VoiceInfo[] {
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
 
-export function planSpeech(voices: readonly VoiceInfo[], prefs: SpeechPrefs): SpeechPlan {
+/**
+ * Chromium browsers other than Edge drive Windows' own (SAPI) voices much faster than Edge
+ * drives the same voices: at 0.6 of the rate they sound like Edge at 1 (judged by ear in
+ * testing; Edge and the online voices of Google and Microsoft are fine as they are).
+ */
+export const CHROMIUM_WINDOWS_LOCAL_RATE = 0.6;
+
+/** What `navigator` reports, reduced to what decides the local voices' rate. */
+export function localVoiceRate(userAgent: string): number {
+  const windows = /\bWindows NT\b/.test(userAgent);
+  const chromium = /\bChrome\/\d/.test(userAgent);
+  const edge = /\bEdg(e|A|iOS)?\/\d/.test(userAgent);
+  return windows && chromium && !edge ? CHROMIUM_WINDOWS_LOCAL_RATE : 1;
+}
+
+/**
+ * `localRate` scales the rate of a voice installed on the device (localService), so that the
+ * slider's 100% sounds the same in every browser (localVoiceRate).
+ */
+export function planSpeech(
+  voices: readonly VoiceInfo[],
+  prefs: SpeechPrefs,
+  localRate = 1,
+): SpeechPlan {
   const preset = PRESETS[prefs.preset];
-  const rate = clamp(preset.rate * clamp(prefs.rate, 0.5, 1.5), 0.3, 2);
+  const rate = preset.rate * clamp(prefs.rate, 0.5, 1.5);
   const plan = (voice: VoiceInfo | undefined, pitch: number): SpeechPlan => ({
     voiceURI: voice?.voiceURI ?? null,
     lang: 'pl-PL',
     pitch: clamp(pitch * clamp(prefs.pitch, 0.5, 1.5), 0, 2),
-    rate,
+    // Web Speech accepts 0.1–10; the result stays within what still sounds like speech.
+    rate: clamp(voice?.localService ? rate * localRate : rate, 0.2, 2),
   });
 
   const polish = polishVoices(voices);

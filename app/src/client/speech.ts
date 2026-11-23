@@ -1,4 +1,10 @@
-import { DEFAULT_SETTINGS, planSpeech, type SpeechPrefs, type VoiceInfo } from '@aplikaacja/shared';
+import {
+  DEFAULT_SETTINGS,
+  localVoiceRate,
+  planSpeech,
+  type SpeechPrefs,
+  type VoiceInfo,
+} from '@aplikaacja/shared';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useDeviceSettings } from './device.ts';
 import { useAccountSettings } from './settings/account.ts';
@@ -22,6 +28,8 @@ function subscribe(listener: () => void): () => void {
 
 export const speechSupported = synth !== null;
 
+const localRate = typeof navigator !== 'undefined' ? localVoiceRate(navigator.userAgent) : 1;
+
 export function useVoices(): readonly SpeechSynthesisVoice[] {
   return useSyncExternalStore(subscribe, () => voices);
 }
@@ -29,7 +37,7 @@ export function useVoices(): readonly SpeechSynthesisVoice[] {
 export function speak(text: string, prefs: SpeechPrefs): void {
   if (!synth || !text.trim()) return;
   const available = synth.getVoices();
-  const plan = planSpeech(available as readonly VoiceInfo[], prefs);
+  const plan = planSpeech(available as readonly VoiceInfo[], prefs, localRate);
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = plan.lang;
   utterance.pitch = plan.pitch;

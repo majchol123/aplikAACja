@@ -1,4 +1,5 @@
 import {
+  BOARD_LIMITS,
   catalogPhotoUrl,
   packageTree,
   receivedSharePhotoUrl,
@@ -6,6 +7,7 @@ import {
   type Board,
   type BoardPackage,
   type CatalogEntry,
+  type GridSize,
   type Me,
   type ObzImport,
   type ReceivedShare,
@@ -15,6 +17,8 @@ import { useCallback, useId, useMemo, useState } from 'react';
 import { formatBytes, formatDate, BOARDS_PL, PHOTOS_PL, TILES_PL } from '../admin/format.ts';
 import { applyChanges, TREE_KEY } from '../boards/data.ts';
 import { ReadOnlyBoards } from '../boards/ReadOnlyBoards.tsx';
+import { useBoardWrites } from '../boards/writes.ts';
+import { GridFields } from '../edit/BoardDialog.tsx';
 import { Dialog } from '../edit/Dialog.tsx';
 import { countPl } from '../edit/TileEditor.tsx';
 import { ui } from '../edit/ui.ts';
@@ -65,10 +69,13 @@ export function AddBoardDialog({
   me,
   board,
   onClose,
+  onOpenBoard,
 }: {
   me: Me;
   board: Board;
   onClose: () => void;
+  /** Opens a new empty board in the editor (and closes this dialog). */
+  onOpenBoard: (boardId: string) => void;
 }) {
   const [notice, setNotice] = useState<Notice>(null);
   const done = (name: string, on: string, note?: string) =>
@@ -81,8 +88,8 @@ export function AddBoardDialog({
   return (
     <Dialog title="Dodaj tablicę" onClose={onClose} wide>
       <p className="mt-2 text-slate-700">
-        Gotowa tablica pojawi się jako nowy folder w polu, które wybierzesz (na tej albo innej
-        tablicy). Możesz ją potem zmieniać jak każdą inną.
+        Nowa tablica — pusta albo gotowa — pojawi się jako folder w polu, które wybierzesz (na tej
+        albo innej tablicy). Możesz ją potem zmieniać jak każdą inną.
       </p>
       {notice && (
         <p
@@ -96,6 +103,7 @@ export function AddBoardDialog({
           {notice.text}
         </p>
       )}
+      <EmptyBoard board={board} onCreated={onOpenBoard} />
       <Received me={me} board={board} onDone={done} onError={failed} />
       <CatalogSection me={me} board={board} onDone={done} onError={failed} />
       <FileImport board={board} onDone={done} onError={failed} onStart={() => setNotice(null)} />
@@ -105,6 +113,74 @@ export function AddBoardDialog({
         </button>
       </div>
     </Dialog>
+  );
+}
+
+/** A board with nothing on it yet, behind a new folder; the editor opens it right away. */
+function EmptyBoard({ board, onCreated }: { board: Board; onCreated: (boardId: string) => void }) {
+  const id = useId();
+  const writes = useBoardWrites();
+  const [name, setName] = useState('');
+  const [grid, setGrid] = useState<GridSize>({ rows: board.rows, cols: board.cols });
+  const [choosing, setChoosing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const trimmed = name.trim();
+
+  async function create({ board: to, cell }: Place): Promise<void> {
+    setBusy(true);
+    const changes = await writes.write({
+      op: 'createTile',
+      boardId: to.id,
+      input: { ...cell, kind: 'folder', label: trimmed, folder: grid },
+    });
+    setBusy(false);
+    const folder = changes?.boards
+      .find((b) => b.id === to.id)
+      ?.tiles.find((t) => t.row === cell.row && t.col === cell.col);
+    if (folder?.targetBoardId) onCreated(folder.targetBoardId);
+  }
+
+  return (
+    <section className={section} aria-labelledby={`${id}-title`}>
+      <h3 id={`${id}-title`} className="font-bold text-brand-900">
+        Nowa pusta tablica
+      </h3>
+      <form
+        className="mt-3 space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!trimmed) return;
+          writes.dismiss();
+          setChoosing(true);
+        }}
+      >
+        <label className={ui.field}>
+          Nazwa (także napis na jej folderze)
+          <input
+            value={name}
+            maxLength={BOARD_LIMITS.nameMax}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="np. Zabawa, Szkoła, Jedzenie"
+            className={ui.input}
+            autoComplete="off"
+          />
+        </label>
+        <GridFields grid={grid} onChange={setGrid} />
+        <button type="submit" className={ui.primary} disabled={!trimmed}>
+          Wybierz miejsce folderu…
+        </button>
+      </form>
+      {choosing && (
+        <PlacePicker
+          name={trimmed}
+          start={board}
+          busy={busy ? 'Tworzenie tablicy…' : null}
+          problem={writes.problem}
+          onClose={() => setChoosing(false)}
+          onPlace={(place) => void create(place)}
+        />
+      )}
+    </section>
   );
 }
 

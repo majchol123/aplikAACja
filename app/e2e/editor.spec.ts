@@ -323,6 +323,62 @@ test('a tile says its own words; the sentence bar keeps its label', async ({ pag
   await expect(page.getByTestId('sentence-item')).toHaveText(['pić']);
 });
 
+test('a label typed as a search takes the word of the symbol picked; new boards get their grid', async ({
+  page,
+}) => {
+  await startEditing(page, 'Nowe tablice', 'Pusta tablica');
+
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 2' }).click();
+  const form = dialog(page);
+  const label = form.getByLabel('Etykieta');
+  await label.fill('Jab');
+  const results = form.getByTestId('symbol-results');
+  await results.getByRole('button', { name: /^jabłko,/ }).click();
+  await expect(label).toHaveValue('Jabłko');
+  // The results stay those of what was typed, so another one can still be picked.
+  await results.getByRole('button', { name: /^sok jabłkowy,/ }).click();
+  await expect(label).toHaveValue('Sok jabłkowy');
+  // Saving and cancelling stay at the top of the long form, also when it is scrolled.
+  const save = form.getByRole('button', { name: 'Zapisz' });
+  await expect(save).toBeInViewport();
+  expect((await save.boundingBox())!.y - (await form.boundingBox())!.y).toBeLessThan(100);
+  await save.click();
+  await expect(form).toHaveCount(0);
+  await expect(editTile(page, 'Sok jabłkowy')).toBeVisible();
+
+  // An empty board, with a grid of its own, opens in the editor at once.
+  await page.getByRole('button', { name: 'Dodaj tablicę', exact: true }).click();
+  const empty = page
+    .getByRole('dialog', { name: 'Dodaj tablicę', exact: true })
+    .getByRole('region', { name: 'Nowa pusta tablica' });
+  await empty.getByLabel('Nazwa').fill('Zabawa');
+  await empty.getByLabel('Wiersze').selectOption('3');
+  await empty.getByLabel('Kolumny').selectOption('5');
+  await empty.getByRole('button', { name: 'Wybierz miejsce folderu…' }).click();
+  const place = page.getByRole('dialog', { name: 'Gdzie dodać „Zabawa”?' });
+  await expect(place.getByRole('button', { name: /: tu będzie „Zabawa”$/ })).toBeVisible();
+  await axe(page);
+  await place.getByRole('button', { name: 'Dodaj tutaj' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(current(page)).toHaveText('Zabawa');
+  await expect(page.getByRole('navigation')).toContainText('Start›Zabawa');
+  await expect(page.getByRole('button', { name: /^Dodaj kafelek: / })).toHaveCount(15);
+
+  // A folder made in the tile editor can have its own grid too.
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 1' }).click();
+  await form.getByLabel('Etykieta').fill('Piłki');
+  await form.getByText('Folder (otwiera tablicę)').click();
+  const grid = form.getByRole('group', { name: 'Siatka nowej, pustej tablicy' });
+  await grid.getByLabel('Wiersze').selectOption('2');
+  await grid.getByLabel('Kolumny').selectOption('2');
+  await axe(page);
+  await form.getByRole('button', { name: 'Zapisz' }).click();
+  await expect(form).toHaveCount(0);
+  await page.getByRole('button', { name: 'Otwórz folder Piłki' }).click();
+  await expect(current(page)).toHaveText('Piłki');
+  await expect(page.getByRole('button', { name: /^Dodaj kafelek: / })).toHaveCount(4);
+});
+
 test('a notable privacy-policy change is announced once, where the account is looked after', async ({
   page,
 }) => {
