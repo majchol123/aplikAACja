@@ -165,6 +165,26 @@ describe('Open Board Format', () => {
     });
   });
 
+  it('the grid only names cells inside it; a tile position never reaches a prototype', () => {
+    const word = pkg.board.tiles[0]!;
+    // Positions a caller might pass around the types: none may write outside the grid.
+    const odd = [-1, 3, 1.5, '__proto__', 'constructor'] as unknown as number[];
+    const board = {
+      rows: 1,
+      cols: 3,
+      tiles: [
+        { ...word, row: 0, col: 1 },
+        ...odd.map((col) => ({ ...word, row: 0, col })),
+        ...odd.map((row) => ({ ...word, row, col: 0 })),
+      ],
+    };
+    const files = packageToObz({ ...pkg, board }, pictures);
+    const order: unknown = JSON.parse(files['boards/0.obf'] as string).grid.order;
+    expect(order).toEqual([[null, '0-0', null]]);
+    expect(Object.prototype).not.toHaveProperty('0');
+    expect(Array.prototype).not.toHaveProperty('0');
+  });
+
   it('our own export comes back unchanged (photos by key)', () => {
     const back = obzToPackage(bytes(packageToObz(pkg, pictures)));
     expect(back.warnings).toEqual([]);

@@ -222,13 +222,12 @@ export function packageToObz(
     const path = `boards/${id}.obf`;
     boardPaths[id] = path;
     const used = new Set<string>();
-    const order: (string | null)[][] = Array.from({ length: board.rows }, () =>
-      Array.from({ length: board.cols }, () => null),
-    );
+    // Cells are looked up by key, and the grid is built from its own loop indices: no
+    // tile's row/col is ever used to index into an array or an object.
+    const cells = new Map<string, string>();
     const buttons = board.tiles.map((tile, i) => {
       const buttonId = `${id}-${i}`;
-      const row = order[tile.row];
-      if (row && tile.col < board.cols) row[tile.col] = buttonId;
+      cells.set(`${tile.row},${tile.col}`, buttonId);
       const role = tile.colorRole ? ROLE_RGB[tile.colorRole] : null;
       const filled = (tile.colorMode ?? 'border') === 'background';
       const button: Record<string, unknown> = {
@@ -255,6 +254,9 @@ export function packageToObz(
       }
       return button;
     });
+    const order = Array.from({ length: board.rows }, (_, row) =>
+      Array.from({ length: board.cols }, (_, col) => cells.get(`${row},${col}`) ?? null),
+    );
     files[path] = JSON.stringify({
       format: OBF_FORMAT,
       id,
