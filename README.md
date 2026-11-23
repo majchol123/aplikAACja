@@ -64,6 +64,7 @@ Dane kont są w Durable Objects i D1 Cloudflare; kopia trafia poza Cloudflare, z
 2. Superadministrator: panel administratora → „Kopie zapasowe” → klucz publiczny (`age-keygen -y key.txt`) → „Włącz kopie zapasowe”. Klucz dostępu zadania pokazuje się raz; nowy klucz publiczny unieważnia poprzedni klucz dostępu.
 3. Zadanie (np. codziennie z crona): `RELAACJA_BACKUP_TOKEN=… uv run --project tools tools/backup.py --origin https://<host> --out <katalog> --keep 30`. Serwer szyfruje każdy plik w Durable Objects, więc klucz dostępu daje wyłącznie szyfrogramy; zadanie odrzuca wszystko, co nie jest plikiem age. Zdjęcia pobierają się raz (są niezmienne), migawki starsze niż `--keep` znikają razem ze zdjęciami, których już nie używają.
 4. Odczyt: `age -d -i key.txt snapshots/<czas>/users/<id>.json.age` — tabele SQLite sejfu (kolumny i wiersze), D1 (`d1.json.age`: konta, dziennik zdarzeń, obrazki folderów; bez sesji) i katalog tablic.
+5. Odtworzenie tablic konta: `node --experimental-strip-types app/scripts/restore-obz.ts --backup <katalog> --user <id> --identity key.txt --out tablice.obz` (opcjonalnie `--snapshot`, `--board`), potem w aplikacji tryb edycji → „Dodaj tablicę” → z pliku: całe drzewo jako folder, ze zdjęciami, przez zwykłą walidację i limity importu.
 
 ## Licencje
 

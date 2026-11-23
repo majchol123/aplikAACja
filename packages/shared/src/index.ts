@@ -11,6 +11,7 @@ export * from './phrase.ts';
 export * from './backup.ts';
 export * from './phrases.ts';
 export * from './preferred.ts';
+export * from './restore.ts';
 export * from './search.ts';
 export * from './settings.ts';
 export * from './share.ts';
