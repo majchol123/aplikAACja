@@ -212,3 +212,30 @@ test('without WebP encoding (Safari) the photo is stored as JPEG; non-images are
   expect(photo.text.length).toBeLessThanOrEqual(200 * 1024);
   expect(photo.text).not.toContain(GPS);
 });
+
+test('a photo lying on its side is turned before it is cropped', async ({ page }) => {
+  await startEditing(page, 'Obrot zdjecia');
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 2, kolumna 4' }).click();
+  await dialog(page).getByLabel('Etykieta').fill('Obrócone');
+  // Red left half, blue right half: turned clockwise, red is on top and blue below.
+  await pickPhoto(page, {
+    name: 'IMG_0002.jpg',
+    mimeType: 'image/jpeg',
+    buffer: await cameraJpeg(page),
+  });
+  const crop = page.getByTestId('photo-crop');
+  await expect(crop.locator('canvas')).toBeVisible();
+  await dialog(page).getByRole('button', { name: 'Obróć o 90°' }).click();
+  // Upright now, so the square moves down to the blue part (sideways it could not move).
+  await crop.focus();
+  for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowDown');
+  await dialog(page).getByRole('button', { name: 'Użyj zdjęcia' }).click();
+  await expect(dialog(page).getByRole('heading', { name: 'Nowy kafelek' })).toBeVisible();
+  await dialog(page).getByRole('button', { name: 'Zapisz' }).click();
+  await expect(dialog(page)).toHaveCount(0);
+  const img = page.getByRole('button', { name: 'Zmień kafelek: Obrócone' }).locator('img');
+  const photo = await stored(page, (await img.getAttribute('src'))!);
+  expect(photo).toMatchObject({ width: 512, height: 512 });
+  expect(photo.sample.b).toBeGreaterThan(200);
+  expect(photo.sample.r).toBeLessThan(60);
+});

@@ -74,6 +74,24 @@ export async function decodePhoto(file: Blob): Promise<ImageBitmap> {
   }
 }
 
+/** The picture turned 90° clockwise: a sideways scan, or a photo without orientation data. */
+export async function rotateQuarter(source: ImageBitmap): Promise<ImageBitmap> {
+  const canvas = document.createElement('canvas');
+  canvas.width = source.height;
+  canvas.height = source.width;
+  const g = canvas.getContext('2d');
+  if (!g) throw new PhotoError('Ta przeglądarka nie potrafi przygotować zdjęcia.');
+  g.translate(canvas.width, 0);
+  g.rotate(Math.PI / 2);
+  g.drawImage(source, 0, 0);
+  return createImageBitmap(canvas);
+}
+
+/** The same part of the picture after `rotateQuarter`: the framing turns with it. */
+export function rotateCrop(crop: Crop, height: number): Crop {
+  return { x: height - (crop.y + crop.size), y: crop.x, size: crop.size };
+}
+
 function draw(source: CanvasImageSource, from: Crop, size: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = size;

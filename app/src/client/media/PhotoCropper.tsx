@@ -9,6 +9,8 @@ import {
   maxZoom,
   PhotoError,
   renderCrop,
+  rotateCrop,
+  rotateQuarter,
   zoomCrop,
   type Crop,
 } from './encode.ts';
@@ -50,6 +52,7 @@ export function PhotoCropper({
   const [label, setLabel] = useState(initialLabel);
   const [error, setError] = useState<string | null>(null);
   const [encoding, setEncoding] = useState(false);
+  const [rotating, setRotating] = useState(false);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
 
   useEffect(() => {
@@ -69,6 +72,9 @@ export function PhotoCropper({
       bitmap?.close();
     };
   }, [file]);
+
+  // A replaced picture (turned) and the last one on closing give their memory back.
+  useEffect(() => () => photo?.bitmap.close(), [photo]);
 
   // Preview: the crop drawn on a canvas, re-rendered on every move.
   useEffect(() => {
@@ -104,6 +110,20 @@ export function PhotoCropper({
     area.addEventListener('wheel', onWheel, { passive: false });
     return () => area.removeEventListener('wheel', onWheel);
   });
+
+  async function rotate(): Promise<void> {
+    if (!photo || !crop || rotating) return;
+    setRotating(true);
+    try {
+      const turned = await rotateQuarter(photo.bitmap);
+      setPhoto({ bitmap: turned, width: turned.width, height: turned.height });
+      setCrop(clampCrop(rotateCrop(crop, photo.height), turned.width, turned.height));
+    } catch {
+      setError('Nie udało się obrócić zdjęcia.');
+    } finally {
+      setRotating(false);
+    }
+  }
 
   function onPointerDown(e: PointerEvent<HTMLDivElement>): void {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -142,6 +162,7 @@ export function PhotoCropper({
       '+': () => zoomBy(1.1),
       '=': () => zoomBy(1.1),
       '-': () => zoomBy(1 / 1.1),
+      r: () => void rotate(),
     };
     const action = keys[e.key];
     if (action) {
@@ -176,7 +197,7 @@ export function PhotoCropper({
           ref={areaRef}
           role="group"
           tabIndex={0}
-          aria-label="Kadr zdjęcia: przeciągnij, aby przesunąć; strzałki przesuwają, plus i minus powiększają"
+          aria-label="Kadr zdjęcia: przeciągnij, aby przesunąć; strzałki przesuwają, plus i minus powiększają, R obraca"
           aria-describedby={`${id}-hint`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -206,13 +227,21 @@ export function PhotoCropper({
             className="mt-2 w-full accent-brand-700"
           />
         </label>
+        <button
+          type="button"
+          className={ui.secondary}
+          disabled={!photo || rotating}
+          onClick={() => void rotate()}
+        >
+          Obróć o 90°
+        </button>
       </div>
 
       <div className="flex min-w-0 flex-col gap-4">
         <p id={`${id}-hint`} className="text-slate-700">
           Na kafelku będzie widać to, co w kwadracie: przesuń zdjęcie palcem lub myszą, powiększ
-          suwakiem lub dwoma palcami. Zapisuje się na Twoim koncie jako obrazek o boku do{' '}
-          {MEDIA_LIMITS.maxSide} pikseli, bez danych o miejscu i aparacie.
+          suwakiem lub dwoma palcami, a jeśli leży bokiem — obróć je. Zapisuje się na Twoim koncie
+          jako obrazek o boku do {MEDIA_LIMITS.maxSide} pikseli, bez danych o miejscu i aparacie.
         </p>
         <label className={ui.field}>
           Nazwa zdjęcia

@@ -18,7 +18,10 @@ async function cachedPaths(page: Page): Promise<Record<string, string[]>> {
 
 async function controlled(page: Page): Promise<void> {
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  // Activation and clients.claim() take longer while the rest of the suite runs in parallel.
+  await expect
+    .poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 15_000 })
+    .toBe(true);
 }
 
 test('the app can be installed: manifest, icons and theme', async ({ page, request }) => {
