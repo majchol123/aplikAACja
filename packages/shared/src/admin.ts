@@ -49,6 +49,17 @@ export type SetRole = z.infer<typeof SetRoleSchema>;
 export const DeleteUserSchema = z.object({ email: z.string().min(1).max(320) }).strict();
 export type DeleteUser = z.infer<typeof DeleteUserSchema>;
 
+/** How far back an account can be restored: Cloudflare keeps 30 days of a vault's history. */
+export const RESTORE_WINDOW_MS = 30 * 24 * 3600 * 1000;
+/** The oldest minutes of the window may be gone by the time a restore runs. */
+export const RESTORE_MARGIN_MS = 15 * 60 * 1000;
+
+/** POST /api/admin/users/:id/restore: the moment to go back to, confirmed by the e-mail. */
+export const RestoreUserSchema = z
+  .object({ at: z.number().int().nonnegative(), email: z.string().min(1).max(320) })
+  .strict();
+export type RestoreUser = z.infer<typeof RestoreUserSchema>;
+
 export const AUDIT_ACTIONS = [
   'user.block',
   'user.unblock',
@@ -56,6 +67,7 @@ export const AUDIT_ACTIONS = [
   'user.role',
   'user.delete',
   'user.view',
+  'user.restore',
   'category_icon.set',
   'category_icon.reset',
   'catalog.publish',
@@ -116,6 +128,14 @@ export function canManage(actor: Principal, target: Principal): boolean {
 /** Granting and revoking the admin role is for superadmins only. */
 export function canSetRole(actor: Principal, target: Principal): boolean {
   return actor.role === 'superadmin' && canManage(actor, target);
+}
+
+/**
+ * Going back to an earlier state of an account is for superadmins, also for their own
+ * account (it is their data); never for another superadmin.
+ */
+export function canRestore(actor: Principal, target: Principal): boolean {
+  return actor.role === 'superadmin' && (actor.id === target.id || canManage(actor, target));
 }
 
 /**

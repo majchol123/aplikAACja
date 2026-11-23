@@ -1,4 +1,11 @@
-import { canManage, canSetExtraSet, canSetRole, type AdminUser, type Me } from '@relaacja/shared';
+import {
+  canManage,
+  canRestore,
+  canSetExtraSet,
+  canSetRole,
+  type AdminUser,
+  type Me,
+} from '@relaacja/shared';
 import { useId, useState } from 'react';
 import { Dialog } from '../edit/Dialog.tsx';
 import { countPl } from '../edit/TileEditor.tsx';
@@ -6,6 +13,7 @@ import { ui } from '../edit/ui.ts';
 import { AuditLog } from './AuditLog.tsx';
 import { adminProblem, useAdminAction, useDeleteUser, type AdminAction } from './data.ts';
 import { DataPreview } from './DataPreview.tsx';
+import { RestorePanel } from './RestorePanel.tsx';
 import {
   formatAgo,
   formatBytes,
@@ -221,6 +229,15 @@ export function AccountDialog({
               </button>
             </>
           )}
+        </section>
+      )}
+
+      {canRestore(self, user) && !gone && (
+        <section className={section} aria-labelledby={`${id}-restore`}>
+          <h3 id={`${id}-restore`} className="font-bold text-brand-900">
+            Wcześniejszy stan konta
+          </h3>
+          <RestorePanel user={user} />
         </section>
       )}
 

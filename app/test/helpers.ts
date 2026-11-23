@@ -54,6 +54,7 @@ export async function insertUser(
     status?: 'active' | 'blocked' | 'deleting';
     extraSet?: boolean;
     email?: string;
+    createdAt?: number;
   } = {},
 ): Promise<TestUser> {
   const id = newId();
@@ -69,7 +70,7 @@ export async function insertUser(
       opts.role ?? 'user',
       opts.status ?? 'active',
       opts.extraSet ? 1 : 0,
-      Date.now(),
+      opts.createdAt ?? Date.now(),
     )
     .run();
   return { id, email };

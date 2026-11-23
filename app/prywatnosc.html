@@ -156,8 +156,8 @@
           <p class="mt-2">
             Twoje dane widzisz tylko Ty. Administrator serwisu może wyświetlić dane konta w trybie
             tylko do odczytu, np. przy zgłoszeniu problemu lub nadużycia — bez historii wypowiedzi —
-            a także zablokować lub usunąć konto. Takie działania są zapisywane w dzienniku
-            administracyjnym.
+            a także zablokować lub usunąć konto albo przywrócić jego dane do stanu sprzed awarii (z
+            ostatnich 30 dni). Takie działania są zapisywane w dzienniku administracyjnym.
           </p>
         </section>
 
@@ -165,9 +165,10 @@
           <h2>Jak długo</h2>
           <p class="mt-2">
             Dane przechowujemy, dopóki istnieje konto. Usunięcie konta trwale usuwa tablice,
-            zdjęcia, historię wypowiedzi i ustawienia. Techniczna kopia bazy kont (adres e-mail,
-            nazwa, rola) może istnieć jeszcze do 7 dni. Z zaszyfrowanych kopii zapasowych dane
-            usuniętego konta znikają najpóźniej po 30 dniach.
+            zdjęcia, historię wypowiedzi i ustawienia. Techniczne kopie w Cloudflare mogą istnieć
+            jeszcze do 7 dni (baza kont: adres e-mail, nazwa, rola) i do 30 dni (historia zmian
+            pozostałych danych). Z zaszyfrowanych kopii zapasowych dane usuniętego konta znikają
+            najpóźniej po 30 dniach.
           </p>
         </section>
 
@@ -205,7 +206,8 @@
             </li>
             <li>
               23 listopada 2026 r.: zaszyfrowane kopie zapasowe danych, przechowywane poza
-              Cloudflare, na terenie UE, do 30 dni.
+              Cloudflare, na terenie UE, do 30 dni; administrator może przywrócić dane konta do
+              stanu sprzed awarii (z ostatnich 30 dni).
             </li>
           </ul>
         </section>

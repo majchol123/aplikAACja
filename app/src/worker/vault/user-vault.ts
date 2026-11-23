@@ -95,6 +95,9 @@ export type ShareRefusal = { error: 'too_large' | 'daily_limit' };
 /** Who sent a received share, so the Worker can tell them the decision. */
 export type ShareSender = { senderId: string; shareId: string };
 
+/** KV key present only between steps 1 and 2 of a point-in-time recovery. */
+const RESTORE_PENDING = 'restore-pending';
+
 /** Read-only copy of a whole account for the admin data view (PLAN §2.6). */
 export interface VaultSnapshot {
   tree: string;
@@ -571,6 +574,55 @@ export class UserVault extends DurableObject<AppEnv> {
   async deleteAll(): Promise<void> {
     await this.ctx.storage.deleteAlarm();
     await this.ctx.storage.deleteAll();
+  }
+
+  // --- point-in-time recovery (PLAN §6) ---------------------------------------------------
+
+  /**
+   * Step 1 of restoring the vault to how it was at `at` (Cloudflare keeps 30 days of the
+   * SQLite history): from its next start the object opens that state. Nothing changes yet.
+   * Returns the highest board revision, which step 3 needs, or null when there is no state
+   * to go back to (local development keeps no history) — then nothing will change.
+   */
+  async prepareRestore(at: number): Promise<{ maxRev: number } | null> {
+    const { maxRev } = this.ctx.storage.sql
+      .exec<{ maxRev: number }>('SELECT COALESCE(MAX(rev), 0) AS maxRev FROM boards')
+      .one();
+    try {
+      const bookmark = await this.ctx.storage.getBookmarkForTime(at);
+      await this.ctx.storage.onNextSessionRestoreBookmark(bookmark);
+    } catch (err) {
+      console.error('restore: no bookmark', err);
+      return null;
+    }
+    // Written after the bookmark, so the restored state never has it: step 3 knows by its
+    // absence that the object really started again from the earlier state.
+    this.ctx.storage.kv.put(RESTORE_PENDING, at);
+    return { maxRev };
+  }
+
+  /** Step 2: the object starts again, from the state chosen in step 1. */
+  restart(): void {
+    this.ctx.abort('point-in-time recovery');
+  }
+
+  /**
+   * Step 3, on the restarted object: the restored tree must not look like any version a
+   * device saw before — a new ETag epoch, and every board revision above all earlier ones
+   * (`maxRev`), so a stale device gets a conflict instead of overwriting the restored state.
+   * Repeating it is harmless.
+   */
+  finishRestore(maxRev: number): VaultTotals {
+    if (this.ctx.storage.kv.get(RESTORE_PENDING) !== undefined) {
+      throw new Error('the vault has not restarted from the restored state yet');
+    }
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        'UPDATE vault_meta SET epoch = lower(hex(randomblob(8))), version = version + 1 WHERE id = 1',
+      );
+      this.ctx.storage.sql.exec('UPDATE boards SET rev = rev + ?', maxRev);
+    });
+    return this.totals();
   }
 
   schemaVersion(): number {

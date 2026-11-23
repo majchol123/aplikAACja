@@ -88,6 +88,8 @@ test('admin panel: statistics, data view, blocking and hard delete of an account
   await row.getByRole('button', { name: 'Konto testowe' }).click();
   const dialog = page.getByRole('dialog', { name: 'Konto testowe' });
   await expect(dialog).toContainText(email);
+  // Going back to an earlier state is for superadmins.
+  await expect(dialog.getByRole('heading', { name: 'Wcześniejszy stan konta' })).toHaveCount(0);
 
   // Read-only data view: the board as the account sees it, its photo and settings.
   await dialog.getByRole('button', { name: 'Pokaż dane konta' }).click();

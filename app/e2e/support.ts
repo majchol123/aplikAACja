@@ -62,6 +62,16 @@ export async function freshLogin(page: Page, name: string): Promise<string> {
  * preview server (superadmin comes from ADMIN_EMAILS, which differs between machines).
  */
 export function promoteToAdmin(sub: string): void {
+  updateTestAccount(sub, "role = 'admin'");
+}
+
+/** Moves the creation of a freshLogin account `days` back: an account with a past. */
+export function backdateAccount(sub: string, days: number): void {
+  if (!Number.isInteger(days) || days < 1 || days > 365) throw new Error(`days: ${days}`);
+  updateTestAccount(sub, `created_at = created_at - ${days * 24 * 3600 * 1000}`);
+}
+
+function updateTestAccount(sub: string, assignment: string): void {
   if (!/^e2e-[a-z0-9-]+$/.test(sub)) throw new Error(`not a test account: ${sub}`);
   const args = [
     'exec',
@@ -71,7 +81,7 @@ export function promoteToAdmin(sub: string): void {
     'DB',
     '--local',
     '--command',
-    `UPDATE users SET role = 'admin' WHERE google_sub = 'dev:${sub}'`,
+    `UPDATE users SET ${assignment} WHERE google_sub = 'dev:${sub}'`,
   ];
   // Both projects may write the local database at the same moment (SQLite busy): retry.
   for (let attempt = 1; ; attempt++) {

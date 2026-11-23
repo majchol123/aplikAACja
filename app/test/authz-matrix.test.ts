@@ -232,6 +232,12 @@ const EXPECTED: Record<string, Row> = {
     body: (f) => ({ email: f.ownerEmail }),
     status: { ...adminsOnly, admin: 204, superadmin: 404 },
   },
+  // Superadmins only; locally Cloudflare keeps no history to restore from (503).
+  'POST /api/admin/users/:id/restore': {
+    path: (f) => `/api/admin/users/${f.ownerId}/restore`,
+    body: (f) => ({ at: Date.now() - 3600 * 1000, email: f.ownerEmail }),
+    status: { ...adminsOnly, admin: 403, superadmin: 503 },
+  },
   'GET /api/admin/users/:id/data': {
     path: (f) => `/api/admin/users/${f.ownerId}/data`,
     status: adminsOnly,
@@ -339,7 +345,8 @@ async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: Tes
 
 async function makePrincipals(): Promise<Record<Exclude<Principal, 'anon'>, TestUser>> {
   return {
-    userA: await insertUser(),
+    // From yesterday: an account with a past to go back to (restore).
+    userA: await insertUser({ createdAt: Date.now() - 24 * 3600 * 1000 }),
     userB: await insertUser(),
     extra: await insertUser({ extraSet: true }),
     blocked: await insertUser({ status: 'blocked' }),

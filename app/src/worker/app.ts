@@ -397,6 +397,7 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.adminExtraSet, admin.setExtraSet(deps.now));
   defineRoute(ROUTES.adminRole, admin.setRole(deps.now));
   defineRoute(ROUTES.adminDelete, admin.deleteUser(deps.now));
+  defineRoute(ROUTES.adminRestore, admin.restoreUser(deps.now));
   defineRoute(ROUTES.adminUserData, admin.userData(deps.now));
   defineRoute(ROUTES.adminUserMedia, admin.userMedia);
   defineRoute(ROUTES.adminAudit, admin.listAudit);

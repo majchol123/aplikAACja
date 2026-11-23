@@ -123,6 +123,7 @@ export const ROUTES = {
   adminExtraSet: { method: 'POST', path: '/api/admin/users/:id/extra-set', access: 'admin' },
   adminRole: { method: 'POST', path: '/api/admin/users/:id/role', access: 'admin' },
   adminDelete: { method: 'DELETE', path: '/api/admin/users/:id', access: 'admin' },
+  adminRestore: { method: 'POST', path: '/api/admin/users/:id/restore', access: 'admin' },
   adminUserData: { method: 'GET', path: '/api/admin/users/:id/data', access: 'admin' },
   adminUserMedia: {
     method: 'GET',

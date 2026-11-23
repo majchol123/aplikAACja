@@ -57,6 +57,19 @@ export type AdminAction =
   | { kind: 'extra-set'; id: string; body: SetExtraSet }
   | { kind: 'role'; id: string; body: SetRole };
 
+/**
+ * Going back to an earlier state of an account. Everything cached may describe the state
+ * that is gone (also the admin's own boards, when it is their account), so all is refetched.
+ */
+export function useRestoreUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, at, email }: { id: string; at: number; email: string }) =>
+      api<AdminUser>(`/api/admin/users/${id}/restore`, { method: 'POST', json: { at, email } }),
+    onSettled: () => queryClient.invalidateQueries(),
+  });
+}
+
 /** Changes of one account; the list is patched with the answer, the log refetched. */
 export function useAdminAction() {
   const queryClient = useQueryClient();
@@ -111,6 +124,12 @@ export function adminProblem(err: unknown): string {
       return 'Konto jest właśnie usuwane. Dokończ usuwanie.';
     case 'not_found':
       return 'To konto już nie istnieje.';
+    case 'out_of_range':
+      return 'Wybierz chwilę z ostatnich 30 dni, po założeniu konta i wcześniejszą niż teraz.';
+    case 'restore_unavailable':
+      return 'Cloudflare nie ma stanu z tej chwili (w wersji lokalnej nie ma go nigdy). Nic się nie zmieniło.';
+    case 'restore_incomplete':
+      return 'Przywracanie nie zakończyło się. Odczekaj chwilę i powtórz z tą samą datą.';
     default:
       return 'Nie udało się. Spróbuj ponownie.';
   }

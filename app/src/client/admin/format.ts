@@ -23,6 +23,7 @@ const ACTION_LABEL: Record<string, string> = {
   'user.role': 'Zmiana roli',
   'user.delete': 'Usunięcie konta',
   'user.view': 'Podgląd danych konta',
+  'user.restore': 'Przywrócenie wcześniejszego stanu konta',
   'category_icon.set': 'Obrazek folderu',
   'category_icon.reset': 'Automatyczny obrazek folderu',
   'catalog.publish': 'Publikacja w katalogu tablic',
@@ -60,6 +61,8 @@ export function actionDetails(entry: AuditEntry): string {
       return `„${String(d.name)}”`;
     case 'backup.configure':
       return `klucz ${String(d.recipient)}`;
+    case 'user.restore':
+      return typeof d.to === 'number' ? `stan z ${formatDateTime(d.to)}` : '';
     case 'backup.run':
       return `kont: ${String(d.accounts)}, wpisów katalogu: ${String(d.catalog)}`;
     default:

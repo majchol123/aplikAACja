@@ -2,10 +2,14 @@ import {
   ADMIN_LIST_LIMIT,
   AUDIT_PAGE_SIZE,
   canManage,
+  canRestore,
   canSetExtraSet,
   canSetRole,
   DeleteUserSchema,
   ObjectIdSchema,
+  RESTORE_MARGIN_MS,
+  RESTORE_WINDOW_MS,
+  RestoreUserSchema,
   SetExtraSetSchema,
   SetRoleSchema,
   type AdminUser,
@@ -251,6 +255,66 @@ export function deleteUser(now: () => number) {
       auditStatement(db, { at: now(), actor: actor(c).id, action: 'user.delete', target: user.id }),
     ]);
     return c.body(null, 204);
+  };
+}
+
+/** Step 3 of a restore runs on the restarted vault, which may take a moment to come up. */
+async function finishRestore(c: Ctx, id: string, maxRev: number) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await vaultFor(c.env, id).finishRestore(maxRev);
+    } catch (err) {
+      if (attempt >= 4) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
+    }
+  }
+}
+
+/**
+ * POST /api/admin/users/:id/restore `{at, email}` — point-in-time recovery of the whole vault
+ * (PLAN §6): boards, photos, settings, favourites and history become what they were at `at`,
+ * up to 30 days back; the account itself (D1: role, sessions) stays. Superadmins only, also
+ * for their own account. Undone by restoring to the moment before (its audit entry).
+ */
+export function restoreUser(now: () => number) {
+  return async (c: Ctx): Promise<Response> => {
+    const input = await readBody(c, RestoreUserSchema);
+    if (!input) return invalid(c);
+    const user = await target(c);
+    if (!user) return notFound(c);
+    if (!canRestore(actor(c), user)) return forbidden(c);
+    if (user.status === 'deleting') return c.json({ error: 'conflict' }, 409);
+    if (input.email.trim().toLowerCase() !== user.email.toLowerCase()) {
+      return c.json({ error: 'confirmation_mismatch' }, 422);
+    }
+    const at = now();
+    // Before the account existed there is only an empty vault to go back to.
+    const oldest = Math.max(at - RESTORE_WINDOW_MS + RESTORE_MARGIN_MS, user.createdAt);
+    if (input.at >= at || input.at < oldest) return c.json({ error: 'out_of_range' }, 422);
+    const prepared = await vaultFor(c.env, user.id).prepareRestore(input.at);
+    // Nothing changed (in local development Cloudflare keeps no history).
+    if (!prepared) return c.json({ error: 'restore_unavailable' }, 503);
+    // From here the restore happens at the vault's next start whatever else fails, so it is
+    // recorded before that start.
+    await auditStatement(c.env.DB, {
+      at,
+      actor: actor(c).id,
+      action: 'user.restore',
+      target: user.id,
+      details: { to: input.at },
+    }).run();
+    try {
+      await vaultFor(c.env, user.id).restart();
+    } catch {
+      // Expected: the call ends with the object it restarted.
+    }
+    const totals = await finishRestore(c, user.id, prepared.maxRev).catch((err: unknown) => {
+      console.error('restore: not finished', err);
+      return null;
+    });
+    if (!totals) return c.json({ error: 'restore_incomplete' }, 500);
+    recordTotals(c, user.id, totals);
+    return answerUser(c, user.id);
   };
 }
 
