@@ -69,7 +69,7 @@ const PLACE_STATUS = {
   quota_exceeded: 422,
 } as const;
 
-/** POST /api/catalog/:id/import `{boardId, rev}` — a copy as a new folder on one's board. */
+/** POST /api/catalog/:id/import `{boardId, rev, cell?, name?}` — a copy as a new folder on one's board. */
 export async function importCatalogEntry(c: Ctx): Promise<Response> {
   const id = pathId(c);
   if (!id) return notFound(c);
@@ -84,6 +84,7 @@ export async function importCatalogEntry(c: Ctx): Promise<Response> {
     copy.package,
     copy.files,
     input.data.cell,
+    input.data.name,
   );
   if ('error' in result) {
     if (result.error === 'rate_limited') return c.json({ error: 'rate_limited' }, 429);

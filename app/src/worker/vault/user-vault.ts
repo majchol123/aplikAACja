@@ -439,6 +439,7 @@ export class UserVault extends DurableObject<AppEnv> {
     json: string,
     files: PackagePhoto[],
     cell?: Cell,
+    name?: string,
   ): Counted<BoardChanges> | BoardError | RateLimited {
     if (!this.spendWrite()) return RATE_LIMITED;
     const parsed = BoardPackageSchema.safeParse(JSON.parse(json));
@@ -447,7 +448,7 @@ export class UserVault extends DurableObject<AppEnv> {
       this.boards.importPackage(
         boardId,
         rev,
-        parsed.data,
+        { ...parsed.data, name: name ?? parsed.data.name },
         () => this.media.addFromPackage(files),
         cell,
       ),
@@ -530,6 +531,7 @@ export class UserVault extends DurableObject<AppEnv> {
     boardId: string,
     rev: number,
     cell?: Cell,
+    name?: string,
   ): (Counted<BoardChanges> & { sender: ShareSender }) | BoardError | RateLimited {
     if (!this.spendWrite()) return RATE_LIMITED;
     const item = this.shares.inboxItem(id, Date.now());
@@ -539,7 +541,7 @@ export class UserVault extends DurableObject<AppEnv> {
     const result = this.boards.importPackage(
       boardId,
       rev,
-      parsed.data,
+      { ...parsed.data, name: name ?? parsed.data.name },
       () => {
         const ids = this.media.addFromPackage(this.shares.photos(id));
         if (ids) this.shares.remove(id);

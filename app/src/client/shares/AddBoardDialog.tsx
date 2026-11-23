@@ -226,17 +226,18 @@ function Received({ me, board, onDone }: { me: Me; board: Board } & Outcome) {
       {choosing && (
         <PlacePicker
           name={choosing.name}
+          rename
           start={board}
           busy={accept.isPending ? 'Dodawanie tablicy…' : null}
           problem={accept.isError ? shareProblem(accept.error) : null}
           onClose={() => setChoosing(null)}
-          onPlace={({ board: to, cell }: Place) =>
+          onPlace={({ board: to, cell, name }: Place) =>
             accept.mutate(
-              { id: choosing.id, boardId: to.id, rev: to.rev, cell },
+              { id: choosing.id, boardId: to.id, rev: to.rev, cell, name },
               {
                 onSuccess: () => {
                   setChoosing(null);
-                  onDone(choosing.name, to.name);
+                  onDone(name, to.name);
                 },
               },
             )
@@ -390,17 +391,18 @@ function CatalogSection({ me, board, onDone }: { me: Me; board: Board } & Outcom
       {choosing && (
         <PlacePicker
           name={choosing.name}
+          rename
           start={board}
           busy={copy.isPending ? 'Dodawanie tablicy…' : null}
           problem={copy.isError ? shareProblem(copy.error) : null}
           onClose={() => setChoosing(null)}
-          onPlace={({ board: to, cell }: Place) =>
+          onPlace={({ board: to, cell, name }: Place) =>
             copy.mutate(
-              { id: choosing.id, boardId: to.id, rev: to.rev, cell },
+              { id: choosing.id, boardId: to.id, rev: to.rev, cell, name },
               {
                 onSuccess: () => {
                   setChoosing(null);
-                  onDone(choosing.name, to.name);
+                  onDone(name, to.name);
                 },
               },
             )
@@ -647,12 +649,12 @@ function FileImport({
     }
   }
 
-  async function add({ board: to, cell }: Place): Promise<void> {
+  async function add({ board: to, cell, name }: Place): Promise<void> {
     if (!imported) return;
     setPlaceProblem(null);
     try {
       const { changes, skippedPhotos } = await importBoardFile(
-        imported,
+        { ...imported, package: { ...imported.package, name } },
         { id: to.id, rev: to.rev, cell },
         (done, total) =>
           setBusy(total ? `Wysyłanie zdjęć: ${done} z ${total}…` : 'Dodawanie tablicy…'),
@@ -660,7 +662,7 @@ function FileImport({
       applyChanges(queryClient, changes);
       setPlacing(false);
       onDone(
-        imported.package.name,
+        name,
         to.name,
         skippedPhotos
           ? `Pominięto zdjęcia, których nie dało się odczytać: ${skippedPhotos}.`
@@ -743,6 +745,7 @@ function FileImport({
       {imported && placing && (
         <PlacePicker
           name={imported.package.name}
+          rename
           start={board}
           busy={busy}
           problem={placeProblem}

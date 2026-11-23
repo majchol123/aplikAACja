@@ -1,5 +1,6 @@
 import {
   SHARE_SENT_MESSAGE,
+  SHARED_HOME_NAME,
   subtreePackage,
   type Board,
   type BoardTree,
@@ -204,7 +205,8 @@ function FileSection({
 function PublishSection({ tree, board }: { tree: BoardTree; board: Board }) {
   const id = useId();
   const publish = usePublish();
-  const [name, setName] = useState(board.name);
+  // A pulpit travels as "Udostępnione", like when it is sent (subtreePackage).
+  const [name, setName] = useState(board.parentId === null ? SHARED_HOME_NAME : board.name);
   const [description, setDescription] = useState('');
   const [withPhotos, setWithPhotos] = useState(false);
   const photos = useMemo(() => {

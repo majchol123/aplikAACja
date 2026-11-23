@@ -31,6 +31,24 @@ export const BOARD_LIMITS = {
 export const HOME_NAME = 'Pulpit';
 
 /**
+ * Name a copy of a home board travels under (sent, published, saved to a file): "Pulpit"
+ * would land among the recipient's folders as a second pulpit.
+ */
+export const SHARED_HOME_NAME = 'Udostępnione';
+
+/**
+ * Name of a folder added from a package: `name` as it is, except that SHARED_HOME_NAME
+ * gets a number once taken by a board of the account ("Udostępnione 2", "Udostępnione 3"…).
+ */
+export function freeFolderName(name: string, taken: ReadonlySet<string>): string {
+  if (name !== SHARED_HOME_NAME) return name;
+  for (let n = 1; ; n++) {
+    const candidate = n === 1 ? name : `${name} ${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
+/**
  * The first cell of the home board belongs to the folder "Wszystkie symbole" (every symbol
  * of the active sets by category, drawn by the app, not stored): no tile may take it.
  */

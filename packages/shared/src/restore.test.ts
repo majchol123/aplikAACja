@@ -144,7 +144,7 @@ describe('restoring boards from a backup (PLAN §6)', () => {
         Object.entries(files).map(([k, v]) => [k, typeof v === 'string' ? encoder.encode(v) : v]),
       ),
     );
-    expect(back.package.name).toBe('Start');
+    expect(back.package.name).toBe('Udostępnione'); // a home board travels under SHARED_HOME_NAME
     expect(back.package.board.tiles.map((t) => t.label)).toEqual(['Picie', 'mama']);
     expect(back.package.board.tiles[0]!.board!.tiles.map((t) => t.label)).toEqual(['sok']);
     expect(back.photos).toHaveLength(1);

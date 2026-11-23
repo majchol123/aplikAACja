@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import starter from '../../../templates/starter.json' with { type: 'json' };
 import {
+  freeFolderName,
+  SHARED_HOME_NAME,
   CreateTileSchema,
   TemplateSchema,
   TileLabelSchema,
   templateProblems,
   type Template,
 } from './boards.ts';
+import { subtreePackage } from './obf.ts';
 
 describe('board schemas', () => {
   it('normalizes labels and rejects control characters', () => {
@@ -73,5 +76,33 @@ describe('templates', () => {
       'T › e: board iff folder',
       'T: the first cell is kept for „Wszystkie symbole”',
     ]);
+  });
+});
+
+describe('names of added folders', () => {
+  it('number "Udostępnione" once taken; other names stay as they are', () => {
+    expect(freeFolderName('Udostępnione', new Set(['Pulpit']))).toBe('Udostępnione');
+    expect(freeFolderName('Udostępnione', new Set(['Udostępnione', 'Udostępnione 2']))).toBe(
+      'Udostępnione 3',
+    );
+    expect(freeFolderName('Jedzenie', new Set(['Jedzenie']))).toBe('Jedzenie');
+  });
+
+  it('a home board travels as "Udostępnione", any other board under its own name', () => {
+    const board = (id: string, name: string, parentId: string | null) => ({
+      id,
+      name,
+      parentId,
+      rows: 1,
+      cols: 1,
+      rev: 1,
+      tiles: [],
+    });
+    const boards = new Map([
+      ['h', board('h', 'Pulpit', null)],
+      ['f', board('f', 'Jedzenie', 'h')],
+    ]);
+    expect(subtreePackage(boards, 'h')!.package.name).toBe(SHARED_HOME_NAME);
+    expect(subtreePackage(boards, 'f')!.package.name).toBe('Jedzenie');
   });
 });

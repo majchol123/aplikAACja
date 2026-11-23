@@ -1,4 +1,10 @@
-import { isReservedCell, type Board, type Cell } from '@aplikaacja/shared';
+import {
+  BOARD_LIMITS,
+  freeFolderName,
+  isReservedCell,
+  type Board,
+  type Cell,
+} from '@aplikaacja/shared';
 import { useId, useMemo, useState } from 'react';
 import { ALL_SYMBOLS_ID } from '../boards/allSymbols.ts';
 import { boardOptions } from '../boards/BoardNav.tsx';
@@ -10,6 +16,8 @@ import { ui } from '../edit/ui.ts';
 export interface Place {
   board: Board;
   cell: Cell;
+  /** Name of the new folder (as given, unless `rename`). */
+  name: string;
 }
 
 const isFree = (board: Board, cell: Cell) =>
@@ -28,10 +36,12 @@ function firstFree(board: Board): Cell | null {
 
 /**
  * Where a ready board lands as a new folder (PLAN §2.8): any board, any free cell. The
- * first free cell of the board open in the editor comes preselected.
+ * first free cell of the board open in the editor comes preselected. With `rename`, the
+ * folder's name can be changed here too ("Udostępnione" comes numbered once taken).
  */
 export function PlacePicker({
-  name,
+  name: given,
+  rename = false,
   start,
   busy,
   problem,
@@ -39,6 +49,7 @@ export function PlacePicker({
   onClose,
 }: {
   name: string;
+  rename?: boolean;
   start: Board;
   /** Progress text while placing; the choice is locked meanwhile. */
   busy: string | null;
@@ -53,6 +64,11 @@ export function PlacePicker({
     [tree.data, start],
   );
   const homeId = tree.data?.homeId ?? start.id;
+  const taken = useMemo(() => new Set([...boards.values()].map((b) => b.name)), [boards]);
+  // What the vault will name a package's folder (it numbers "Udostępnione" the same way).
+  const proposed = rename ? freeFolderName(given, taken) : given;
+  const [typed, setTyped] = useState<string | null>(null);
+  const name = rename ? freeFolderName(typed?.trim() || proposed, taken) : given;
   const options = useMemo(() => boardOptions(boards, homeId), [boards, homeId]);
   const [targetId, setTargetId] = useState(start.id);
   const target = boards.get(targetId) ?? start;
@@ -65,8 +81,21 @@ export function PlacePicker({
   const locked = busy !== null;
 
   return (
-    <Dialog title={`Gdzie dodać „${name}”?`} onClose={onClose} wide>
+    <Dialog title={`Gdzie dodać „${proposed}”?`} onClose={onClose} wide>
       <div className="mt-4 space-y-4">
+        {rename && (
+          <label className={ui.field}>
+            Nazwa folderu
+            <input
+              value={typed ?? proposed}
+              maxLength={BOARD_LIMITS.labelMax}
+              disabled={locked}
+              onChange={(e) => setTyped(e.target.value)}
+              className={ui.input}
+              autoComplete="off"
+            />
+          </label>
+        )}
         <label className={ui.field}>
           Tablica
           <select
@@ -144,7 +173,7 @@ export function PlacePicker({
             type="button"
             className={ui.primary}
             disabled={!chosen || locked}
-            onClick={() => chosen && onPlace({ board: target, cell: chosen })}
+            onClick={() => chosen && onPlace({ board: target, cell: chosen, name })}
           >
             Dodaj tutaj
           </button>

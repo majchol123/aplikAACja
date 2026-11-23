@@ -161,7 +161,7 @@ const ACCEPT_STATUS = {
   quota_exceeded: 422,
 } as const;
 
-/** POST /api/shares/received/:id/accept `{boardId, rev}` — a new folder with the copy. */
+/** POST /api/shares/received/:id/accept `{boardId, rev, cell?, name?}` — a new folder with the copy. */
 export async function acceptShare(c: Ctx): Promise<Response> {
   const id = pathId(c);
   if (!id) return notFound(c);
@@ -172,6 +172,7 @@ export async function acceptShare(c: Ctx): Promise<Response> {
     input.data.boardId,
     input.data.rev,
     input.data.cell,
+    input.data.name,
   );
   if ('error' in result) {
     if (result.error === 'rate_limited') return rateLimited(c);

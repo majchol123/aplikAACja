@@ -92,7 +92,8 @@ test('a board is sent to another account, looked at and accepted there', async (
   await holdEditLock(recipient);
   await recipient.getByRole('button', { name: 'Dodaj tablicę (otrzymane: 1)' }).click();
   const inbox = recipient.getByRole('dialog', { name: 'Dodaj tablicę', exact: true });
-  const item = inbox.getByRole('listitem', { name: 'Pulpit' });
+  // A home board travels as "Udostępnione" (not as a second "Pulpit").
+  const item = inbox.getByRole('listitem', { name: 'Udostępnione' });
   await expect(item).toContainText('Od: Terapeutka');
   await item.getByRole('button', { name: 'Podgląd' }).click();
   await item.getByRole('button', { name: 'Otwórz folder Jedzenie' }).click();
@@ -107,17 +108,21 @@ test('a board is sent to another account, looked at and accepted there', async (
   expect(axe.violations).toEqual([]);
   // Where it goes: the first free cell comes preselected, another one is a tap away.
   await item.getByRole('button', { name: 'Dodaj…' }).click();
-  const place = recipient.getByRole('dialog', { name: 'Gdzie dodać „Pulpit”?' });
+  const place = recipient.getByRole('dialog', { name: 'Gdzie dodać „Udostępnione”?' });
+  // The folder's name can be changed on adding.
+  const folderName = place.getByLabel('Nazwa folderu');
+  await expect(folderName).toHaveValue('Udostępnione');
+  await folderName.fill('Od terapeutki');
   // The home board's first cell is "Wszystkie symbole".
   await expect(
     place.getByRole('button', { name: 'Wiersz 1, kolumna 1: Wszystkie symbole (stałe pole)' }),
   ).toBeDisabled();
   await expect(
-    place.getByRole('button', { name: 'Wiersz 1, kolumna 2: tu będzie „Pulpit”' }),
+    place.getByRole('button', { name: 'Wiersz 1, kolumna 2: tu będzie „Od terapeutki”' }),
   ).toHaveAttribute('aria-pressed', 'true');
   await place.getByRole('button', { name: 'Wiersz 2, kolumna 2: puste' }).click();
   await expect(
-    place.getByRole('button', { name: 'Wiersz 2, kolumna 2: tu będzie „Pulpit”' }),
+    place.getByRole('button', { name: 'Wiersz 2, kolumna 2: tu będzie „Od terapeutki”' }),
   ).toHaveAttribute('aria-pressed', 'true');
   await expect(place.getByRole('button', { name: 'Wiersz 1, kolumna 2: puste' })).toHaveAttribute(
     'aria-pressed',
@@ -127,10 +132,12 @@ test('a board is sent to another account, looked at and accepted there', async (
   expect(placeAxe.violations).toEqual([]);
   await place.getByRole('button', { name: 'Dodaj tutaj' }).click();
   await expect(place).toBeHidden();
-  await expect(inbox.getByText('Dodano folder „Pulpit” na tablicy „Pulpit”.')).toBeVisible();
+  await expect(inbox.getByText('Dodano folder „Od terapeutki” na tablicy „Pulpit”.')).toBeVisible();
   await expect(inbox).toContainText('Nie ma otrzymanych tablic.');
   await inbox.getByRole('button', { name: 'Zamknij' }).click();
-  await expect(recipient.getByRole('button', { name: /^Zmień kafelek: Pulpit/ })).toBeVisible();
+  await expect(
+    recipient.getByRole('button', { name: /^Zmień kafelek: Od terapeutki/ }),
+  ).toBeVisible();
   await expect(
     recipient.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 2' }),
   ).toBeVisible();
@@ -166,8 +173,8 @@ test('a board is saved to an Open Board file and read back on another account', 
   const saving = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Zapisz tę tablicę do pliku' }).click();
   const file = await saving;
-  expect(file.suggestedFilename()).toBe('Pulpit.obz');
-  await expect(dialog.getByRole('status')).toHaveText('Zapisano plik Pulpit.obz.');
+  expect(file.suggestedFilename()).toBe('Udostępnione.obz');
+  await expect(dialog.getByRole('status')).toHaveText('Zapisano plik Udostępnione.obz.');
   const path = await file.path();
 
   const other = await browser.newContext({ serviceWorkers: 'block' });
@@ -181,16 +188,24 @@ test('a board is saved to an Open Board file and read back on another account', 
   const load = reader.getByRole('dialog', { name: 'Dodaj tablicę', exact: true });
   await load.locator('input[type="file"]').setInputFiles(path);
   await expect(load.getByTestId('file-summary')).toHaveText(
-    /„Pulpit”: 2 tablice, 2 kafelki, 1 zdjęcie/,
+    /„Udostępnione”: 2 tablice, 2 kafelki, 1 zdjęcie/,
   );
   await load.getByTestId('file-summary').getByRole('button', { name: 'Dodaj…' }).click();
   await reader
-    .getByRole('dialog', { name: 'Gdzie dodać „Pulpit”?' })
+    .getByRole('dialog', { name: 'Gdzie dodać „Udostępnione”?' })
     .getByRole('button', { name: 'Dodaj tutaj' })
     .click();
-  await expect(load.getByText('Dodano folder „Pulpit” na tablicy „Pulpit”.')).toBeVisible();
+  await expect(load.getByText('Dodano folder „Udostępnione” na tablicy „Pulpit”.')).toBeVisible();
+  // The same file once more: the name is taken now, so it is numbered.
+  await load.locator('input[type="file"]').setInputFiles(path);
+  await load.getByTestId('file-summary').getByRole('button', { name: 'Dodaj…' }).click();
+  await reader
+    .getByRole('dialog', { name: 'Gdzie dodać „Udostępnione 2”?' })
+    .getByRole('button', { name: 'Dodaj tutaj' })
+    .click();
+  await expect(load.getByText('Dodano folder „Udostępnione 2” na tablicy „Pulpit”.')).toBeVisible();
   await load.getByRole('button', { name: 'Zamknij', exact: true }).click();
-  await reader.getByRole('button', { name: 'Otwórz folder Pulpit' }).click();
+  await reader.getByRole('button', { name: 'Otwórz folder Udostępnione', exact: true }).click();
   await reader.getByRole('button', { name: 'Otwórz folder Jedzenie' }).click();
   const soup = reader.getByRole('button', { name: /^Zmień kafelek: zupa$/ });
   await expect(soup.locator('img')).toHaveAttribute('src', /^\/api\/media\//);

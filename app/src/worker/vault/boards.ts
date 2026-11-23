@@ -1,5 +1,6 @@
 import {
   BOARD_LIMITS,
+  freeFolderName,
   HOME_NAME,
   type Board,
   type BoardChanges,
@@ -739,14 +740,19 @@ export class BoardStore {
         })),
       });
       const tree = mapBoard(pkg.board);
-      const target = this.insertBoard(changes, now, pkg.name, board.id, tree);
+      const names = this.sql
+        .exec<{ name: string }>('SELECT name FROM boards')
+        .toArray()
+        .map((b) => b.name);
+      const name = freeFolderName(pkg.name, new Set(names));
+      const target = this.insertBoard(changes, now, name, board.id, tree);
       this.insertTile(
         board.id,
         {
           row: cell.row,
           col: cell.col,
           kind: 'folder',
-          label: pkg.name,
+          label: name,
           ...pkg.tile,
           symbol: mapSymbol(pkg.tile?.symbol),
         },

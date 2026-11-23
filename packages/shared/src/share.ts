@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { BoardPackageSchema, GridCellSchema, ObjectIdSchema, type BoardPackage } from './boards.ts';
+import {
+  BoardPackageSchema,
+  GridCellSchema,
+  ObjectIdSchema,
+  TileLabelSchema,
+  type BoardPackage,
+} from './boards.ts';
 import type { MediaType } from './media.ts';
 
 /**
@@ -28,12 +34,16 @@ export const SendShareSchema = z
   .strict();
 export type SendShare = z.infer<typeof SendShareSchema>;
 
-/** Where a ready board lands as a new folder; without `cell`, the first free cell. */
+/**
+ * Where a ready board lands as a new folder; without `cell`, the first free cell. `name`:
+ * the folder's name when changed on adding (else the package's; freeFolderName either way).
+ */
 export const AcceptShareSchema = z
   .object({
     boardId: ObjectIdSchema,
     rev: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
     cell: GridCellSchema.optional(),
+    name: TileLabelSchema.optional(),
   })
   .strict();
 export type AcceptShare = z.infer<typeof AcceptShareSchema>;

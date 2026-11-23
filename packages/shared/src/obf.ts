@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   BOARD_LIMITS,
+  SHARED_HOME_NAME,
   type Board,
   type BoardPackage,
   type SymbolRef,
@@ -69,7 +70,7 @@ export function subtreePackage(
   return {
     package: {
       v: 1,
-      name: root.name,
+      name: root.parentId === null ? SHARED_HOME_NAME : root.name,
       ...(opener
         ? {
             tile: {

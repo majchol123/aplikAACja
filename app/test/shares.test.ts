@@ -197,20 +197,43 @@ describe('sharing a board (PLAN §2.8)', () => {
     expect((await user.api<ShareLists>('GET', '/api/shares')).body.sent).toEqual([]);
   });
 
-  it('a home board travels without a folder look', async () => {
+  it('a home board travels as "Udostępnione", numbered once taken, renamed on adding', async () => {
     const { user, start } = await sender();
     const recipient = await account();
-    const own = await home(recipient, 1, 2);
-    await send(user, start.id, recipient.email);
-    const [entry] = (await recipient.api<ShareLists>('GET', '/api/shares')).body.received;
-    expect(entry).toMatchObject({ name: 'Pulpit', boards: 3, tiles: 4 });
-    const view = await recipient.api<ReceivedShareView>('GET', `/api/shares/received/${entry!.id}`);
+    const own = await home(recipient, 1, 4);
+    for (let i = 0; i < 3; i++) await send(user, start.id, recipient.email);
+    const received = (await recipient.api<ShareLists>('GET', '/api/shares')).body.received;
+    expect(received).toHaveLength(3);
+    expect(received[0]).toMatchObject({ name: 'Udostępnione', boards: 3, tiles: 4 });
+    const view = await recipient.api<ReceivedShareView>(
+      'GET',
+      `/api/shares/received/${received[0]!.id}`,
+    );
     expect(view.body.package.tile).toBeUndefined();
-    const ok = await recipient.api('POST', `/api/shares/received/${entry!.id}/accept`, {
-      boardId: own.id,
-      rev: own.rev,
-    });
-    expect(ok.status).toBe(200);
+    let rev = own.rev;
+    for (const [i, entry] of received.entries()) {
+      const ok = await recipient.api<BoardChanges>(
+        'POST',
+        `/api/shares/received/${entry.id}/accept`,
+        { boardId: own.id, rev, ...(i === 2 ? { name: 'Od babci' } : {}) },
+      );
+      expect(ok.status).toBe(200);
+      rev = ok.body.boards.find((b) => b.id === own.id)!.rev;
+    }
+    const tree = (await recipient.api<BoardTree>('GET', '/api/boards')).body;
+    const names = ['Od babci', 'Udostępnione', 'Udostępnione 2'];
+    expect(
+      tree.boards
+        .find((b) => b.id === own.id)!
+        .tiles.map((t) => t.label)
+        .sort(),
+    ).toEqual(names);
+    expect(
+      tree.boards
+        .filter((b) => b.parentId === own.id)
+        .map((b) => b.name)
+        .sort(),
+    ).toEqual(names);
   });
 });
 
