@@ -94,8 +94,14 @@ jobs:
       - name: Verify
         if: steps.diff.outputs.changed == 'true'
         run: |
+          # A new version takes a few seconds to reach every edge location.
           built="workers/arasaac/dist/sym/arasaac/manifest.json"
           for host in aplikaacja.one.pl staging.aplikaacja.one.pl; do
-            curl -fsS "https://$host/sym/arasaac/manifest.json" | cmp -s - "$built" ||
-              { echo "::error::$host does not serve the new manifest"; exit 1; }
+            for attempt in $(seq 1 12); do
+              curl -fsS "https://$host/sym/arasaac/manifest.json" | cmp -s - "$built" && continue 2
+              echo "waiting for $host ($attempt/12)"
+              sleep 5
+            done
+            echo "::error::$host does not serve the new manifest"
+            exit 1
           done

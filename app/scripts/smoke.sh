@@ -20,7 +20,7 @@ done
 
 # Symbol sets: public ARASAAC mirror (separate Worker on a route), gated extra set.
 manifest="$(curl -sS "$origin/sym/arasaac/manifest.json")"
-index="$(python3 -c 'import json,sys; m=json.loads(sys.argv[1]); assert m["set"]=="arasaac" and m["count"]>10000; print(m["index"])' "$manifest")" ||
+index="$(python3 -c 'import json,sys; m=json.loads(sys.argv[1]); assert m["set"]=="arasaac" and m["count"]>10000 and m["categories"]; print(m["index"])' "$manifest")" ||
   fail "ARASAAC manifest invalid"
 [[ "$(status "/sym/arasaac/$index")" == 200 ]] || fail "ARASAAC index missing"
 [[ "$(status /sym/extra/manifest.json)" == 401 ]] || fail "/sym/extra/* must require a session"
