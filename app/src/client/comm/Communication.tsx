@@ -20,6 +20,7 @@ import {
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
 import { useDeviceSettings } from '../device.ts';
+import { PhraseGenerator } from '../phrase/PhraseGenerator.tsx';
 import { useSpeaker } from '../speech.ts';
 import { useAccountSettings } from '../settings/account.ts';
 import { AllSymbols } from './AllSymbols.tsx';
@@ -28,6 +29,7 @@ import {
   BackspaceIcon,
   ClockIcon,
   GridIcon,
+  KeyboardIcon,
   LockIcon,
   PlayIcon,
   SearchIcon,
@@ -78,6 +80,7 @@ export function Communication({
   const [searching, setSearching] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [browsing, setBrowsing] = useState(false);
+  const [phrasing, setPhrasing] = useState(false);
   const history = useHistory(me.id);
   const [found, setFound] = useState<string | null>(null);
   const foundTimer = useRef<number | undefined>(undefined);
@@ -149,6 +152,11 @@ export function Communication({
             <GridIcon />
           </ToolButton>
         )}
+        {account.data?.showPhraseGenerator && (
+          <ToolButton label="Generator fraz" onClick={() => setPhrasing(true)}>
+            <KeyboardIcon />
+          </ToolButton>
+        )}
       </BoardNav>
       <EditLock onUnlock={onEditMode} />
       <BoardGrid
@@ -166,6 +174,19 @@ export function Communication({
             add(item);
           }}
           onClose={() => setBrowsing(false)}
+        />
+      )}
+      {phrasing && (
+        <PhraseGenerator
+          me={me}
+          onToSentence={(items) => {
+            setPhrasing(false);
+            setSentence((current) => [
+              ...current,
+              ...items.map((item) => ({ ...item, key: nextKey.current++ })),
+            ]);
+          }}
+          onClose={() => setPhrasing(false)}
         />
       )}
       {showHistory && (

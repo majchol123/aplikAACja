@@ -360,3 +360,23 @@ html[data-state='anon'] .landing-reveal {
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* Phrase generator print (phrase/PhraseGenerator.tsx): the sheet alone goes on paper. */
+.phrase-sheet {
+  display: none;
+}
+@media print {
+  body:has(> .phrase-sheet) {
+    background: #fff;
+  }
+  body:has(> .phrase-sheet) > :not(.phrase-sheet),
+  body:has(> .phrase-sheet) dialog {
+    display: none !important;
+  }
+  .phrase-sheet {
+    display: block;
+    color: #0f172a;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -6,10 +6,18 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
 import { useBoardWrites } from '../boards/writes.ts';
-import { GearIcon, GridIcon, OpenIcon, PlusIcon, SearchIcon } from '../comm/icons.tsx';
+import {
+  GearIcon,
+  GridIcon,
+  KeyboardIcon,
+  OpenIcon,
+  PlusIcon,
+  SearchIcon,
+} from '../comm/icons.tsx';
 import { TileView } from '../comm/TileView.tsx';
 import { useAccountSettings } from '../settings/account.ts';
 import { SearchPanel } from '../comm/SearchPanel.tsx';
+import { PhraseGenerator } from '../phrase/PhraseGenerator.tsx';
 import { AddBoardDialog } from '../shares/AddBoardDialog.tsx';
 import { ShareDialog } from '../shares/ShareDialog.tsx';
 import { useShares } from '../shares/data.ts';
@@ -101,6 +109,7 @@ export function EditMode({
   const [boardDialog, setBoardDialog] = useState(false);
   const [sharing, setSharing] = useState<'share' | 'inbox' | null>(null);
   const [searching, setSearching] = useState(false);
+  const [phrasing, setPhrasing] = useState(false);
   const [found, setFound] = useState<string | null>(null);
   // The ring of a tile found with the search fades after a few seconds.
   useEffect(() => {
@@ -197,7 +206,20 @@ export function EditMode({
         >
           <SearchIcon />
         </button>
+        <button
+          type="button"
+          aria-label="Generator fraz"
+          title="Generator fraz: zdanie w symbolach"
+          onClick={() => {
+            writes.dismiss();
+            setPhrasing(true);
+          }}
+          className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200"
+        >
+          <KeyboardIcon />
+        </button>
       </BoardNav>
+      {phrasing && <PhraseGenerator me={me} board={board} onClose={() => setPhrasing(false)} />}
       {searching && (
         <SearchPanel
           me={me}

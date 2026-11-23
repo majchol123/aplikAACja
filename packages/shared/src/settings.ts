@@ -42,6 +42,8 @@ export const SettingsSchema = z
     uppercaseLabels: z.boolean(),
     /** Communication mode offers the category folders of the sets (F3; off by default). */
     showAllSymbols: z.boolean(),
+    /** Communication mode offers the phrase generator (F5; off by default). */
+    showPhraseGenerator: z.boolean(),
   })
   .strict();
 export type Settings = z.infer<typeof SettingsSchema>;
@@ -59,4 +61,5 @@ export const DEFAULT_SETTINGS: Settings = {
   speech: { preset: 'woman', rate: 1, pitch: 1 },
   uppercaseLabels: false,
   showAllSymbols: false,
+  showPhraseGenerator: false,
 };

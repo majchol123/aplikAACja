@@ -70,6 +70,13 @@ export const GridIcon = ({ className = 'size-6' }) => (
     <rect x="14" y="14" width="7" height="7" rx="1" />
   </svg>
 );
+/** A keyboard: text typed in becomes symbols (the phrase generator). */
+export const KeyboardIcon = ({ className = 'size-7' }) => (
+  <svg {...common} className={className}>
+    <rect x="2" y="6" width="20" height="12" rx="2" />
+    <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
+  </svg>
+);
 export const SearchIcon = ({ className = 'size-7' }) => (
   <svg {...common} className={className}>
     <circle cx="10.5" cy="10.5" r="6.5" />

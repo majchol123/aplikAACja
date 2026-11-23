@@ -299,6 +299,12 @@ export function DevicePanel() {
           Przycisk „Wszystkie symbole” przy tablicy: kategorie zestawów symboli, także dla osób,
           które nie czytają
         </AccountToggle>
+        <AccountToggle
+          pick={(s) => s.showPhraseGenerator}
+          patch={(v) => ({ showPhraseGenerator: v })}
+        >
+          Przycisk „Generator fraz” przy tablicy: zdanie wpisane z klawiatury zamienia się w symbole
+        </AccountToggle>
       </section>
     </>
   );

@@ -132,6 +132,7 @@ function SettingsPreview({ settings }: { settings: Settings }) {
     ],
     ['Wielkie litery na kafelkach', settings.uppercaseLabels ? 'tak' : 'nie'],
     ['Przycisk „Wszystkie symbole”', settings.showAllSymbols ? 'tak' : 'nie'],
+    ['Przycisk „Generator fraz”', settings.showPhraseGenerator ? 'tak' : 'nie'],
     ['Po wybraniu słowa w folderze wraca na pulpit', settings.returnToHome ? 'tak' : 'nie'],
     ['Wyszukiwanie', SOURCES[settings.searchSources]],
   ];
