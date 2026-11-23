@@ -1,5 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
+import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
+import { strFromU8, unzipSync } from 'fflate';
 import {
   failOnConsoleErrors,
   freshLogin,
@@ -313,4 +315,54 @@ test('without access to the extra set, an ARASAAC symbol found by the label stan
     );
   });
   expect(stored).toEqual([{ set: 'extra', ref: '17' }]);
+});
+
+test('the whole account is saved as one file from the settings (GDPR art. 20)', async ({
+  page,
+}) => {
+  await mockArasaac(page);
+  await freshLogin(page, 'Kopia danych');
+  await seed(page);
+  const ok = await page.evaluate(async () => {
+    const headers = { 'Content-Type': 'application/json', 'X-Relaacja': '1' };
+    const post = (path: string, body: unknown) =>
+      fetch(path, { method: 'POST', headers, body: JSON.stringify(body) });
+    const said = [{ label: 'chcę', symbol: null }];
+    const a = await post('/api/favorites', { items: [{ label: 'dziękuję', symbol: null }] });
+    const b = await post('/api/history', { entries: [{ at: Date.now(), items: said }] });
+    return a.ok && b.ok;
+  });
+  expect(ok).toBe(true);
+  await page.reload();
+  await holdEditLock(page);
+  await page.getByRole('button', { name: 'Ustawienia' }).click();
+  const panel = page.getByRole('region', { name: 'Twoje dane' });
+  const saving = page.waitForEvent('download');
+  await panel.getByRole('button', { name: 'Pobierz kopię moich danych' }).click();
+  const file = await saving;
+  expect(file.suggestedFilename()).toMatch(/^relaacja-dane-\d{4}-\d{2}-\d{2}\.zip$/);
+  await expect(panel.getByRole('status')).toHaveText(/^Zapisano plik relaacja-dane-/);
+  const zip = unzipSync(new Uint8Array(await readFile(await file.path())));
+  expect(Object.keys(zip).sort()).toEqual([
+    'CZYTAJ.txt',
+    'dane.json',
+    'tablice.obz',
+    'zdjecia/0001-Zupa.webp',
+  ]);
+  const data = JSON.parse(strFromU8(zip['dane.json']!));
+  expect(data).toMatchObject({
+    format: 'relaacja-account-export',
+    v: 1,
+    account: { displayName: 'Kopia danych' },
+    favorites: [{ items: [{ label: 'dziękuję' }] }],
+    history: [{ items: [{ label: 'chcę' }] }],
+    device: { pinSet: false },
+    photos: [{ label: 'Zupa', file: 'zdjecia/0001-Zupa.webp' }],
+  });
+  expect(data.device).not.toHaveProperty('pin');
+  expect(data.settings).toHaveProperty('keepHistory', true);
+  // The boards inside are an Open Board archive of the whole tree.
+  const obz = unzipSync(zip['tablice.obz']!);
+  const manifest = JSON.parse(strFromU8(obz['manifest.json']!));
+  expect(Object.keys(manifest.paths.boards)).toHaveLength(2);
 });

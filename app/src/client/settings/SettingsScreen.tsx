@@ -4,6 +4,7 @@ import { api } from '../api.ts';
 import { forgetHistory, sendHistoryNow } from '../comm/phrases.ts';
 import { Library } from '../library/Library.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
+import { ExportPanel } from './ExportPanel.tsx';
 import { LockPanel } from './LockPanel.tsx';
 import { PhotosPanel } from './PhotosPanel.tsx';
 import { PolicyNotice } from './PolicyNotice.tsx';
@@ -77,6 +78,7 @@ export function SettingsScreen({
         <Library me={me} />
         <PhotosPanel />
         <SharesPanel />
+        <ExportPanel me={me} />
 
         {isAdmin && (
           <section
