@@ -58,6 +58,7 @@ export function subtreePackage(
             colorMode: tile.colorMode,
             symbol: tile.symbol,
             ...(tile.hidden ? { hidden: true } : {}),
+            ...(tile.speech ? { speech: tile.speech } : {}),
             ...(target && !seen.has(target.id) ? { board: build(target) } : {}),
           };
         }),
@@ -240,8 +241,9 @@ export function packageToObz(
         ext_relaacja_color_role: tile.colorRole ?? null,
         ext_relaacja_color_mode: tile.colorMode ?? 'border',
       };
-      // Open Board's own field: other apps hide the button too.
+      // Open Board's own fields: other apps hide the button and say its words too.
       if (tile.hidden) button.hidden = true;
+      if (tile.speech) button.vocalization = tile.speech;
       if (tile.symbol) {
         const image = imageFor(tile.symbol);
         used.add(image);
@@ -508,6 +510,9 @@ export function obzToPackage(files: Readonly<Record<string, Uint8Array>>): ObzIm
         tiles++;
         const tile: TemplateTile = { row: r, col: c, kind: 'word', label };
         if (button.hidden) tile.hidden = true;
+        // Words of its own (Open Board's vocalization), unless they are just the label.
+        const speech = cleanText(button.vocalization, BOARD_LIMITS.speechMax);
+        if (speech && speech !== label) tile.speech = speech;
         if (button.ext_relaacja_label_position)
           tile.labelPosition = button.ext_relaacja_label_position;
         if (button.ext_relaacja_font_size) tile.fontSize = button.ext_relaacja_font_size;

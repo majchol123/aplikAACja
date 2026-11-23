@@ -16,6 +16,8 @@ export const BOARD_LIMITS = {
   maxTiles: 20_000,
   nameMax: 60,
   labelMax: 80,
+  /** What a tile says instead of its label (a short sentence). */
+  speechMax: 200,
 } as const;
 
 export const TILE_KINDS = ['word', 'folder'] as const;
@@ -42,6 +44,7 @@ const text = (max: number) =>
 
 export const BoardNameSchema = text(BOARD_LIMITS.nameMax);
 export const TileLabelSchema = text(BOARD_LIMITS.labelMax);
+export const TileSpeechSchema = text(BOARD_LIMITS.speechMax);
 
 const libraryRef = z.string().regex(/^(0|[1-9][0-9]{0,9})$/);
 
@@ -101,6 +104,7 @@ const TemplateTileSchema = z
     colorMode: tileStyle.colorMode.optional(),
     symbol: tileStyle.symbol.optional(),
     hidden: z.boolean().optional(),
+    speech: TileSpeechSchema.optional(),
     /** Contents of the board a folder opens (folders only). */
     get board() {
       return TemplateBoardSchema.optional();
@@ -176,6 +180,7 @@ export const CreateTileSchema = z
     colorMode: tileStyle.colorMode.optional(),
     symbol: tileStyle.symbol.optional(),
     hidden: z.boolean().optional(),
+    speech: TileSpeechSchema.nullable().optional(),
     /** Grid of the board a folder opens; defaults to the parent board's grid. */
     folder: GridSizeSchema.optional(),
   })
@@ -198,6 +203,8 @@ export const PatchTileSchema = z
     colorMode: tileStyle.colorMode.optional(),
     symbol: tileStyle.symbol.optional(),
     hidden: z.boolean().optional(),
+    /** null: say the label again. */
+    speech: TileSpeechSchema.nullable().optional(),
     folder: GridSizeSchema.optional(),
   })
   .strict()
@@ -237,6 +244,8 @@ export interface Tile {
   symbol: { set: SymbolSet; ref: string } | null;
   /** Out of communication mode, kept in its cell so the other tiles never move. */
   hidden: boolean;
+  /** Said instead of the label ("pić" → "Chcę się napić"); null: the label. */
+  speech: string | null;
 }
 
 export interface Board {
@@ -293,6 +302,7 @@ export function packageTree(pkg: BoardPackage): BoardTree {
       colorMode: t.colorMode ?? 'border',
       symbol: t.symbol ?? null,
       hidden: t.hidden ?? false,
+      speech: t.speech ?? null,
     }));
     return id;
   };

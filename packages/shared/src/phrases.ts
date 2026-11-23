@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SymbolRefSchema, TileLabelSchema } from './boards.ts';
+import { SymbolRefSchema, TileLabelSchema, TileSpeechSchema } from './boards.ts';
 
 /**
  * Phrases of communication mode (PLAN §2.1): the last utterances stay on the device only
@@ -13,7 +13,12 @@ export const PHRASE_LIMITS = {
 } as const;
 
 export const PhraseItemSchema = z
-  .object({ label: TileLabelSchema, symbol: SymbolRefSchema.nullable() })
+  .object({
+    label: TileLabelSchema,
+    symbol: SymbolRefSchema.nullable(),
+    /** What the tile said instead of its label (Tile.speech). */
+    speech: TileSpeechSchema.optional(),
+  })
   .strict();
 export type PhraseItem = z.infer<typeof PhraseItemSchema>;
 
@@ -32,6 +37,10 @@ export interface FavoriteList {
   favorites: Favorite[];
 }
 
-/** What a phrase says. */
+/** What a phrase shows (the labels). */
 export const phraseText = (items: readonly { label: string }[]) =>
   items.map((i) => i.label).join(' ');
+
+/** What a phrase says: a tile's own words where it has them, else its label. */
+export const spokenText = (items: readonly { label: string; speech?: string | null }[]) =>
+  items.map((i) => i.speech ?? i.label).join(' ');

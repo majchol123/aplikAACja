@@ -52,6 +52,8 @@ interface Draft {
   colorMode: ColorMode;
   symbol: SymbolRef | null;
   hidden: boolean;
+  /** Typed text; empty: the tile says its label. */
+  speech: string;
 }
 
 const BOARDS_PL = ['tablica', 'tablice', 'tablic'] as const;
@@ -159,6 +161,7 @@ export function TileEditor({
     colorMode: tile?.colorMode ?? 'border',
     symbol: tile?.symbol ?? null,
     hidden: tile?.hidden ?? false,
+    speech: tile?.speech ?? '',
   }));
   // Picking a symbol proposes its part-of-speech colour until a colour is chosen by hand.
   const [autoColor, setAutoColor] = useState(true);
@@ -214,13 +217,19 @@ export function TileEditor({
 
   async function save(confirmed = false): Promise<void> {
     const label = draft.label.trim();
+    // Folders open a board and say nothing; the label itself needs no copy.
+    const typed = draft.speech.trim();
+    const speech = draft.kind === 'word' && typed && typed !== label ? typed : null;
     if (!label) {
       setMissingLabel(true);
       return;
     }
     let ok: boolean;
     if (tile) {
-      const input: Partial<Omit<Draft, 'symbol'>> & { symbol?: SymbolRef | null } = {};
+      const input: Partial<Omit<Draft, 'symbol' | 'speech'>> & {
+        symbol?: SymbolRef | null;
+        speech?: string | null;
+      } = {};
       if (label !== tile.label) input.label = label;
       if (draft.kind !== tile.kind) input.kind = draft.kind;
       if (draft.labelPosition !== tile.labelPosition) input.labelPosition = draft.labelPosition;
@@ -228,6 +237,7 @@ export function TileEditor({
       if (draft.colorRole !== tile.colorRole) input.colorRole = draft.colorRole;
       if (draft.colorMode !== tile.colorMode) input.colorMode = draft.colorMode;
       if (draft.hidden !== tile.hidden) input.hidden = draft.hidden;
+      if (speech !== tile.speech) input.speech = speech;
       if (!sameSymbol(draft.symbol, tile.symbol)) input.symbol = draft.symbol;
       if (Object.keys(input).length === 0) return onClose();
       if (input.kind === 'word' && lost && !confirmed) {
@@ -239,7 +249,7 @@ export function TileEditor({
       ok = await run({
         op: 'createTile',
         boardId: board.id,
-        input: { ...cell, ...draft, label },
+        input: { ...cell, ...draft, label, speech },
       });
     }
     if (!ok) {
@@ -353,6 +363,7 @@ export function TileEditor({
     col: cell.col,
     targetBoardId: tile?.targetBoardId ?? null,
     ...draft,
+    speech: null,
     label: draft.label.trim() || '…',
   };
 
@@ -391,6 +402,26 @@ export function TileEditor({
               )}
             </label>
           </div>
+          {draft.kind === 'word' && (
+            <div>
+              <label className={ui.field}>
+                Co powiedzieć (opcjonalnie)
+                <input
+                  value={draft.speech}
+                  maxLength={BOARD_LIMITS.speechMax}
+                  onChange={(e) => change({ speech: e.target.value })}
+                  placeholder={draft.label.trim() || 'np. Chcę się napić, proszę'}
+                  aria-describedby={`${id}-speech-hint`}
+                  className={ui.input}
+                  autoComplete="off"
+                />
+              </label>
+              <p id={`${id}-speech-hint`} className="mt-1 text-sm text-slate-600">
+                Gdy kafelek ma mówić co innego niż jego napis, np. „pić” → „Chcę się napić, proszę”.
+                Na kafelku i w pasku zdania zostaje napis.
+              </p>
+            </div>
+          )}
 
           <Choices
             legend="Rodzaj"

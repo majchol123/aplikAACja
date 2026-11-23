@@ -2,7 +2,7 @@ import {
   TapFilter,
   type Board,
   type BoardTree,
-  phraseText,
+  spokenText,
   type Me,
   type PhraseItem,
   type SymbolRef,
@@ -45,6 +45,8 @@ interface SentenceItem {
   label: string;
   src: string | null;
   symbol: SymbolRef | null;
+  /** Said instead of the label (Tile.speech). */
+  speech?: string;
 }
 
 const HOLD_MS = 2000;
@@ -91,7 +93,7 @@ export function Communication({
 
   function add(item: Omit<SentenceItem, 'key'>): void {
     setSentence((items) => [...items, { ...item, key: nextKey.current++ }]);
-    if (device.speakOnTap) speak(item.label);
+    if (device.speakOnTap) speak(item.speech ?? item.label);
   }
 
   function show(tile: Tile, on: Board): void {
@@ -107,13 +109,24 @@ export function Communication({
       if (tile.targetBoardId && boards.has(tile.targetBoardId)) onBoardChange(tile.targetBoardId);
       return;
     }
-    add({ label: tile.label, src: resolve(tile.symbol), symbol: tile.symbol });
+    add({
+      label: tile.label,
+      src: resolve(tile.symbol),
+      symbol: tile.symbol,
+      ...(tile.speech ? { speech: tile.speech } : {}),
+    });
     if ((account.data?.returnToHome ?? true) && board?.parentId) onBoardChange(homeId);
   }
 
   const speakSentence = () => {
-    speak(sentence.map((i) => i.label).join(' '));
-    history.record(sentence.map(({ label, symbol }) => ({ label, symbol })));
+    speak(spokenText(sentence));
+    history.record(
+      sentence.map(({ label, symbol, speech }) => ({
+        label,
+        symbol,
+        ...(speech ? { speech } : {}),
+      })),
+    );
   };
 
   function replay(items: PhraseItem[]): void {
@@ -121,7 +134,7 @@ export function Communication({
     setSentence(
       items.map((item) => ({ ...item, key: nextKey.current++, src: resolve(item.symbol) })),
     );
-    speak(phraseText(items));
+    speak(spokenText(items));
     history.record(items);
   }
 

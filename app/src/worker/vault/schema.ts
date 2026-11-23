@@ -204,6 +204,9 @@ export const VAULT_MIGRATIONS: readonly string[] = [
   // v6 — hidden tiles (backlog): out of communication mode but kept in their cell, so the
   // other tiles never move (motor planning); shown dimmed in edit mode.
   `ALTER TABLE tiles ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1));`,
+
+  // v7 — what a tile says instead of its label (backlog); NULL says the label.
+  `ALTER TABLE tiles ADD COLUMN speech TEXT;`,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {

@@ -176,6 +176,31 @@ describe('Open Board Format', () => {
     expect(BoardPackageSchema.safeParse(back.package).error?.issues ?? []).toEqual([]);
   });
 
+  it('a tile’s own words travel as Open Board’s vocalization', () => {
+    const start: BoardPackage = {
+      v: 1,
+      name: 'Start',
+      board: {
+        rows: 1,
+        cols: 2,
+        tiles: [
+          { row: 0, col: 0, kind: 'word', label: 'pić', speech: 'Chcę się napić' },
+          { row: 0, col: 1, kind: 'word', label: 'jeść' },
+        ],
+      },
+    };
+    const files = packageToObz(start, new Map());
+    const root = JSON.parse(files['boards/0.obf'] as string) as {
+      buttons: { vocalization?: string }[];
+    };
+    expect(root.buttons.map((b) => b.vocalization)).toEqual(['Chcę się napić', undefined]);
+    const back = obzToPackage(bytes(files));
+    expect(back.package.board.tiles.map((t) => [t.label, t.speech])).toEqual([
+      ['pić', 'Chcę się napić'],
+      ['jeść', undefined],
+    ]);
+  });
+
   it('hidden tiles stay hidden, with Open Board’s own field', () => {
     const start: BoardPackage = {
       v: 1,

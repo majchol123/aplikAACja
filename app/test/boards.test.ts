@@ -175,6 +175,7 @@ describe('board tree', () => {
       colorMode: 'background',
       symbol: { set: 'arasaac', ref: '2494' },
       hidden: false,
+      speech: null,
     });
 
     const t = await tree(api);
@@ -614,6 +615,31 @@ describe('board tree', () => {
     expect(imported.status).toBe(200);
     const copy = imported.body.boards.find((b) => b.name === 'Ukryte')!;
     expect(copy.tiles[0]).toMatchObject({ label: 'sekret', hidden: true });
+  });
+
+  it('a tile says its own words when it has them; null says the label again', async () => {
+    const { api } = await setup();
+    const start = await home(api);
+    const tile = await addTile(api, start, {
+      row: 0,
+      col: 0,
+      label: 'pić',
+      speech: '  Chcę się napić, proszę  ',
+    });
+    expect(tile.tile).toMatchObject({ label: 'pić', speech: 'Chcę się napić, proszę' });
+    const cleared = await api<BoardChanges>('PATCH', `/api/tiles/${tile.tile.id}`, {
+      rev: tile.board.rev,
+      speech: null,
+    });
+    expect(changed(cleared, start.id).tiles[0]).toMatchObject({ label: 'pić', speech: null });
+    for (const speech of ['', 'x'.repeat(201), 'a\u0007b']) {
+      const res = await api('PATCH', `/api/tiles/${tile.tile.id}`, { rev: 2, speech });
+      expect(res.status, speech).toBe(400);
+    }
+    const favorite = await api('POST', '/api/favorites', {
+      items: [{ label: 'pić', symbol: null, speech: 'Chcę się napić' }],
+    });
+    expect(favorite.status).toBe(201);
   });
 
   it('enforces the per-account quotas', async () => {

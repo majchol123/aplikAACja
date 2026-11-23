@@ -289,3 +289,26 @@ test('a hidden tile keeps its cell: out of communication mode and its search, di
   await page.getByRole('button', { name: 'Gotowe' }).click();
   await expect(grid.getByRole('button', { name: 'Jedzenie, folder' })).toBeVisible();
 });
+
+test('a tile says its own words; the sentence bar keeps its label', async ({ page }) => {
+  await startEditing(page, 'Co powiedziec', 'Pusta tablica');
+  await page.getByRole('button', { name: 'Dodaj kafelek: wiersz 1, kolumna 1' }).click();
+  const form = dialog(page);
+  await form.getByLabel('Etykieta').fill('pić');
+  await form.getByLabel(/Co powiedzieć/).fill('Chcę się napić, proszę');
+  await form.getByTestId('symbol-results').getByRole('button').first().click();
+  await form.getByRole('button', { name: 'Zapisz' }).click();
+  await expect(form).toHaveCount(0);
+  await page.getByRole('button', { name: 'Gotowe' }).click();
+
+  await page.getByRole('button', { name: 'pić', exact: true }).click();
+  await expect(page.getByTestId('sentence-item')).toHaveText(['pić']);
+  await page.getByRole('button', { name: 'Powiedz zdanie' }).click();
+  expect((await spoken(page)).at(-1)?.text).toBe('Chcę się napić, proszę');
+  // The history keeps the words too.
+  await page.getByRole('button', { name: 'Wyczyść zdanie' }).click();
+  await page.getByRole('button', { name: 'Historia i ulubione' }).click();
+  await page.getByRole('button', { name: 'Powiedz: pić' }).click();
+  expect((await spoken(page)).at(-1)?.text).toBe('Chcę się napić, proszę');
+  await expect(page.getByTestId('sentence-item')).toHaveText(['pić']);
+});
