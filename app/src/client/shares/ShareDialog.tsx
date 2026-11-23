@@ -68,7 +68,8 @@ function SendSection({ me, board }: { me: Me; board: Board }) {
       </p>
       {me.extraSet && (
         <p className="mt-1 text-sm text-slate-600">
-          Symbole dodatkowego zestawu osoba bez dostępu do niego zobaczy jako sam napis.
+          Osoba bez dostępu do dodatkowego zestawu zobaczy zamiast jego symboli podobne symbole
+          ARASAAC, dobrane po napisie.
         </p>
       )}
       <form
@@ -171,8 +172,8 @@ function FileSection({
       </h3>
       <p className="mt-1 text-slate-700">
         Kopia tablicy z folderami i obrazkami w jednym pliku, który otworzą też inne aplikacje AAC.
-        Symbole dodatkowego zestawu zapisują się bez obrazków. Plik wczytasz przyciskiem „Dodaj
-        tablicę”.
+        Symbole dodatkowego zestawu zapisują się bez obrazków (relAACja pokaże w ich miejscu podobne
+        symbole ARASAAC). Plik wczytasz przyciskiem „Dodaj tablicę”.
       </p>
       <button
         type="button"

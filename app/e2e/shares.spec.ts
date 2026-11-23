@@ -231,3 +231,48 @@ test('an admin publishes a board in the catalogue; another account adds it', asy
   await mine.getByRole('button', { name: 'Tak, wycofaj' }).click();
   await expect(mine).toBeHidden();
 });
+
+test('without access to the extra set, an ARASAAC symbol found by the label stands in', async ({
+  page,
+}) => {
+  await mockArasaac(page);
+  await freshLogin(page, 'Bez zestawu');
+  const ok = await page.evaluate(async () => {
+    const headers = { 'Content-Type': 'application/json', 'X-Relaacja': '1' };
+    const post = (path: string, body: unknown) =>
+      fetch(path, { method: 'POST', headers, body: JSON.stringify(body) });
+    const home = await post('/api/boards/home', { name: 'Start', rows: 2, cols: 2 });
+    const start = (await home.json()).boards[0];
+    const pkg = {
+      v: 1,
+      name: 'Od kogoś',
+      board: {
+        rows: 1,
+        cols: 2,
+        tiles: [
+          { row: 0, col: 0, kind: 'word', label: 'pije', symbol: { set: 'extra', ref: '17' } },
+          { row: 0, col: 1, kind: 'word', label: 'qwxyz', symbol: { set: 'extra', ref: '18' } },
+        ],
+      },
+    };
+    return (await post(`/api/boards/${start.id}/import`, { rev: start.rev, package: pkg })).ok;
+  });
+  expect(ok).toBe(true);
+  await page.reload();
+  await page.getByRole('button', { name: 'Od kogoś, folder', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'pije', exact: true }).locator('img'),
+  ).toHaveAttribute('src', /\/6061\./);
+  // No match: the label alone, as before.
+  await expect(page.getByRole('button', { name: 'qwxyz', exact: true }).locator('img')).toHaveCount(
+    0,
+  );
+  // The stored reference stays: the original comes back with the grant.
+  const stored = await page.evaluate(async () => {
+    const tree = await fetch('/api/boards').then((r) => r.json());
+    return tree.boards.flatMap((b: { tiles: { label: string; symbol: unknown }[] }) =>
+      b.tiles.filter((t) => t.label === 'pije').map((t) => t.symbol),
+    );
+  });
+  expect(stored).toEqual([{ set: 'extra', ref: '17' }]);
+});

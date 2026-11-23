@@ -1,5 +1,6 @@
 import {
   mediaUrl,
+  preferredKey,
   SET_BASE,
   type BoardChanges,
   type BoardTree,
@@ -11,7 +12,9 @@ import {
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { api, ApiError } from '../api.ts';
-import { useManifest, useSymbolIndex } from '../library/data.ts';
+import { buildSearch, useManifest, useSymbolIndex, useSymbolSet } from '../library/data.ts';
+import { useAccountSettings } from '../settings/account.ts';
+import { usePreferredSymbols } from './preferred.ts';
 
 export interface CachedTree {
   etag: string;
@@ -92,10 +95,45 @@ export function useSymbolResolver(
     }
     return sets;
   }, [tiles, me.extraSet]);
-  const arasaacManifest = useManifest('arasaac', needs.has('arasaac'));
+  // Extra-set symbols this account cannot see (a received board, a lapsed grant): an
+  // ARASAAC symbol found by the tile's label stands in; the stored reference stays, so the
+  // original returns with the grant.
+  const missing = useMemo(() => {
+    const labels = new Map<string, string>();
+    if (me.extraSet) return labels;
+    for (const tile of tiles) {
+      if (tile.symbol?.set === 'extra' && !labels.has(tile.symbol.ref)) {
+        labels.set(tile.symbol.ref, tile.label);
+      }
+    }
+    return labels;
+  }, [tiles, me.extraSet]);
+  const substituting = missing.size > 0;
+  const arasaacManifest = useManifest('arasaac', needs.has('arasaac') || substituting);
   const extraManifest = useManifest('extra', needs.has('extra'));
   const arasaac = useSymbolIndex(arasaacManifest.data, needs.has('arasaac'));
   const extra = useSymbolIndex(extraManifest.data, needs.has('extra'));
+  const searchable = useSymbolSet(arasaacManifest.data, substituting);
+  const settings = useAccountSettings();
+  const preferred = usePreferredSymbols(substituting);
+  const filter = settings.data?.contentFilter;
+
+  const substitutes = useMemo(() => {
+    const out = new Map<string, string>();
+    if (!substituting || !searchable.data || !filter) return out;
+    const set = searchable.data;
+    const files = new Map(set.index.items.map((i) => [String(i.id), SET_BASE.arasaac + i.f]));
+    const search = buildSearch([set]);
+    for (const [ref, label] of missing) {
+      const own = preferred.data?.get(preferredKey(label));
+      const chosen =
+        (own?.set === 'arasaac' ? files.get(own.ref) : undefined) ??
+        // A trailing space: whole words, not type-ahead on the last one.
+        search.search(`${label} `, { sets: ['arasaac'], ...filter, limit: 1 })[0]?.src;
+      if (chosen) out.set(ref, chosen);
+    }
+    return out;
+  }, [substituting, searchable.data, filter, missing, preferred.data]);
 
   const files = useMemo(() => {
     const map = new Map<string, string>();
@@ -111,8 +149,9 @@ export function useSymbolResolver(
     (symbol: Tile['symbol']): string | null => {
       if (!symbol) return null;
       if (symbol.set === 'own') return ownUrl(symbol.ref);
+      if (symbol.set === 'extra' && !me.extraSet) return substitutes.get(symbol.ref) ?? null;
       return files.get(`${symbol.set}:${symbol.ref}`) ?? null;
     },
-    [files, ownUrl],
+    [files, ownUrl, me.extraSet, substitutes],
   );
 }

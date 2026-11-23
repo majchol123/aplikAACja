@@ -15,12 +15,13 @@ const toMap = (data: PreferredSymbols) =>
   new Map<string, SymbolRef>(data.items.map((i) => [i.word, i.symbol]));
 
 /** Preferred variant per normalized word (PLAN §2.2). */
-export function usePreferredSymbols() {
+export function usePreferredSymbols(enabled = true) {
   return useQuery({
     queryKey: KEY,
     queryFn: () => api<PreferredSymbols>('/api/symbols/preferred'),
     staleTime: 5 * 60_000,
     select: toMap,
+    enabled,
   });
 }
 

@@ -32,7 +32,8 @@ export function ReadOnlyBoards({
       <Grid me={me} board={board} ownUrl={ownUrl} onOpen={setBoardId} />
       <p className="mt-2 text-sm text-slate-600">
         Podgląd tylko do odczytu: foldery się otwierają, kafelki nie mówią.
-        {!me.extraSet && ' Symbole dodatkowego zestawu widać jako sam napis.'}
+        {!me.extraSet &&
+          ' Zamiast symboli dodatkowego zestawu widać podobne symbole ARASAAC, dobrane po napisie.'}
       </p>
     </div>
   );
