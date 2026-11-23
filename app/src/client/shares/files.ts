@@ -12,7 +12,7 @@ import {
   type ObzPicture,
   type SymbolRef,
   type TemplateBoard,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { strToU8, unzipSync, zipSync, type Zippable } from 'fflate';
 import { api, ApiError } from '../api.ts';
 import { decodePhoto, encodePhoto, fullCrop, PhotoError, renderCrop } from '../media/encode.ts';

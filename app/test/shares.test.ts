@@ -8,7 +8,7 @@ import {
   type ReceivedShareView,
   type SentShare,
   type ShareLists,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { vaultFor, type UserVault } from '../src/worker/vault/user-vault.ts';
 import { apiAs, insertUser, makeApp, sessionCookie, uploadAs, writeHeaders } from './helpers.ts';

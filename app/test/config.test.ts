@@ -19,7 +19,7 @@ interface WorkerConfig {
 const config = parseJsonc(wranglerText) as WorkerConfig;
 const extra = parseJsonc(extraText) as WorkerConfig;
 const arasaac = parseJsonc(arasaacText) as WorkerConfig;
-const HOSTS = ['relaacja.jagiellona.one.pl', 'relaacja-staging.jagiellona.one.pl'];
+const HOSTS = ['aplikaacja.one.pl', 'staging.aplikaacja.one.pl'];
 
 describe('wrangler.jsonc', () => {
   it('never enables the dev login', () => {
@@ -35,8 +35,8 @@ describe('wrangler.jsonc', () => {
 
   it('maps environments to their custom domains and origins', () => {
     const expected = {
-      staging: ['relaacja-staging', 'relaacja-staging.jagiellona.one.pl'],
-      production: ['relaacja', 'relaacja.jagiellona.one.pl'],
+      staging: ['aplikaacja-staging', 'staging.aplikaacja.one.pl'],
+      production: ['aplikaacja', 'aplikaacja.one.pl'],
     } as const;
     for (const [envName, [name, host]] of Object.entries(expected)) {
       const cfg = config.env![envName]!;
@@ -59,17 +59,17 @@ describe('wrangler.jsonc', () => {
 
 describe('symbol-set Workers', () => {
   it('extra set: private, reachable only through the service binding', () => {
-    expect(extra.name).toBe('relaacja-extra');
+    expect(extra.name).toBe('aplikaacja-extra');
     expect(extra.routes).toBeUndefined();
     expect(extra.env).toBeUndefined();
     expect(extra.assets?.directory).toBe('./dist'); // gitignored
   });
 
   it('ARASAAC mirror: assets only, routed under /sym/arasaac/ on both app hosts', () => {
-    expect(arasaac.name).toBe('relaacja-arasaac');
+    expect(arasaac.name).toBe('aplikaacja-arasaac');
     expect(arasaac.main).toBeUndefined(); // no script → unmetered static requests
     expect(arasaac.routes).toEqual(
-      HOSTS.map((host) => ({ pattern: `${host}/sym/arasaac/*`, zone_name: 'jagiellona.one.pl' })),
+      HOSTS.map((host) => ({ pattern: `${host}/sym/arasaac/*`, zone_name: 'aplikaacja.one.pl' })),
     );
   });
 });

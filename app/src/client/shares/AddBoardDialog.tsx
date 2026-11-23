@@ -9,7 +9,7 @@ import {
   type Me,
   type ObzImport,
   type ReceivedShare,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useId, useMemo, useState } from 'react';
 import { formatBytes, formatDate, BOARDS_PL, PHOTOS_PL, TILES_PL } from '../admin/format.ts';
@@ -606,7 +606,7 @@ function FileImport({
         Z pliku Open Board (.obz, .obf)
       </h3>
       <p className="mt-1 text-slate-700">
-        Plik zapisany w relAACja albo w innej aplikacji AAC. Obrazki z pliku zostaną Twoimi
+        Plik zapisany w aplikAACja albo w innej aplikacji AAC. Obrazki z pliku zostaną Twoimi
         zdjęciami.
       </p>
       <label

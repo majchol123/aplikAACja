@@ -5,7 +5,7 @@ import type {
   AuditPage,
   SetExtraSet,
   SetRole,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../api.ts';
 

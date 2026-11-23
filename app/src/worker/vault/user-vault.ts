@@ -32,7 +32,7 @@ import {
   type PutPreferred,
   type Settings,
   type SettingsPatch,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import type { AppEnv } from '../env.ts';
 import { dumpTables, sealFor } from '../lib/backup.ts';
 import type { CleanImage } from '../media/image.ts';

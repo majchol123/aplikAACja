@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from conftest import SHARED_VECTORS, FakeHttp
 
-from relaacja_tools import arasaac, lexicon
-from relaacja_tools.symbolset import read_manifest
+from aplikaacja_tools import arasaac, lexicon
+from aplikaacja_tools.symbolset import read_manifest
 
 
 def test_lexicon_covers_vocabulary_and_inflected_keywords(polimorf: Path) -> None:

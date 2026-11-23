@@ -4,7 +4,7 @@ import {
   phraseText,
   type HistoryEntry,
   type PhraseItem,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 
 type Row = { items: string; at: number };
 

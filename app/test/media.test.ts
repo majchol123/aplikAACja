@@ -6,7 +6,7 @@ import {
   type MediaDeleted,
   type MediaList,
   type MediaSaved,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
 import { cleanImage, type CleanImage } from '../src/worker/media/image.ts';
 import { vaultFor, type UserVault } from '../src/worker/vault/user-vault.ts';

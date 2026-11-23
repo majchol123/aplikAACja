@@ -1,4 +1,4 @@
-import type { Tile } from '@relaacja/shared';
+import type { Tile } from '@aplikaacja/shared';
 import { useMemo, type CSSProperties, type Ref } from 'react';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { FolderIcon } from './icons.tsx';

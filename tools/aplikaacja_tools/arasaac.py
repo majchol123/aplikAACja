@@ -46,7 +46,7 @@ IMAGE_URL = "https://static.arasaac.org/pictograms/{id}/{id}_500.png"
 USER_AGENT = "symbol-mirror/1.0"
 IMAGE_SIZE = 500
 SET_DIR = Path("sym") / "arasaac"
-MARKER = ".relaacja-symbols"
+MARKER = ".aplikaacja-symbols"
 
 ATTRIBUTION = (
     "Autor symboli: Sergio Palao. Pochodzenie: ARASAAC (https://arasaac.org). "

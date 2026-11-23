@@ -196,7 +196,7 @@ importers:
       '@dnd-kit/react':
         specifier: 0.5.3
         version: 0.5.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@relaacja/shared':
+      '@aplikaacja/shared':
         specifier: workspace:*
         version: link:../packages/shared
       '@tanstack/react-query':

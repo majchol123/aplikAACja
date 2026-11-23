@@ -10,7 +10,7 @@ const EXTRA_FILE =
   /^\/sym\/extra\/([gx]\/[0-9]{1,10}\.[0-9a-f]{8}\.webp|(?:index|forms|categories)\.[0-9a-f]{8}\.json|manifest\.json)$/;
 
 /** Upstream host is never resolved: service-binding requests go straight to the Worker. */
-const UPSTREAM = 'https://relaacja-extra.internal/';
+const UPSTREAM = 'https://aplikaacja-extra.internal/';
 
 export function extraFile(url: string): string | null {
   return EXTRA_FILE.exec(new URL(url).pathname)?.[1] ?? null;

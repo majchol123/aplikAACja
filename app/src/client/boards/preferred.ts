@@ -4,7 +4,7 @@ import {
   type PreferredSymbols,
   type PutPreferred,
   type SymbolRef,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.ts';
 

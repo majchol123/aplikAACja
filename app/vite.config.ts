@@ -26,7 +26,7 @@ function staticHeaders(): Plugin {
     '',
   ].join('\n');
   return {
-    name: 'relaacja:static-headers',
+    name: 'aplikaacja:static-headers',
     apply: 'build',
     applyToEnvironment: (env) => env.name === 'client',
     generateBundle() {
@@ -41,7 +41,7 @@ function staticHeaders(): Plugin {
  */
 function serviceWorkerEntry(): Plugin {
   return {
-    name: 'relaacja:service-worker',
+    name: 'aplikaacja:service-worker',
     apply: 'build',
     applyToEnvironment: (env) => env.name === 'client',
     generateBundle(_options, bundle) {
@@ -54,7 +54,7 @@ function serviceWorkerEntry(): Plugin {
   };
 }
 
-const CONTACT_PLACEHOLDER = /%RELAACJA_CONTACT_EMAIL%/g;
+const CONTACT_PLACEHOLDER = /%APLIKAACJA_CONTACT_EMAIL%/g;
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 /**
@@ -69,7 +69,7 @@ function contactEmail(): Plugin {
   if (deployEnv && !value) throw new Error(`CONTACT_EMAIL is required for ${deployEnv} builds`);
   const email = value ?? 'kontakt@example.invalid';
   return {
-    name: 'relaacja:contact-email',
+    name: 'aplikaacja:contact-email',
     transformIndexHtml: {
       order: 'pre',
       handler: (html) => html.replace(CONTACT_PLACEHOLDER, email),

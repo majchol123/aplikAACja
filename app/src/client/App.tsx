@@ -1,4 +1,4 @@
-import type { Me } from '@relaacja/shared';
+import type { Me } from '@aplikaacja/shared';
 import { useState } from 'react';
 import { AdminScreen } from './admin/AdminScreen.tsx';
 import { useBoardTree } from './boards/data.ts';

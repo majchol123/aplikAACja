@@ -8,8 +8,8 @@ import type {
   PreferredSymbols,
   Settings,
   SymbolRef,
-} from '@relaacja/shared';
-import { mediaUrl } from '@relaacja/shared';
+} from '@aplikaacja/shared';
+import { mediaUrl } from '@aplikaacja/shared';
 import { strToU8, zipSync, type Zippable } from 'fflate';
 import { api } from '../api.ts';
 import { exportBoardFile } from '../shares/files.ts';
@@ -27,10 +27,10 @@ const safe = (text: string) =>
     .trim()
     .slice(0, 60) || 'zdjecie';
 
-const README = (at: string) => `Kopia danych konta relAACja z ${at}
+const README = (at: string) => `Kopia danych konta aplikAACja z ${at}
 
 tablice.obz   wszystkie tablice z folderami i obrazkami (Open Board Format):
-              otworzy je relAACja („Dodaj tablicę” → „Z pliku”) i inne aplikacje AAC
+              otworzy je aplikAACja („Dodaj tablicę” → „Z pliku”) i inne aplikacje AAC
 dane.json     konto, ustawienia, ulubione frazy, historia wypowiedzi, wybrane warianty
               symboli, ustawienia tego urządzenia i spis zdjęć
 zdjecia/      wszystkie Twoje zdjęcia, także te, których nie ma na tablicach
@@ -85,7 +85,7 @@ export async function exportAccount(
   // The PIN is a lock of this device, not data: only whether one is set.
   const { pin, ...deviceRest } = device;
   const data = {
-    format: 'relaacja-account-export',
+    format: 'aplikaacja-account-export',
     v: 1,
     exportedAt: at.toISOString(),
     account: { email: me.email, displayName: me.displayName, role: me.role },
@@ -101,7 +101,7 @@ export async function exportAccount(
   const zipped = zipSync(files, { level: 6 });
   return {
     blob: new Blob([zipped as Uint8Array<ArrayBuffer>], { type: 'application/zip' }),
-    name: `relaacja-dane-${at.toISOString().slice(0, 10)}.zip`,
+    name: `aplikaacja-dane-${at.toISOString().slice(0, 10)}.zip`,
     missing,
   };
 }

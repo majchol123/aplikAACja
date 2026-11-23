@@ -5,7 +5,7 @@ import type {
   SendShare,
   SentShare,
   ShareLists,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../api.ts';
 import { applyChanges, TREE_KEY } from '../boards/data.ts';

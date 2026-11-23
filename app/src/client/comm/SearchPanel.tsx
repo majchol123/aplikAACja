@@ -7,7 +7,7 @@ import {
   type SymbolHit,
   type SymbolRef,
   type Tile,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useDeferredValue, useId, useMemo, useState } from 'react';
 import { boardPath } from '../boards/BoardNav.tsx';
 import { Dialog } from '../edit/Dialog.tsx';

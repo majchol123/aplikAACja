@@ -9,8 +9,8 @@ import logging
 import urllib.request
 from pathlib import Path
 
-from relaacja_tools import lexicon
-from relaacja_tools.arasaac import https_request
+from aplikaacja_tools import lexicon
+from aplikaacja_tools.arasaac import https_request
 
 
 def fetch_polimorf(cache: Path) -> Path:

@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
   await mockArasaac(page, { withStarter: true });
   await mockSpeech(page);
   await page.addInitScript(() => {
-    const key = 'relaacja.device.v1';
+    const key = 'aplikaacja.device.v1';
     if (!localStorage.getItem(key)) {
       localStorage.setItem(
         key,
@@ -32,7 +32,7 @@ const tile = (page: Page, label: string) => page.getByRole('button', { name: lab
 /** Home board 4×6 (rows × columns) with "a" at (0, 0), "b" at (0, 1) and "c" at (1, 0). */
 async function seed(page: Page): Promise<void> {
   const ok = await page.evaluate(async () => {
-    const headers = { 'Content-Type': 'application/json', 'X-Relaacja': '1' };
+    const headers = { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' };
     const post = (path: string, body: unknown) =>
       fetch(path, { method: 'POST', headers, body: JSON.stringify(body) }).then((r) => r.json());
     const home = await post('/api/boards/home', { name: 'Start', rows: 4, cols: 6 });

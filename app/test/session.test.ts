@@ -66,10 +66,10 @@ describe('sessions', () => {
     const user = await insertUser();
     const valid = (await sessionCookie(user.id)).split('=')[1]!;
     for (const cookie of [
-      '__Host-relaacja_sid=short',
-      `__Host-relaacja_sid=${valid}x`,
-      `relaacja_sid=${valid}`,
-      `__Secure-relaacja_sid=${valid}`,
+      '__Host-aplikaacja_sid=short',
+      `__Host-aplikaacja_sid=${valid}x`,
+      `aplikaacja_sid=${valid}`,
+      `__Secure-aplikaacja_sid=${valid}`,
     ]) {
       expect((await t.call('/api/me', { headers: { Cookie: cookie } })).status).toBe(401);
     }

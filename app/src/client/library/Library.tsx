@@ -1,4 +1,4 @@
-import type { LibrarySet, Me, Settings, SymbolHit } from '@relaacja/shared';
+import type { LibrarySet, Me, Settings, SymbolHit } from '@aplikaacja/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDeferredValue, useId, useMemo, useState } from 'react';
 import { api } from '../api.ts';

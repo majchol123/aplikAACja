@@ -1,4 +1,4 @@
-import type { AuditAction } from '@relaacja/shared';
+import type { AuditAction } from '@aplikaacja/shared';
 import { newId } from './crypto.ts';
 
 /**

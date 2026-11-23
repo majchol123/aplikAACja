@@ -13,7 +13,7 @@ import {
   type PhraseSlot,
   type SymbolHit,
   type SymbolRef,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDeferredValue, useId, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';

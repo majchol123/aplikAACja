@@ -1,4 +1,4 @@
-import { BOARD_LIMITS, MEDIA_LIMITS } from '@relaacja/shared';
+import { BOARD_LIMITS, MEDIA_LIMITS } from '@aplikaacja/shared';
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { ui } from '../edit/ui.ts';
 import {

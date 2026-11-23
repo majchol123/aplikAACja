@@ -34,7 +34,7 @@ describe('/sym/extra/* gate', () => {
     expect(res.headers.get('Content-Security-Policy')).toContain('sandbox');
     expect(res.headers.get('Set-Cookie')).toBeNull(); // upstream cookie dropped
     const seen = (await res.json()) as { url: string; headers: Record<string, string> };
-    expect(seen.url).toBe('https://relaacja-extra.internal/manifest.json');
+    expect(seen.url).toBe('https://aplikaacja-extra.internal/manifest.json');
     expect(Object.keys(seen.headers)).not.toEqual(
       expect.arrayContaining(['cookie', 'authorization', 'x-forwarded-for']),
     );
@@ -106,7 +106,7 @@ describe('/sym/extra/* gate', () => {
       const res = await call(path, { headers: { Cookie: cookie } });
       expect(res.status, path).toBe(200);
       const seen = (await res.json()) as { url: string };
-      expect(seen.url, path).toBe('https://relaacja-extra.internal/manifest.json');
+      expect(seen.url, path).toBe('https://aplikaacja-extra.internal/manifest.json');
     }
   });
 

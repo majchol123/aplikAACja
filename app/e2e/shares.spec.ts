@@ -20,7 +20,7 @@ failOnConsoleErrors();
 async function seed(page: Page, { empty = false } = {}): Promise<void> {
   const ok = await page.evaluate(
     async ({ photo, empty }) => {
-      const headers = { 'Content-Type': 'application/json', 'X-Relaacja': '1' };
+      const headers = { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' };
       const post = (path: string, body: unknown) =>
         fetch(path, { method: 'POST', headers, body: JSON.stringify(body) }).then((r) => r.json());
       const home = await post('/api/boards/home', { name: 'Start', rows: 2, cols: 2 });
@@ -40,7 +40,7 @@ async function seed(page: Page, { empty = false } = {}): Promise<void> {
       form.set('image', new File([bytes], 'zupa.webp', { type: 'image/webp' }));
       const upload = await fetch('/api/media', {
         method: 'POST',
-        headers: { 'X-Relaacja': '1' },
+        headers: { 'X-Aplikaacja': '1' },
         body: form,
       }).then((r) => r.json());
       const tile = await post(`/api/boards/${food.id}/tiles`, {
@@ -278,7 +278,7 @@ test('without access to the extra set, an ARASAAC symbol found by the label stan
   await mockArasaac(page);
   await freshLogin(page, 'Bez zestawu');
   const ok = await page.evaluate(async () => {
-    const headers = { 'Content-Type': 'application/json', 'X-Relaacja': '1' };
+    const headers = { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' };
     const post = (path: string, body: unknown) =>
       fetch(path, { method: 'POST', headers, body: JSON.stringify(body) });
     const home = await post('/api/boards/home', { name: 'Start', rows: 2, cols: 2 });
@@ -324,7 +324,7 @@ test('the whole account is saved as one file from the settings (GDPR art. 20)', 
   await freshLogin(page, 'Kopia danych');
   await seed(page);
   const ok = await page.evaluate(async () => {
-    const headers = { 'Content-Type': 'application/json', 'X-Relaacja': '1' };
+    const headers = { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' };
     const post = (path: string, body: unknown) =>
       fetch(path, { method: 'POST', headers, body: JSON.stringify(body) });
     const said = [{ label: 'chcę', symbol: null }];
@@ -340,8 +340,8 @@ test('the whole account is saved as one file from the settings (GDPR art. 20)', 
   const saving = page.waitForEvent('download');
   await panel.getByRole('button', { name: 'Pobierz kopię moich danych' }).click();
   const file = await saving;
-  expect(file.suggestedFilename()).toMatch(/^relaacja-dane-\d{4}-\d{2}-\d{2}\.zip$/);
-  await expect(panel.getByRole('status')).toHaveText(/^Zapisano plik relaacja-dane-/);
+  expect(file.suggestedFilename()).toMatch(/^aplikaacja-dane-\d{4}-\d{2}-\d{2}\.zip$/);
+  await expect(panel.getByRole('status')).toHaveText(/^Zapisano plik aplikaacja-dane-/);
   const zip = unzipSync(new Uint8Array(await readFile(await file.path())));
   expect(Object.keys(zip).sort()).toEqual([
     'CZYTAJ.txt',
@@ -351,7 +351,7 @@ test('the whole account is saved as one file from the settings (GDPR art. 20)', 
   ]);
   const data = JSON.parse(strFromU8(zip['dane.json']!));
   expect(data).toMatchObject({
-    format: 'relaacja-account-export',
+    format: 'aplikaacja-account-export',
     v: 1,
     account: { displayName: 'Kopia danych' },
     favorites: [{ items: [{ label: 'dziękuję' }] }],

@@ -5,7 +5,7 @@ import {
   type BackupIndex,
   type BackupMediaList,
   type BackupStatus,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import type { Context } from 'hono';
 import { catalogFor } from '../catalog/catalog.ts';
 import type { AppContext } from '../context.ts';

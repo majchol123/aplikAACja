@@ -4,7 +4,7 @@ import {
   SymbolRefSchema,
   type PreferredSymbol,
   type PutPreferred,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 
 export type PreferredError = { error: 'quota_exceeded' | 'unknown_symbol' };
 

@@ -37,7 +37,7 @@ export async function devLogin(page: Page, who: { sub: string; email: string; na
   let status = 0;
   for (let attempt = 0; attempt < 5; attempt++) {
     const res = await page.request.post('/api/auth/dev-login', {
-      headers: { Origin: origin, 'Sec-Fetch-Site': 'same-origin', 'X-Relaacja': '1' },
+      headers: { Origin: origin, 'Sec-Fetch-Site': 'same-origin', 'X-Aplikaacja': '1' },
       data: who,
     });
     status = res.status();

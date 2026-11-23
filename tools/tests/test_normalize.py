@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from relaacja_tools.normalize import normalize, tokens
+from aplikaacja_tools.normalize import normalize, tokens
 
 VECTORS = json.loads(
     (Path(__file__).parents[2] / "packages/shared/test-vectors/normalize.json").read_text("utf-8")

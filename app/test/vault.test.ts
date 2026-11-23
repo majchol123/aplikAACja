@@ -1,6 +1,6 @@
 import { runInDurableObject } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
-import { DEFAULT_SETTINGS } from '@relaacja/shared';
+import { DEFAULT_SETTINGS } from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
 import { VAULT_MIGRATIONS, migrateVault } from '../src/worker/vault/schema.ts';
 import { vaultFor, type UserVault } from '../src/worker/vault/user-vault.ts';

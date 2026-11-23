@@ -154,8 +154,8 @@ describe('Open Board Format', () => {
     const extra = root.images.find((i: { id: string }) => i.id === 'extra-17');
     expect(extra).toEqual({
       id: 'extra-17',
-      ext_relaacja_symbol: { set: 'extra', ref: '17' },
-      symbol: { set: 'relaacja-extra', filename: '17' },
+      ext_aplikaacja_symbol: { set: 'extra', ref: '17' },
+      symbol: { set: 'aplikaacja-extra', filename: '17' },
     });
     // The folder picture of the package has no file here: a URL to ARASAAC instead.
     const folderPicture = root.images.find((i: { id: string }) => i.id === 'arasaac-2349');
@@ -174,6 +174,23 @@ describe('Open Board Format', () => {
     expected.board.tiles[0]!.symbol = { set: 'own', ref: key };
     expect(back.package).toEqual(expected);
     expect(BoardPackageSchema.safeParse(back.package).error?.issues ?? []).toEqual([]);
+  });
+
+  it('files saved before the rename (ext_relaacja_*) read the same', () => {
+    const files = packageToObz(pkg, pictures);
+    const old = Object.fromEntries(
+      Object.entries(files).map(([k, v]) => [
+        k,
+        typeof v === 'string' ? v.replaceAll('"ext_aplikaacja_', '"ext_relaacja_') : v,
+      ]),
+    );
+    expect(old['boards/0.obf']).toContain('"ext_relaacja_folder"');
+    expect(old['boards/0.obf']).not.toContain('ext_aplikaacja_');
+    const now = obzToPackage(bytes(files));
+    const back = obzToPackage(bytes(old));
+    expect(back.warnings).toEqual([]);
+    expect(back.package).toEqual(now.package);
+    expect(back.photos).toEqual(now.photos);
   });
 
   it('a tile’s own words travel as Open Board’s vocalization', () => {

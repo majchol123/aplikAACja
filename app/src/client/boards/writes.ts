@@ -1,4 +1,4 @@
-import type { Board, BoardChanges, CreateTile, PatchBoard, PatchTile } from '@relaacja/shared';
+import type { Board, BoardChanges, CreateTile, PatchBoard, PatchTile } from '@aplikaacja/shared';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState } from 'react';
 import { api, ApiError } from '../api.ts';

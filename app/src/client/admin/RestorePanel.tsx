@@ -1,4 +1,4 @@
-import { RESTORE_MARGIN_MS, RESTORE_WINDOW_MS, type AdminUser } from '@relaacja/shared';
+import { RESTORE_MARGIN_MS, RESTORE_WINDOW_MS, type AdminUser } from '@aplikaacja/shared';
 import { useId, useState } from 'react';
 import { ui } from '../edit/ui.ts';
 import { adminProblem, useRestoreUser } from './data.ts';

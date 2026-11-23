@@ -1,4 +1,4 @@
-import { cellAt, type Board, type BoardTree, type Me } from '@relaacja/shared';
+import { cellAt, type Board, type BoardTree, type Me } from '@aplikaacja/shared';
 import { useMemo, useState, type CSSProperties } from 'react';
 import { TileView } from '../comm/TileView.tsx';
 import { BoardNav } from './BoardNav.tsx';

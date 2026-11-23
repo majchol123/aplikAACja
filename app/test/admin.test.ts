@@ -7,7 +7,7 @@ import type {
   AuditPage,
   BoardChanges,
   Me,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
 import { vaultFor, type UserVault } from '../src/worker/vault/user-vault.ts';
 import { apiAs, insertUser, makeApp, sessionCookie, uploadAs } from './helpers.ts';

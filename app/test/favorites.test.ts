@@ -1,4 +1,4 @@
-import type { Favorite, FavoriteList } from '@relaacja/shared';
+import type { Favorite, FavoriteList } from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
 import { apiAs, insertUser, makeApp, sessionCookie } from './helpers.ts';
 

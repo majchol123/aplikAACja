@@ -1,4 +1,4 @@
-import { BOARD_LIMITS, MEDIA_LIMITS, mediaUrl, type MediaInfo } from '@relaacja/shared';
+import { BOARD_LIMITS, MEDIA_LIMITS, mediaUrl, type MediaInfo } from '@aplikaacja/shared';
 import { useId, useMemo, useState } from 'react';
 import { useBoardTree } from '../boards/data.ts';
 import { Dialog } from '../edit/Dialog.tsx';

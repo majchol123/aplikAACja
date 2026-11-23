@@ -10,7 +10,7 @@ const LOGIN_ERRORS: Record<string, string> = {
   anulowano: 'Logowanie zostało anulowane.',
   zablokowane: 'To konto zostało zablokowane przez administratora. Dane konta są zachowane.',
   offline:
-    'Brak połączenia z internetem. relAACja działa tylko online — sprawdź Wi-Fi i odśwież stronę.',
+    'Brak połączenia z internetem. aplikAACja działa tylko online — sprawdź Wi-Fi i odśwież stronę.',
   unavailable: 'Serwer chwilowo nie odpowiada. Spróbuj ponownie za chwilę.',
 };
 

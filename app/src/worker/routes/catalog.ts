@@ -6,7 +6,7 @@ import {
   ReplaceCatalogSchema,
   PublishCatalogSchema,
   type CatalogView,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import type { Context } from 'hono';
 import type { AppContext } from '../context.ts';
 import { catalogFor } from '../catalog/catalog.ts';

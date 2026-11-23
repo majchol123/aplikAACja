@@ -7,10 +7,10 @@ import { randomBytes } from '../lib/crypto.ts';
  * between /api/auth/login and /api/auth/callback. Nothing is written to D1 before the
  * user authenticates, so unauthenticated traffic cannot fill the database.
  */
-export const OAUTH_COOKIE = '__Host-relaacja_oauth';
+export const OAUTH_COOKIE = '__Host-aplikaacja_oauth';
 export const OAUTH_COOKIE_TTL_MS = 10 * 60 * 1000;
 
-const AAD = utf8.encode('relaacja-oauth-v1');
+const AAD = utf8.encode('aplikaacja-oauth-v1');
 const IV_BYTES = 12;
 
 const PayloadSchema = z

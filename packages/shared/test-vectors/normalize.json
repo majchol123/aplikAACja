@@ -1,5 +1,5 @@
 {
-  "description": "Shared normalization vectors: packages/shared/src/normalize.ts and tools/relaacja_tools/normalize.py must both pass every case.",
+  "description": "Shared normalization vectors: packages/shared/src/normalize.ts and tools/aplikaacja_tools/normalize.py must both pass every case.",
   "cases": [
     { "in": "jabłko", "out": "jablko" },
     { "in": "Jabłka", "out": "jablka" },

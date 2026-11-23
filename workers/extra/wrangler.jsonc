@@ -4,7 +4,7 @@
 // The assets (dist/) are built and deployed by the operator outside this repository.
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "relaacja-extra",
+  "name": "aplikaacja-extra",
   "main": "./src/index.ts",
   "compatibility_date": "2026-11-15",
   "workers_dev": false,

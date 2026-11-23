@@ -1,4 +1,4 @@
-import { BACKUP_TOKEN_RE, SettingsPatchSchema, type Me } from '@relaacja/shared';
+import { BACKUP_TOKEN_RE, SettingsPatchSchema, type Me } from '@aplikaacja/shared';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';

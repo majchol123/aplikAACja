@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, planSpeech, type SpeechPrefs, type VoiceInfo } from '@relaacja/shared';
+import { DEFAULT_SETTINGS, planSpeech, type SpeechPrefs, type VoiceInfo } from '@aplikaacja/shared';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useDeviceSettings } from './device.ts';
 import { useAccountSettings } from './settings/account.ts';

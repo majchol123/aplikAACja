@@ -1,4 +1,4 @@
-import type { AuditEntry } from '@relaacja/shared';
+import type { AuditEntry } from '@aplikaacja/shared';
 import { ui } from '../edit/ui.ts';
 import { useAuditLog } from './data.ts';
 import { actionDetails, actionLabel, formatDateTime } from './format.ts';

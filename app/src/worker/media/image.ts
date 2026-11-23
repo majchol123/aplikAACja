@@ -1,4 +1,4 @@
-import { MEDIA_LIMITS, type MediaType } from '@relaacja/shared';
+import { MEDIA_LIMITS, type MediaType } from '@aplikaacja/shared';
 
 /**
  * Server-side check of an uploaded own photo (PLAN §4.1 "malicious upload"). The type is

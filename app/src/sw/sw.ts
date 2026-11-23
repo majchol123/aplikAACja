@@ -20,7 +20,7 @@ self.addEventListener('activate', (event) => {
     (async () => {
       const keep = new Set<string>(Object.values(CACHES));
       for (const name of await caches.keys()) {
-        if (name.startsWith('relaacja-') && !keep.has(name)) await caches.delete(name);
+        if (name.startsWith('aplikaacja-') && !keep.has(name)) await caches.delete(name);
       }
       await Promise.all([trim(CACHES.shell, LIMITS.shell), trim(CACHES.symbols, LIMITS.symbols)]);
       await self.clients.claim();

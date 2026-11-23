@@ -5,7 +5,7 @@ import {
   type Me,
   type SymbolHit,
   type SymbolRef,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useDeferredValue, useId, useMemo, useState } from 'react';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { isPreferred, usePreferredSymbols } from '../boards/preferred.ts';

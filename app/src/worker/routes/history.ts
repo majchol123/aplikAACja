@@ -1,4 +1,4 @@
-import { AddHistorySchema, type PhraseItem } from '@relaacja/shared';
+import { AddHistorySchema, type PhraseItem } from '@aplikaacja/shared';
 import type { Context } from 'hono';
 import type { AppContext } from '../context.ts';
 import { vaultFor } from '../vault/user-vault.ts';

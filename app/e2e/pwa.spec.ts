@@ -74,17 +74,17 @@ test('the service worker keeps public files only and explains a lost connection'
     await fetch('/api/me');
   });
   await expect
-    .poll(async () => (await cachedPaths(page))['relaacja-arasaac-v1'] ?? [])
+    .poll(async () => (await cachedPaths(page))['aplikaacja-arasaac-v1'] ?? [])
     .toEqual(['/sym/arasaac/p/2462.0a1b2c3d.webp']);
   const all = await cachedPaths(page);
   expect(Object.keys(all).sort()).toEqual([
-    'relaacja-arasaac-v1',
-    'relaacja-pages-v1',
-    'relaacja-shell-v1',
+    'aplikaacja-arasaac-v1',
+    'aplikaacja-pages-v1',
+    'aplikaacja-shell-v1',
   ]);
-  expect(all['relaacja-pages-v1']).toEqual(['/']);
-  expect(all['relaacja-shell-v1']!.length).toBeGreaterThan(0);
-  expect(all['relaacja-shell-v1']!.every((p) => p.startsWith('/assets/'))).toBe(true);
+  expect(all['aplikaacja-pages-v1']).toEqual(['/']);
+  expect(all['aplikaacja-shell-v1']!.length).toBeGreaterThan(0);
+  expect(all['aplikaacja-shell-v1']!.every((p) => p.startsWith('/assets/'))).toBe(true);
   expect(
     Object.values(all)
       .flat()

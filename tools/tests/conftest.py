@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from relaacja_tools import arasaac
+from aplikaacja_tools import arasaac
 
 SHARED_VECTORS = Path(__file__).parents[2] / "packages/shared/test-vectors"
 

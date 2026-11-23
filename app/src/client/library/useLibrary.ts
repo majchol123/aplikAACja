@@ -1,4 +1,4 @@
-import type { LibrarySet, Me, Settings, SymbolHit } from '@relaacja/shared';
+import type { LibrarySet, Me, Settings, SymbolHit } from '@aplikaacja/shared';
 import { useCallback, useMemo } from 'react';
 import { useAccountSettings } from '../settings/account.ts';
 import { buildSearch, useManifest, useSymbolSet } from './data.ts';

@@ -1,4 +1,4 @@
-import { PutCategoryIconSchema, type CategoryIcons, type LibrarySet } from '@relaacja/shared';
+import { PutCategoryIconSchema, type CategoryIcons, type LibrarySet } from '@aplikaacja/shared';
 import type { Context } from 'hono';
 import type { AppContext } from '../context.ts';
 import { auditStatement } from '../lib/audit.ts';

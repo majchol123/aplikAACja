@@ -35,11 +35,18 @@ AGE_MAGIC = b"age-encryption.org/v1\n"
 MAX_AGE = timedelta(days=30)
 STAMP = "%Y-%m-%dT%H-%M-%SZ"
 SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
-USER_AGENT = "relaacja-backup/1"
+USER_AGENT = "aplikaacja-backup/1"
 
 
 class BackupError(Exception):
     pass
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """urllib would send the token along to wherever a redirect points: answer 3xx as an error."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 @dataclass
@@ -75,6 +82,7 @@ class Client:
         self.retries = retries
         self.sleep = sleep
         self.timeout = timeout
+        self._opener = urllib.request.build_opener(_NoRedirect)
 
     def get(self, path: str) -> bytes:
         request = urllib.request.Request(  # noqa: S310 - the scheme is checked above
@@ -83,9 +91,14 @@ class Client:
         )
         for attempt in range(self.retries + 1):
             try:
-                with urllib.request.urlopen(request, timeout=self.timeout) as response:  # noqa: S310  # nosec B310 - scheme checked in __init__
+                with self._opener.open(request, timeout=self.timeout) as response:  # nosec B310 - scheme checked in __init__
                     return response.read()
             except urllib.error.HTTPError as err:
+                if 300 <= err.code < 400:
+                    target = err.headers.get("Location", "?")
+                    raise BackupError(
+                        f"GET {path}: redirected to {target}; check --origin"
+                    ) from err
                 if err.code in (429, 500, 502, 503, 504) and attempt < self.retries:
                     self.sleep(2**attempt)
                     continue

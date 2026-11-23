@@ -1,6 +1,6 @@
-"""Fetch an encrypted backup of relAACja into a directory (PLAN §6, F7).
+"""Fetch an encrypted backup of aplikAACja into a directory (PLAN §6, F7).
 
-RELAACJA_BACKUP_TOKEN=… uv run backup.py --origin https://relaacja.example --out /srv/backup
+APLIKAACJA_BACKUP_TOKEN=… uv run backup.py --origin https://aplikaacja.example --out /srv/backup
 
 The token comes from the admin panel (Kopie zapasowe), via the environment or --token-file;
 every file arrives encrypted for the age key set there (decrypt: age -d -i key.txt FILE).
@@ -12,7 +12,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
-from relaacja_tools.backup import BackupError, Client, prune, run_backup
+from aplikaacja_tools.backup import BackupError, Client, prune, run_backup
 
 
 def main() -> int:
@@ -32,9 +32,9 @@ def main() -> int:
     if args.token_file:
         token = args.token_file.read_text("utf-8").strip()
     else:
-        token = os.environ.get("RELAACJA_BACKUP_TOKEN", "").strip()
+        token = os.environ.get("APLIKAACJA_BACKUP_TOKEN", "").strip()
     if not token:
-        print("no token: --token-file or RELAACJA_BACKUP_TOKEN", file=sys.stderr)
+        print("no token: --token-file or APLIKAACJA_BACKUP_TOKEN", file=sys.stderr)
         return 2
     try:
         stats = run_backup(Client(args.origin, token), args.out, keep=args.keep, max_age=max_age)

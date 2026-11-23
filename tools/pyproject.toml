@@ -1,7 +1,7 @@
 [project]
-name = "relaacja-tools"
+name = "aplikaacja-tools"
 version = "0.1.0"
-description = "Offline builders for relAACja symbol sets: ARASAAC mirror, search index, inflection lexicon"
+description = "Offline builders for aplikAACja symbol sets: ARASAAC mirror, search index, inflection lexicon"
 requires-python = ">=3.13"
 dependencies = ["pillow>=12"]
 

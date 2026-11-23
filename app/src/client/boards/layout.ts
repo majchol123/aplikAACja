@@ -1,4 +1,4 @@
-import { gridLayout, type GridLayout } from '@relaacja/shared';
+import { gridLayout, type GridLayout } from '@aplikaacja/shared';
 import { useMemo, useSyncExternalStore } from 'react';
 import { useDeviceSettings } from '../device.ts';
 

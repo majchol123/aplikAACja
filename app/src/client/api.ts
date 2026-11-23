@@ -1,4 +1,4 @@
-import { CSRF_HEADER, MeSchema, type Me } from '@relaacja/shared';
+import { CSRF_HEADER, MeSchema, type Me } from '@aplikaacja/shared';
 
 export class ApiError extends Error {
   constructor(

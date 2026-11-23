@@ -1,4 +1,4 @@
-import type { AccountStatus, AdminUser, AuditEntry, Role } from '@relaacja/shared';
+import type { AccountStatus, AdminUser, AuditEntry, Role } from '@aplikaacja/shared';
 
 export const BOARDS_PL = ['tablica', 'tablice', 'tablic'] as const;
 export const TILES_PL = ['kafelek', 'kafelki', 'kafelków'] as const;

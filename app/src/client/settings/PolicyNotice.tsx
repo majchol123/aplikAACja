@@ -1,4 +1,4 @@
-import { POLICY_VERSION } from '@relaacja/shared';
+import { POLICY_VERSION } from '@aplikaacja/shared';
 import { useAccountSettings, useUpdateAccountSettings } from './account.ts';
 
 /**

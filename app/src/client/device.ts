@@ -1,7 +1,7 @@
-import { parseDeviceSettings, type DeviceSettings } from '@relaacja/shared';
+import { parseDeviceSettings, type DeviceSettings } from '@aplikaacja/shared';
 import { useCallback, useSyncExternalStore } from 'react';
 
-const KEY = 'relaacja.device.v1';
+const KEY = 'aplikaacja.device.v1';
 const listeners = new Set<() => void>();
 let cache: { raw: string | null; value: DeviceSettings } | null = null;
 

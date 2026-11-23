@@ -1,4 +1,4 @@
-import type { AdminUser, Me } from '@relaacja/shared';
+import type { AdminUser, Me } from '@aplikaacja/shared';
 import { useDeferredValue, useId, useMemo, useState } from 'react';
 import { countPl } from '../edit/TileEditor.tsx';
 import { ui } from '../edit/ui.ts';
@@ -33,7 +33,7 @@ export function AdminScreen({ me, onBack }: { me: Me; onBack: () => void }) {
     <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-3 py-4 sm:px-6">
       <header className="flex flex-wrap items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-brand-100">
         <img src="/favicon.svg" alt="" className="size-9" />
-        <span className="text-xl font-bold tracking-tight text-brand-800">relAACja</span>
+        <span className="text-xl font-bold tracking-tight text-brand-800">aplikAACja</span>
         <h1 className="rounded-full bg-brand-100 px-3 py-1 text-sm font-semibold text-brand-800">
           Panel administratora
         </h1>

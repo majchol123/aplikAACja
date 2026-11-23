@@ -47,11 +47,19 @@ describe('superadmin follows ADMIN_EMAILS on every request', () => {
 describe('duplicate __Host- cookies (cookie tossing)', () => {
   it('detects repeats, including whitespace look-alikes', () => {
     expect(hasDuplicateGuardedCookie(undefined)).toBe(false);
-    expect(hasDuplicateGuardedCookie('__Host-relaacja_sid=a; theme=dark')).toBe(false);
-    expect(hasDuplicateGuardedCookie('__Host-relaacja_sid=a; __Host-relaacja_oauth=b')).toBe(false);
-    expect(hasDuplicateGuardedCookie('__Host-relaacja_sid=a; __Host-relaacja_sid=b')).toBe(true);
-    expect(hasDuplicateGuardedCookie('__Host-relaacja_oauth=a;__Host-relaacja_oauth=b')).toBe(true);
-    expect(hasDuplicateGuardedCookie('__Host-relaacja_sid=a;  __Host-relaacja_sid =b')).toBe(true);
+    expect(hasDuplicateGuardedCookie('__Host-aplikaacja_sid=a; theme=dark')).toBe(false);
+    expect(hasDuplicateGuardedCookie('__Host-aplikaacja_sid=a; __Host-aplikaacja_oauth=b')).toBe(
+      false,
+    );
+    expect(hasDuplicateGuardedCookie('__Host-aplikaacja_sid=a; __Host-aplikaacja_sid=b')).toBe(
+      true,
+    );
+    expect(hasDuplicateGuardedCookie('__Host-aplikaacja_oauth=a;__Host-aplikaacja_oauth=b')).toBe(
+      true,
+    );
+    expect(hasDuplicateGuardedCookie('__Host-aplikaacja_sid=a;  __Host-aplikaacja_sid =b')).toBe(
+      true,
+    );
   });
 
   it('rejects API requests carrying a tossed session cookie', async () => {
@@ -61,7 +69,9 @@ describe('duplicate __Host- cookies (cookie tossing)', () => {
     const victimSid = (await sessionCookie(victim.id)).split('=')[1];
     const attackerSid = (await sessionCookie(attacker.id)).split('=')[1];
     const res = await t.call('/api/me', {
-      headers: { Cookie: `__Host-relaacja_sid=${attackerSid}; __Host-relaacja_sid=${victimSid}` },
+      headers: {
+        Cookie: `__Host-aplikaacja_sid=${attackerSid}; __Host-aplikaacja_sid=${victimSid}`,
+      },
     });
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'cookie_conflict' });
@@ -70,7 +80,7 @@ describe('duplicate __Host- cookies (cookie tossing)', () => {
   it('rejects an OAuth callback with a tossed state cookie', async () => {
     const t = makeApp();
     const res = await t.call('/api/auth/callback?code=x&state=y', {
-      headers: { Cookie: '__Host-relaacja_oauth=a; __Host-relaacja_oauth=b' },
+      headers: { Cookie: '__Host-aplikaacja_oauth=a; __Host-aplikaacja_oauth=b' },
     });
     expect(res.status).toBe(400);
   });

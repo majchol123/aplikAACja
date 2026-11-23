@@ -4,7 +4,7 @@ import {
   phraseText,
   type Favorite,
   type PhraseItem,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { newId } from '../lib/crypto.ts';
 
 type Row = { id: string; items: string };

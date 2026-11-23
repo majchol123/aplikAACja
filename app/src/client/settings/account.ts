@@ -1,4 +1,4 @@
-import type { Settings, SettingsPatch } from '@relaacja/shared';
+import type { Settings, SettingsPatch } from '@aplikaacja/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.ts';
 

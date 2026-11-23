@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Symbol-set asset formats written by tools/relaacja_tools/symbolset.py (PLAN §3.3) and
+ * Symbol-set asset formats written by tools/aplikaacja_tools/symbolset.py (PLAN §3.3) and
  * served as static files under /sym/<set>/. Shared vectors: test-vectors/sample-*.json.
  */
 export const LIBRARY_SETS = ['arasaac', 'extra'] as const;

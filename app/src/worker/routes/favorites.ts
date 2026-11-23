@@ -1,4 +1,4 @@
-import { AddFavoriteSchema, ObjectIdSchema } from '@relaacja/shared';
+import { AddFavoriteSchema, ObjectIdSchema } from '@aplikaacja/shared';
 import type { Context } from 'hono';
 import type { AppContext } from '../context.ts';
 import { vaultFor } from '../vault/user-vault.ts';

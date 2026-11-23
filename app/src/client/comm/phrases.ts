@@ -7,7 +7,7 @@ import {
   type HistoryEntry,
   type HistoryList,
   type PhraseItem,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { z } from 'zod';
@@ -23,9 +23,7 @@ export type { HistoryEntry };
  * hidden, and before the history is shown — to spare the request budget (PLAN §3.2).
  * Unsent ones wait in localStorage, per account; sign-out forgets them.
  */
-const PREFIX = 'relaacja.history.pending.v1.';
-/** The device-only history of earlier versions: sent once, then removed. */
-const LEGACY = 'relaacja.history.v1.';
+const PREFIX = 'aplikaacja.history.pending.v1.';
 export const HISTORY_BATCH = 10;
 const FLUSH_MS = 5 * 60_000;
 const HISTORY_KEY = ['history'] as const;
@@ -148,16 +146,6 @@ export function useHistory(userId: string, open: boolean) {
   });
 
   useEffect(() => {
-    // The device-only history of earlier versions joins the account's once.
-    const legacy = read(LEGACY + userId);
-    if (legacy.length > 0) {
-      if (keep) write(key, merge(read(key), legacy));
-      try {
-        localStorage.removeItem(LEGACY + userId);
-      } catch {
-        // Storage disabled: nothing to move.
-      }
-    }
     if (!keep) {
       if (read(key).length > 0) write(key, []);
       return;
@@ -224,7 +212,7 @@ export function forgetHistory(): void {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k?.startsWith(PREFIX) || k?.startsWith(LEGACY)) localStorage.removeItem(k);
+      if (k?.startsWith(PREFIX)) localStorage.removeItem(k);
     }
   } catch {
     // Storage disabled: nothing was kept.

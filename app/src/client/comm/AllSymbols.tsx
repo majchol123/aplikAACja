@@ -1,4 +1,4 @@
-import type { Me, SymbolHit, SymbolRef } from '@relaacja/shared';
+import type { Me, SymbolHit, SymbolRef } from '@aplikaacja/shared';
 import { Dialog } from '../edit/Dialog.tsx';
 import { ui } from '../edit/ui.ts';
 import { CategoryBrowser } from '../library/CategoryBrowser.tsx';

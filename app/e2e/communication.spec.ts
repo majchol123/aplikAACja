@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
   await mockSpeech(page);
   // The test taps faster than the default repeat guard allows.
   await page.addInitScript(() => {
-    const key = 'relaacja.device.v1';
+    const key = 'aplikaacja.device.v1';
     if (!localStorage.getItem(key)) {
       localStorage.setItem(
         key,
@@ -268,7 +268,7 @@ test('spoken sentences come back from the history; both follow the account (F3)'
   const status = await page.evaluate(async () => {
     const res = await fetch('/api/settings', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'X-Relaacja': '1' },
+      headers: { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' },
       body: JSON.stringify({ keepHistory: false }),
     });
     return res.status;
@@ -282,44 +282,13 @@ test('spoken sentences come back from the history; both follow the account (F3)'
   await expect(recent.getByRole('listitem')).toHaveCount(0);
 });
 
-test('the device-only history of earlier versions moves to the account once', async ({ page }) => {
-  await starterBoard(page, 'Stara historia');
-  const me = await page.evaluate(() => fetch('/api/me').then((r) => r.json()));
-  await page.evaluate((id: string) => {
-    localStorage.setItem(
-      `relaacja.history.v1.${id}`,
-      JSON.stringify([
-        { at: Date.now() - 60_000, items: [{ label: 'dzień dobry', symbol: null }] },
-      ]),
-    );
-  }, me.id);
-  await page.reload();
-  await page.getByRole('button', { name: 'Historia i ulubione' }).click();
-  const recent = page
-    .getByRole('dialog', { name: 'Historia i ulubione' })
-    .getByRole('list', { name: 'Ostatnie wypowiedzi' });
-  await expect(recent.getByRole('listitem')).toHaveText(['dzień dobry']);
-  // The panel shows what waits at once; the batch reaches the account a moment later.
-  await expect
-    .poll(() =>
-      page.evaluate(async (id: string) => {
-        const list = await fetch('/api/history').then((r) => r.json());
-        return {
-          server: list.entries.map((e: { items: { label: string }[] }) => e.items[0]!.label),
-          legacy: localStorage.getItem(`relaacja.history.v1.${id}`),
-        };
-      }, me.id),
-    )
-    .toEqual({ server: ['dzień dobry'], legacy: null });
-});
-
 test('"Wszystkie symbole" opens the category folders when switched on (F3)', async ({ page }) => {
   await starterBoard(page, 'Wszystkie symbole');
   await expect(page.getByRole('button', { name: 'Wszystkie symbole' })).toBeHidden();
   const status = await page.evaluate(async () => {
     const res = await fetch('/api/settings', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'X-Relaacja': '1' },
+      headers: { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' },
       body: JSON.stringify({ showAllSymbols: true }),
     });
     return res.status;

@@ -1,4 +1,4 @@
-import { TemplateSchema, type Template, type TemplateName } from '@relaacja/shared';
+import { TemplateSchema, type Template, type TemplateName } from '@aplikaacja/shared';
 import starter from '../../../../templates/starter.json';
 
 /** Bundled with the Worker; validated once per isolate (templateProblems runs in CI). */

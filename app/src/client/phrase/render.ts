@@ -1,4 +1,4 @@
-import type { FitzgeraldRole } from '@relaacja/shared';
+import type { FitzgeraldRole } from '@aplikaacja/shared';
 import { ARASAAC_NOTE } from '../library/attribution.ts';
 
 /** One card of the generated phrase, as drawn. */

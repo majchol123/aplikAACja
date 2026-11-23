@@ -1,6 +1,6 @@
 import { runInDurableObject } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
-import { RESTORE_WINDOW_MS, type BoardChanges, type BoardTree } from '@relaacja/shared';
+import { RESTORE_WINDOW_MS, type BoardChanges, type BoardTree } from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
 import { vaultFor, type UserVault } from '../src/worker/vault/user-vault.ts';
 import { apiAs, insertUser, makeApp, sessionCookie } from './helpers.ts';

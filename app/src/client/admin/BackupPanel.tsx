@@ -1,4 +1,4 @@
-import { AGE_RECIPIENT_RE, type BackupConfigured, type BackupStatus } from '@relaacja/shared';
+import { AGE_RECIPIENT_RE, type BackupConfigured, type BackupStatus } from '@aplikaacja/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { api, ApiError } from '../api.ts';
@@ -91,7 +91,7 @@ export function BackupPanel() {
             Klucz dostępu zadania kopii — widać go tylko teraz.
           </p>
           <p className="mt-1 text-sm text-amber-950">
-            Zapisz go w konfiguracji zadania (zmienna <code>RELAACJA_BACKUP_TOKEN</code> albo plik{' '}
+            Zapisz go w konfiguracji zadania (zmienna <code>APLIKAACJA_BACKUP_TOKEN</code> albo plik{' '}
             <code>--token-file</code>). Poprzedni klucz dostępu już nie działa.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">

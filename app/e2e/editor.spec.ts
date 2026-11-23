@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
   await mockArasaac(page, { withStarter: true });
   await mockSpeech(page);
   await page.addInitScript(() => {
-    const key = 'relaacja.device.v1';
+    const key = 'aplikaacja.device.v1';
     if (!localStorage.getItem(key)) {
       localStorage.setItem(
         key,
@@ -324,7 +324,7 @@ test('a notable privacy-policy change is announced once, where the account is lo
   const status = await page.evaluate(async () => {
     const res = await fetch('/api/settings', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'X-Relaacja': '1' },
+      headers: { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' },
       body: JSON.stringify({ policyNotice: 1 }),
     });
     return res.status;

@@ -1,4 +1,4 @@
-import type { Me } from '@relaacja/shared';
+import type { Me } from '@aplikaacja/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.ts';
 import { forgetHistory, sendHistoryNow } from '../comm/phrases.ts';
@@ -48,7 +48,7 @@ export function SettingsScreen({
     <div className="mx-auto flex min-h-dvh max-w-5xl flex-col px-4 py-4 sm:px-6">
       <header className="flex flex-wrap items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-brand-100">
         <img src="/favicon.svg" alt="" className="size-9" />
-        <span className="text-xl font-bold tracking-tight text-brand-800">relAACja</span>
+        <span className="text-xl font-bold tracking-tight text-brand-800">aplikAACja</span>
         <h1 className="rounded-full bg-brand-100 px-3 py-1 text-sm font-semibold text-brand-800">
           Ustawienia
         </h1>

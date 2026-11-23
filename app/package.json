@@ -1,5 +1,5 @@
 {
-  "name": "@relaacja/app",
+  "name": "@aplikaacja/app",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,7 @@
   "dependencies": {
     "@dnd-kit/dom": "0.5.3",
     "@dnd-kit/react": "0.5.3",
-    "@relaacja/shared": "workspace:*",
+    "@aplikaacja/shared": "workspace:*",
     "@tanstack/react-query": "^5.108.2",
     "age-encryption": "0.3.1",
     "fflate": "^0.8.3",

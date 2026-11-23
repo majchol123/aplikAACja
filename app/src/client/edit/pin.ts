@@ -1,4 +1,4 @@
-import type { DeviceSettings } from '@relaacja/shared';
+import type { DeviceSettings } from '@aplikaacja/shared';
 
 export type StoredPin = NonNullable<DeviceSettings['pin']>;
 

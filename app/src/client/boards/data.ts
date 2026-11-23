@@ -10,7 +10,7 @@ import {
   type Me,
   type Settings,
   type Tile,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { api, ApiError } from '../api.ts';

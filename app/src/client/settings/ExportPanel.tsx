@@ -1,4 +1,4 @@
-import type { Me } from '@relaacja/shared';
+import type { Me } from '@aplikaacja/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useBoardTree, useSymbolResolver } from '../boards/data.ts';

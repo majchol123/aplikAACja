@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { runInDurableObject } from 'cloudflare:test';
-import type { BackupConfigured, BackupIndex, BackupStatus, BoardChanges } from '@relaacja/shared';
+import type { BackupConfigured, BackupIndex, BackupStatus, BoardChanges } from '@aplikaacja/shared';
 import { Decrypter, generateIdentity, identityToRecipient } from 'age-encryption';
 import { describe, expect, it } from 'vitest';
 import { catalogFor, type Catalog } from '../src/worker/catalog/catalog.ts';

@@ -180,7 +180,7 @@ test('an admin changes the picture of a folder for every account', async ({ page
   const reset = await page.evaluate(async (key) => {
     const res = await fetch('/api/admin/category-icons', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Relaacja': '1' },
+      headers: { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' },
       body: JSON.stringify({ set: 'arasaac', key, symbol: null }),
     });
     return res.status;

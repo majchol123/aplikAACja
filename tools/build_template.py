@@ -10,9 +10,9 @@ import json
 import tomllib
 from pathlib import Path
 
-from relaacja_tools.arasaac import ATTRIBUTION
-from relaacja_tools.symbolset import load_index
-from relaacja_tools.template import SymbolIndex, build_template, render_preview
+from aplikaacja_tools.arasaac import ATTRIBUTION
+from aplikaacja_tools.symbolset import load_index
+from aplikaacja_tools.template import SymbolIndex, build_template, render_preview
 
 
 def main() -> None:

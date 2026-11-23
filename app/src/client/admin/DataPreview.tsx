@@ -6,7 +6,7 @@ import {
   type Me,
   type Settings,
   type SymbolSet,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useCallback, useState } from 'react';
 import { ReadOnlyBoards } from '../boards/ReadOnlyBoards.tsx';
 import { countPl } from '../edit/TileEditor.tsx';

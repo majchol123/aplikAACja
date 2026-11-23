@@ -1,6 +1,6 @@
 import { createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
-import { CSRF_HEADER } from '@relaacja/shared';
+import { CSRF_HEADER } from '@aplikaacja/shared';
 import { createApp, type AppDeps } from '../src/worker/app.ts';
 import { createSession } from '../src/worker/auth/session.ts';
 import type { AppEnv } from '../src/worker/env.ts';
@@ -78,7 +78,7 @@ export async function insertUser(
 
 export async function sessionCookie(userId: string, now = Date.now()): Promise<string> {
   const token = await createSession(env.DB, userId, now);
-  return `__Host-relaacja_sid=${token}`;
+  return `__Host-aplikaacja_sid=${token}`;
 }
 
 /** Extracts `name=value` pairs from Set-Cookie headers. */

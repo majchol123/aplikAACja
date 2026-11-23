@@ -15,7 +15,7 @@ failOnConsoleErrors();
 /** Home board with one word tile and one photo, written through the API like the editor. */
 async function seedAccount(page: Page): Promise<void> {
   const status = await page.evaluate(async (photo) => {
-    const headers = { 'Content-Type': 'application/json', 'X-Relaacja': '1' };
+    const headers = { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' };
     const home = await fetch('/api/boards/home', {
       method: 'POST',
       headers,
@@ -33,7 +33,7 @@ async function seedAccount(page: Page): Promise<void> {
     form.set('image', new File([bytes], 'dom.webp', { type: 'image/webp' }));
     const upload = await fetch('/api/media', {
       method: 'POST',
-      headers: { 'X-Relaacja': '1' },
+      headers: { 'X-Aplikaacja': '1' },
       body: form,
     });
     return [home.status, tile.status, upload.status];

@@ -1,9 +1,9 @@
-// Main relAACja Worker: SPA assets + Hono API + UserVault Durable Object.
+// Main aplikAACja Worker: SPA assets + Hono API + UserVault Durable Object.
 // Top level = local development only (never deployed: no routes, workers.dev disabled).
 // Deploy: CLOUDFLARE_ENV=<staging|production> vite build && wrangler deploy (.github/workflows/deploy.yml).
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "relaacja-local",
+  "name": "aplikaacja-local",
   "main": "./src/worker/index.ts",
   "compatibility_date": "2026-11-15",
   "workers_dev": false,
@@ -29,22 +29,22 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "relaacja-core-local",
+      "database_name": "aplikaacja-core-local",
       "database_id": "00000000-0000-4000-8000-000000000000",
       "migrations_dir": "migrations",
     },
   ],
   "vars": { "APP_ORIGIN": "http://localhost:5173" },
-  // Locally bound only while `pnpm --filter @relaacja/extra dev` runs (dev registry);
+  // Locally bound only while `pnpm --filter @aplikaacja/extra dev` runs (dev registry);
   // otherwise the gate answers 503.
-  "services": [{ "binding": "EXTRA_SET", "service": "relaacja-extra" }],
+  "services": [{ "binding": "EXTRA_SET", "service": "aplikaacja-extra" }],
 
   "env": {
     "staging": {
-      "name": "relaacja-staging",
+      "name": "aplikaacja-staging",
       "workers_dev": false,
       "preview_urls": false,
-      "routes": [{ "pattern": "relaacja-staging.jagiellona.one.pl", "custom_domain": true }],
+      "routes": [{ "pattern": "staging.aplikaacja.one.pl", "custom_domain": true }],
       "observability": { "enabled": true },
       "durable_objects": {
         "bindings": [
@@ -55,22 +55,22 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "relaacja-core-staging",
+          "database_name": "aplikaacja-core-staging",
           "database_id": "11f4fceb-81c0-40a1-8a01-18a5e3900391",
           "migrations_dir": "migrations",
         },
       ],
       "vars": {
-        "APP_ORIGIN": "https://relaacja-staging.jagiellona.one.pl",
+        "APP_ORIGIN": "https://staging.aplikaacja.one.pl",
         "DO_JURISDICTION": "eu",
       },
-      "services": [{ "binding": "EXTRA_SET", "service": "relaacja-extra" }],
+      "services": [{ "binding": "EXTRA_SET", "service": "aplikaacja-extra" }],
     },
     "production": {
-      "name": "relaacja",
+      "name": "aplikaacja",
       "workers_dev": false,
       "preview_urls": false,
-      "routes": [{ "pattern": "relaacja.jagiellona.one.pl", "custom_domain": true }],
+      "routes": [{ "pattern": "aplikaacja.one.pl", "custom_domain": true }],
       "observability": { "enabled": true },
       "durable_objects": {
         "bindings": [
@@ -81,13 +81,13 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "relaacja-core",
+          "database_name": "aplikaacja-core",
           "database_id": "8f0d0e8c-9ea4-4f75-a806-08a1c0584b18",
           "migrations_dir": "migrations",
         },
       ],
-      "vars": { "APP_ORIGIN": "https://relaacja.jagiellona.one.pl", "DO_JURISDICTION": "eu" },
-      "services": [{ "binding": "EXTRA_SET", "service": "relaacja-extra" }],
+      "vars": { "APP_ORIGIN": "https://aplikaacja.one.pl", "DO_JURISDICTION": "eu" },
+      "services": [{ "binding": "EXTRA_SET", "service": "aplikaacja-extra" }],
     },
   },
 }

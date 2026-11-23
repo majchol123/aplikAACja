@@ -14,7 +14,7 @@ import type { FitzgeraldRole } from './symbols.ts';
 /**
  * Open Board Format (PLAN §2.8): a package as an .obz archive — manifest.json, one .obf
  * board per (sub)board and the pictures — and back. Pure functions over file contents;
- * zipping and fetching pictures is the caller's job. `ext_relaacja_*` fields make our own
+ * zipping and fetching pictures is the caller's job. `ext_aplikaacja_*` fields make our own
  * export → import lossless; files from other AAC apps are read as far as they fit.
  */
 export const OBF_FORMAT = 'open-board-0.1';
@@ -178,7 +178,7 @@ export const ARASAAC_LICENSE = {
  * The archive's files: `manifest.json`, `boards/<n>.obf` (root first) and the given
  * pictures under `images/`. Symbols of the extra set are never copied: they travel as a
  * reference only (an app without the set shows the label). A symbol without a picture
- * still keeps its `ext_relaacja_symbol`, so importing the file here restores it.
+ * still keeps its `ext_aplikaacja_symbol`, so importing the file here restores it.
  */
 export function packageToObz(
   pkg: BoardPackage,
@@ -193,7 +193,7 @@ export function packageToObz(
     const id = `${symbol.set}-${symbol.ref}`;
     if (imageEntries.has(id)) return id;
     const picture = symbol.set === 'extra' ? undefined : pictures.get(symbolKey(symbol));
-    const entry: Record<string, unknown> = { id, ext_relaacja_symbol: symbol };
+    const entry: Record<string, unknown> = { id, ext_aplikaacja_symbol: symbol };
     if (picture) {
       const path = `images/${id}.${EXTENSION[picture.mime]}`;
       files[path] = picture.data;
@@ -203,7 +203,7 @@ export function packageToObz(
       if (picture.width) entry.width = picture.width;
       if (picture.height) entry.height = picture.height;
     } else if (symbol.set === 'extra') {
-      entry.symbol = { set: 'relaacja-extra', filename: symbol.ref };
+      entry.symbol = { set: 'aplikaacja-extra', filename: symbol.ref };
     }
     if (symbol.set === 'arasaac') {
       entry.license = ARASAAC_LICENSE;
@@ -236,10 +236,10 @@ export function packageToObz(
         label: tile.label,
         border_color: css(role ? role.border : NEUTRAL_BORDER),
         background_color: css(role && filled ? role.background : WHITE),
-        ext_relaacja_label_position: tile.labelPosition ?? 'bottom',
-        ext_relaacja_font_size: tile.fontSize ?? 'M',
-        ext_relaacja_color_role: tile.colorRole ?? null,
-        ext_relaacja_color_mode: tile.colorMode ?? 'border',
+        ext_aplikaacja_label_position: tile.labelPosition ?? 'bottom',
+        ext_aplikaacja_font_size: tile.fontSize ?? 'M',
+        ext_aplikaacja_color_role: tile.colorRole ?? null,
+        ext_aplikaacja_color_mode: tile.colorMode ?? 'border',
       };
       // Open Board's own fields: other apps hide the button and say its words too.
       if (tile.hidden) button.hidden = true;
@@ -260,7 +260,7 @@ export function packageToObz(
       id,
       locale: 'pl',
       name,
-      ext_relaacja_package: 1,
+      ext_aplikaacja_package: 1,
       buttons,
       grid: { rows: board.rows, columns: board.cols, order },
       images: [...used].map((image) => imageEntries.get(image)),
@@ -284,19 +284,36 @@ export function packageToObz(
       }
       folder.image_id = image;
     }
-    doc.ext_relaacja_folder = folder;
+    doc.ext_aplikaacja_folder = folder;
     files[root] = JSON.stringify(doc);
   }
   files['manifest.json'] = JSON.stringify({
     format: OBF_FORMAT,
     root,
     paths: { boards: boardPaths, images: imagePaths, sounds: {} },
-    ext_relaacja_package: 1,
+    ext_aplikaacja_package: 1,
   });
   return files;
 }
 
 // --- import ----------------------------------------------------------------------------------
+
+/** Files saved before the app was renamed carry `ext_relaacja_*`: read them as ours. */
+const LEGACY_EXT = 'ext_relaacja_';
+const EXT = 'ext_aplikaacja_';
+
+function currentExt(raw: unknown): unknown {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return raw;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!key.startsWith(LEGACY_EXT)) out[key] = value;
+  }
+  for (const [key, value] of Object.entries(raw)) {
+    const now = EXT + key.slice(LEGACY_EXT.length);
+    if (key.startsWith(LEGACY_EXT) && !(now in out)) out[now] = value;
+  }
+  return out;
+}
 
 const id = z.union([z.string(), z.number()]).transform(String);
 
@@ -307,7 +324,7 @@ const ImageSchema = z
     path: z.string().optional(),
     url: z.string().optional(),
     content_type: z.string().optional(),
-    ext_relaacja_symbol: z.unknown().optional(),
+    ext_aplikaacja_symbol: z.unknown().optional(),
   })
   .loose();
 
@@ -321,13 +338,13 @@ const ButtonSchema = z
     border_color: z.string().optional(),
     load_board: z.object({ id: id.optional(), path: z.string().optional() }).loose().optional(),
     hidden: z.boolean().optional(),
-    ext_relaacja_label_position: z.enum(['top', 'bottom']).optional(),
-    ext_relaacja_font_size: z.enum(['S', 'M', 'L', 'XL']).optional(),
-    ext_relaacja_color_role: z
+    ext_aplikaacja_label_position: z.enum(['top', 'bottom']).optional(),
+    ext_aplikaacja_font_size: z.enum(['S', 'M', 'L', 'XL']).optional(),
+    ext_aplikaacja_color_role: z
       .enum(['person', 'noun', 'verb', 'descriptor', 'social', 'question', 'negation', 'misc'])
       .nullable()
       .optional(),
-    ext_relaacja_color_mode: z.enum(['background', 'border']).optional(),
+    ext_aplikaacja_color_mode: z.enum(['background', 'border']).optional(),
   })
   .loose();
 
@@ -344,7 +361,7 @@ const ObfSchema = z
       })
       .loose(),
     images: z.array(z.unknown()).max(10_000).optional(),
-    ext_relaacja_folder: z.unknown().optional(),
+    ext_aplikaacja_folder: z.unknown().optional(),
   })
   .loose();
 type Obf = z.infer<typeof ObfSchema>;
@@ -369,7 +386,7 @@ const FolderExtSchema = z
   .object({
     labelPosition: z.enum(['top', 'bottom']),
     fontSize: z.enum(['S', 'M', 'L', 'XL']),
-    colorRole: ButtonSchema.shape.ext_relaacja_color_role.unwrap(),
+    colorRole: ButtonSchema.shape.ext_aplikaacja_color_role.unwrap(),
     colorMode: z.enum(['background', 'border']),
     image_id: id.optional(),
   })
@@ -440,7 +457,7 @@ export function obzToPackage(files: Readonly<Record<string, Uint8Array>>): ObzIm
   };
   const parseBoard = (path: string): Obf | null => {
     try {
-      const parsed = ObfSchema.safeParse(JSON.parse(text(path) ?? 'null'));
+      const parsed = ObfSchema.safeParse(currentExt(JSON.parse(text(path) ?? 'null')));
       return parsed.success ? parsed.data : null;
     } catch {
       return null;
@@ -482,12 +499,12 @@ export function obzToPackage(files: Readonly<Record<string, Uint8Array>>): ObzIm
     }
     const buttons = new Map<string, z.infer<typeof ButtonSchema>>();
     for (const raw of doc.buttons) {
-      const b = ButtonSchema.safeParse(raw);
+      const b = ButtonSchema.safeParse(currentExt(raw));
       if (b.success) buttons.set(b.data.id, b.data);
     }
     const images = new Map<string, z.infer<typeof ImageSchema>>();
     for (const raw of doc.images ?? []) {
-      const image = ImageSchema.safeParse(raw);
+      const image = ImageSchema.safeParse(currentExt(raw));
       if (image.success) images.set(image.data.id, image.data);
     }
     const out: TemplateTile[] = [];
@@ -513,12 +530,12 @@ export function obzToPackage(files: Readonly<Record<string, Uint8Array>>): ObzIm
         // Words of its own (Open Board's vocalization), unless they are just the label.
         const speech = cleanText(button.vocalization, BOARD_LIMITS.speechMax);
         if (speech && speech !== label) tile.speech = speech;
-        if (button.ext_relaacja_label_position)
-          tile.labelPosition = button.ext_relaacja_label_position;
-        if (button.ext_relaacja_font_size) tile.fontSize = button.ext_relaacja_font_size;
-        if (button.ext_relaacja_color_role !== undefined) {
-          tile.colorRole = button.ext_relaacja_color_role;
-          tile.colorMode = button.ext_relaacja_color_mode ?? 'border';
+        if (button.ext_aplikaacja_label_position)
+          tile.labelPosition = button.ext_aplikaacja_label_position;
+        if (button.ext_aplikaacja_font_size) tile.fontSize = button.ext_aplikaacja_font_size;
+        if (button.ext_aplikaacja_color_role !== undefined) {
+          tile.colorRole = button.ext_aplikaacja_color_role;
+          tile.colorMode = button.ext_aplikaacja_color_mode ?? 'border';
         } else {
           const guess = guessRole(
             parseColor(button.background_color),
@@ -554,7 +571,7 @@ export function obzToPackage(files: Readonly<Record<string, Uint8Array>>): ObzIm
   };
 
   const pictureOf = (image: z.infer<typeof ImageSchema>, label: string): SymbolRef | null => {
-    const ext = SymbolExtSchema.safeParse(image.ext_relaacja_symbol);
+    const ext = SymbolExtSchema.safeParse(image.ext_aplikaacja_symbol);
     if (ext.success && ext.data.set !== 'own') return ext.data;
     const inArchive = image.path ? files[normal(image.path)] : undefined;
     const bytes = image.data
@@ -581,11 +598,11 @@ export function obzToPackage(files: Readonly<Record<string, Uint8Array>>): ObzIm
 
   const board = convert(root, 0);
   const name = cleanText(root.name, BOARD_LIMITS.labelMax) ?? 'Tablica z pliku';
-  const folder = FolderExtSchema.safeParse(root.ext_relaacja_folder);
+  const folder = FolderExtSchema.safeParse(root.ext_aplikaacja_folder);
   let folderSymbol: SymbolRef | null = null;
   if (folder.success && folder.data.image_id !== undefined) {
     const image = (root.images ?? [])
-      .map((raw) => ImageSchema.safeParse(raw).data)
+      .map((raw) => ImageSchema.safeParse(currentExt(raw)).data)
       .find((entry) => entry?.id === folder.data.image_id);
     if (image) folderSymbol = pictureOf(image, name);
   }

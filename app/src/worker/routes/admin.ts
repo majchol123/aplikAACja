@@ -18,7 +18,7 @@ import {
   type AuditEntry,
   type AuditPage,
   type BoardTree,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import type { Context } from 'hono';
 import type { z } from 'zod';
 import { effectiveRole, parseAdminEmails } from '../auth/users.ts';

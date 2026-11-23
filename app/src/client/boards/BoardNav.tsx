@@ -1,4 +1,4 @@
-import type { Board } from '@relaacja/shared';
+import type { Board } from '@aplikaacja/shared';
 import type { ReactNode } from 'react';
 import { ArrowBackIcon, HomeIcon } from '../comm/icons.tsx';
 

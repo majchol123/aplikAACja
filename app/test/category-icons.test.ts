@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import type { CategoryIcons } from '@relaacja/shared';
+import type { CategoryIcons } from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
 import { MAX_CATEGORY_ICONS } from '../src/worker/routes/categories.ts';
 import { apiAs, insertUser, makeApp, sessionCookie } from './helpers.ts';

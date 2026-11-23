@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { catalogFor } from '../src/worker/catalog/catalog.ts';
 import { ROUTES } from '../src/worker/routes/registry.ts';
-import type { BoardChanges, ShareLists } from '@relaacja/shared';
+import type { BoardChanges, ShareLists } from '@aplikaacja/shared';
 import {
   apiAs,
   insertUser,

@@ -1,5 +1,5 @@
 /**
- * Text normalization shared with tools/relaacja_tools/normalize.py (PLAN §3.3).
+ * Text normalization shared with tools/aplikaacja_tools/normalize.py (PLAN §3.3).
  * Both implementations are checked against test-vectors/normalize.json.
  */
 export function normalizeText(text: string): string {

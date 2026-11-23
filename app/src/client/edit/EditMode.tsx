@@ -1,7 +1,14 @@
 import { DragDropProvider, useDraggable, useDroppable } from '@dnd-kit/react';
 import type { ComponentProps } from 'react';
 import { Accessibility, Feedback, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
-import { cellAt, toScreen, type Board, type BoardTree, type Me, type Tile } from '@relaacja/shared';
+import {
+  cellAt,
+  toScreen,
+  type Board,
+  type BoardTree,
+  type Me,
+  type Tile,
+} from '@aplikaacja/shared';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';

@@ -8,7 +8,7 @@ export const STATUSES = ['active', 'blocked', 'deleting'] as const;
 export type AccountStatus = (typeof STATUSES)[number];
 
 /** Header every state-changing request must carry (CSRF defence, see PLAN §4.1). */
-export const CSRF_HEADER = 'X-Relaacja';
+export const CSRF_HEADER = 'X-Aplikaacja';
 
 export const MeSchema = z.object({
   id: z.string(),

@@ -12,7 +12,7 @@ export interface AppEnv {
   EXTRA_SET?: Fetcher;
   /** "eu" in deployed environments; unset locally (workerd has no jurisdictions). */
   DO_JURISDICTION?: string;
-  /** Exact public origin of this deployment, e.g. https://relaacja.jagiellona.one.pl */
+  /** Exact public origin of this deployment, e.g. https://aplikaacja.one.pl */
   APP_ORIGIN: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;

@@ -1,4 +1,4 @@
-import { BOARD_LIMITS, type Board, type PatchBoard } from '@relaacja/shared';
+import { BOARD_LIMITS, type Board, type PatchBoard } from '@aplikaacja/shared';
 import { useState } from 'react';
 import { useGridLayout } from '../boards/layout.ts';
 import { Dialog } from './Dialog.tsx';

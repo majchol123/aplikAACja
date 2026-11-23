@@ -1,4 +1,4 @@
-import type { LibrarySet, Me, Settings, SymbolHit } from '@relaacja/shared';
+import type { LibrarySet, Me, Settings, SymbolHit } from '@aplikaacja/shared';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FolderIcon } from '../comm/icons.tsx';
 import { ui } from '../edit/ui.ts';

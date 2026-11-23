@@ -10,7 +10,7 @@ import json
 import logging
 from pathlib import Path
 
-from relaacja_tools import arasaac
+from aplikaacja_tools import arasaac
 
 
 def main() -> None:

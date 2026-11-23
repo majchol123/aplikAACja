@@ -1,4 +1,4 @@
-import type { Board, Tile } from '@relaacja/shared';
+import type { Board, Tile } from '@aplikaacja/shared';
 import { useId, useMemo, useState } from 'react';
 import { boardOptions } from '../boards/BoardNav.tsx';
 import { CellGrid, cellClass } from './CellGrid.tsx';

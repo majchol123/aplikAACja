@@ -8,7 +8,7 @@ import {
   type SettingsPatch,
   type VoiceInfo,
   type VoicePreset,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useFitGrid } from '../boards/layout.ts';
 import { useDeviceSettings } from '../device.ts';

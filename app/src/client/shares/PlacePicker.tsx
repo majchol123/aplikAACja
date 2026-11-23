@@ -1,4 +1,4 @@
-import type { Board, Cell } from '@relaacja/shared';
+import type { Board, Cell } from '@aplikaacja/shared';
 import { useId, useMemo, useState } from 'react';
 import { boardOptions } from '../boards/BoardNav.tsx';
 import { useBoardTree } from '../boards/data.ts';

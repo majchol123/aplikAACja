@@ -1,4 +1,4 @@
-import { IMPORT_BODY_LIMIT, MEDIA_LIMITS } from '@relaacja/shared';
+import { IMPORT_BODY_LIMIT, MEDIA_LIMITS } from '@aplikaacja/shared';
 
 /**
  * Single source of truth for every API route and who may call it. Routes can only be

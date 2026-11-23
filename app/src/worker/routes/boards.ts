@@ -6,7 +6,7 @@ import {
   PatchBoardSchema,
   PatchTileSchema,
   type SymbolRef,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import type { Context } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { z } from 'zod';

@@ -1,7 +1,7 @@
-import type { AccountStatus, Role } from '@relaacja/shared';
+import type { AccountStatus, Role } from '@aplikaacja/shared';
 import { newToken, sha256Hex } from '../lib/crypto.ts';
 
-export const SESSION_COOKIE = '__Host-relaacja_sid';
+export const SESSION_COOKIE = '__Host-aplikaacja_sid';
 export const SESSION_IDLE_MS = 90 * 24 * 3600 * 1000;
 export const SESSION_ABSOLUTE_MS = 365 * 24 * 3600 * 1000;
 /** last_seen_at is refreshed at most this often, to keep D1 writes low. */

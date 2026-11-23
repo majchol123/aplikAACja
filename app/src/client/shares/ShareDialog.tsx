@@ -5,7 +5,7 @@ import {
   type BoardTree,
   type Me,
   type SymbolRef,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useId, useMemo, useState } from 'react';
 import { Dialog } from '../edit/Dialog.tsx';
 import { countPl } from '../edit/TileEditor.tsx';
@@ -90,7 +90,7 @@ function SendSection({ me, board }: { me: Me; board: Board }) {
         }}
       >
         <label htmlFor={`${id}-email`} className={ui.field}>
-          Adres e-mail konta odbiorcy w relAACja
+          Adres e-mail konta odbiorcy w aplikAACja
         </label>
         <div className="mt-1 flex flex-wrap gap-3">
           <input
@@ -172,8 +172,8 @@ function FileSection({
       </h3>
       <p className="mt-1 text-slate-700">
         Kopia tablicy z folderami i obrazkami w jednym pliku, który otworzą też inne aplikacje AAC.
-        Symbole dodatkowego zestawu zapisują się bez obrazków (relAACja pokaże w ich miejscu podobne
-        symbole ARASAAC). Plik wczytasz przyciskiem „Dodaj tablicę”.
+        Symbole dodatkowego zestawu zapisują się bez obrazków (aplikAACja pokaże w ich miejscu
+        podobne symbole ARASAAC). Plik wczytasz przyciskiem „Dodaj tablicę”.
       </p>
       <button
         type="button"

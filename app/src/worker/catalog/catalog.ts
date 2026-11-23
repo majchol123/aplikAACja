@@ -6,7 +6,7 @@ import {
   type PatchCatalog,
   type ShareCounts,
   type SharePhoto,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import type { AppEnv } from '../env.ts';
 import { D1_BACKUP_TABLES, dumpTables, sealFor, type TableDump } from '../lib/backup.ts';
 import { newId } from '../lib/crypto.ts';

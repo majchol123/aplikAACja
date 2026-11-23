@@ -1,4 +1,4 @@
-import type { CategoryFolder, LibrarySet, Me, Settings, SymbolHit } from '@relaacja/shared';
+import type { CategoryFolder, LibrarySet, Me, Settings, SymbolHit } from '@aplikaacja/shared';
 import { useDeferredValue, useId, useMemo, useState } from 'react';
 import { ui } from '../edit/ui.ts';
 import { useLibrary } from './useLibrary.ts';

@@ -4,7 +4,7 @@ import {
   type MediaSaved,
   type MediaType,
   type MediaUsage,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { newId, sha256Hex } from '../lib/crypto.ts';
 import type { CleanImage } from '../media/image.ts';
 

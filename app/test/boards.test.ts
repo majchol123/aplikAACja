@@ -1,6 +1,6 @@
 import { runInDurableObject } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
-import { BOARD_LIMITS, type Board, type BoardChanges, type BoardTree } from '@relaacja/shared';
+import { BOARD_LIMITS, type Board, type BoardChanges, type BoardTree } from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
 import { BoardStore } from '../src/worker/vault/boards.ts';
 import { vaultFor, type UserVault } from '../src/worker/vault/user-vault.ts';

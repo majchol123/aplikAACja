@@ -1,4 +1,4 @@
-import { CSRF_HEADER } from '@relaacja/shared';
+import { CSRF_HEADER } from '@aplikaacja/shared';
 import type { MiddlewareHandler } from 'hono';
 import type { AppContext } from '../context.ts';
 import { MULTIPART_ROUTES } from '../routes/registry.ts';

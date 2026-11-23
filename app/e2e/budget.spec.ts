@@ -31,7 +31,7 @@ test('a typical day with the app stays within the request budget (PLAN §3.2)', 
   await mockSpeech(page);
   await page.addInitScript(() => {
     localStorage.setItem(
-      'relaacja.device.v1',
+      'aplikaacja.device.v1',
       JSON.stringify({
         motor: { activateOn: 'release', minHoldMs: 0, sameTileGuardMs: 0, globalGuardMs: 0 },
       }),

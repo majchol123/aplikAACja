@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from relaacja_tools.backup import (
+from aplikaacja_tools.backup import (
     AGE_MAGIC,
     BackupError,
     Client,
@@ -31,6 +31,7 @@ class FakeServer:
         self.requests: list[str] = []
         self.plaintext: set[str] = set()
         self.failures: dict[str, int] = {}
+        self.redirects: dict[str, str] = {}
         server = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -39,6 +40,12 @@ class FakeServer:
 
             def do_GET(self):
                 server.requests.append(self.path)
+                if self.path in server.redirects:
+                    self.send_response(301)
+                    self.send_header("Location", server.redirects[self.path])
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
                 if self.headers.get("Authorization") != f"Bearer {TOKEN}":
                     return self.answer(401, b"{}")
                 if server.failures.get(self.path, 0) > 0:
@@ -172,6 +179,17 @@ def test_transient_errors_are_retried_and_a_wrong_token_is_not(server, tmp_path:
         run_backup(client(server, token="x" * 43), tmp_path, keep=5, now=at(1))
 
 
+def test_a_redirect_is_refused_so_the_token_never_reaches_another_host(server, tmp_path: Path):
+    other = FakeServer()
+    try:
+        server.redirects["/api/backup/index"] = other.origin + "/api/backup/index"
+        with pytest.raises(BackupError, match=r"redirected to http://127\.0\.0\.1"):
+            run_backup(client(server), tmp_path, keep=5, now=at(0))
+        assert other.requests == []
+    finally:
+        other.close()
+
+
 def test_ids_from_the_server_cannot_leave_the_backup_directory(server, tmp_path: Path):
     server.users = {"../../etc": []}
     with pytest.raises(BackupError, match="unexpected account ID"):
@@ -180,8 +198,8 @@ def test_ids_from_the_server_cannot_leave_the_backup_directory(server, tmp_path:
 
 
 def test_the_origin_must_be_https_except_on_this_machine():
-    for origin in ("http://relaacja.example", "http://localhost.example", "ftp://x"):
+    for origin in ("http://aplikaacja.example", "http://localhost.example", "ftp://x"):
         with pytest.raises(BackupError, match="https"):
             Client(origin, TOKEN)
-    for origin in ("https://relaacja.example", "http://localhost:5173", "http://127.0.0.1:9"):
+    for origin in ("https://aplikaacja.example", "http://localhost:5173", "http://127.0.0.1:9"):
         Client(origin, TOKEN)

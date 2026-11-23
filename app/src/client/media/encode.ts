@@ -1,4 +1,4 @@
-import { MEDIA_LIMITS } from '@relaacja/shared';
+import { MEDIA_LIMITS } from '@aplikaacja/shared';
 
 /** Shown to the user as is. */
 export class PhotoError extends Error {}

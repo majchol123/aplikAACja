@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from conftest import CATALOG, CATEGORY_TREE, SHARED_VECTORS, FakeHttp
 
-from relaacja_tools import arasaac
-from relaacja_tools.symbolset import FLAG_AAC, FLAG_SEX, FLAG_VIOLENCE, load_index, read_manifest
+from aplikaacja_tools import arasaac
+from aplikaacja_tools.symbolset import FLAG_AAC, FLAG_SEX, FLAG_VIOLENCE, load_index, read_manifest
 
 
 def build(tmp_path: Path, http: FakeHttp, **kw: object) -> dict:

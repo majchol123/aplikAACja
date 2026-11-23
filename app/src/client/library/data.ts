@@ -10,7 +10,7 @@ import {
   type Lexicon,
   type SetManifest,
   type SymbolIndex,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { z } from 'zod';

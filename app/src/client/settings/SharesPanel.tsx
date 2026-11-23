@@ -1,4 +1,4 @@
-import type { SentShare } from '@relaacja/shared';
+import type { SentShare } from '@aplikaacja/shared';
 import { useId } from 'react';
 import { formatDate } from '../admin/format.ts';
 import { shareProblem, useRemoveSent, useShares } from '../shares/data.ts';

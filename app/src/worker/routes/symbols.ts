@@ -1,4 +1,4 @@
-import { PutPreferredSchema, type PreferredSymbols } from '@relaacja/shared';
+import { PutPreferredSchema, type PreferredSymbols } from '@aplikaacja/shared';
 import type { Context } from 'hono';
 import type { AppContext } from '../context.ts';
 import { vaultFor } from '../vault/user-vault.ts';

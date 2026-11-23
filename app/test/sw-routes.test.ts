@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { strategyFor, supersededBy } from '../src/sw/routes.ts';
 
-const ORIGIN = 'https://relaacja.example';
+const ORIGIN = 'https://aplikaacja.example';
 const at = (path: string, mode = 'no-cors', method = 'GET') =>
   strategyFor(new URL(path, ORIGIN), ORIGIN, method, mode);
 

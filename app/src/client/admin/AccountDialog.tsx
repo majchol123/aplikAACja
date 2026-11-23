@@ -5,7 +5,7 @@ import {
   canSetRole,
   type AdminUser,
   type Me,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useId, useState } from 'react';
 import { Dialog } from '../edit/Dialog.tsx';
 import { countPl } from '../edit/TileEditor.tsx';

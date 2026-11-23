@@ -1,4 +1,4 @@
-import { PHRASE_LIMITS, phraseText, type PhraseItem, type Tile } from '@relaacja/shared';
+import { PHRASE_LIMITS, phraseText, type PhraseItem, type Tile } from '@aplikaacja/shared';
 import { useId, useMemo, useState } from 'react';
 import { Dialog } from '../edit/Dialog.tsx';
 import { ui } from '../edit/ui.ts';

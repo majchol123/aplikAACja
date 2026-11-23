@@ -1,4 +1,4 @@
-import type { AccountStatus, Role } from '@relaacja/shared';
+import type { AccountStatus, Role } from '@aplikaacja/shared';
 import { newId } from '../lib/crypto.ts';
 import type { GoogleIdentity } from './google.ts';
 

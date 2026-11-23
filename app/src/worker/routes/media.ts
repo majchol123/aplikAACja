@@ -1,4 +1,9 @@
-import { MEDIA_LIMITS, MediaLabelSchema, ObjectIdSchema, PatchMediaSchema } from '@relaacja/shared';
+import {
+  MEDIA_LIMITS,
+  MediaLabelSchema,
+  ObjectIdSchema,
+  PatchMediaSchema,
+} from '@aplikaacja/shared';
 import type { Context } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { AppContext } from '../context.ts';

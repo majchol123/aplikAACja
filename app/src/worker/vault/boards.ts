@@ -13,7 +13,7 @@ import {
   type Tile,
   subtreePackage,
   treeShape,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { newId } from '../lib/crypto.ts';
 import { loadTemplate } from './templates.ts';
 

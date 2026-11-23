@@ -6,7 +6,7 @@ import {
   type ReceivedShare,
   type ReceivedShareView,
   type ShareLists,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import type { Context } from 'hono';
 import type { AppContext } from '../context.ts';
 import { defer } from '../lib/defer.ts';

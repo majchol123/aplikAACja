@@ -1,6 +1,6 @@
 name: ARASAAC mirror
 
-# Rebuilds the ARASAAC mirror (relaacja-arasaac Worker) from the Polish catalogue and deploys
+# Rebuilds the ARASAAC mirror (aplikaacja-arasaac Worker) from the Polish catalogue and deploys
 # it when the result differs from what is live. Only new or changed pictograms are downloaded:
 # converted images are kept in the Actions cache, and running twice a week keeps that cache
 # from expiring (entries unused for 7 days are evicted). The mirror serves both app hosts, so
@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  LIVE_MANIFEST: https://relaacja.jagiellona.one.pl/sym/arasaac/manifest.json
+  LIVE_MANIFEST: https://aplikaacja.one.pl/sym/arasaac/manifest.json
 
 jobs:
   mirror:
@@ -95,7 +95,7 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         run: |
           built="workers/arasaac/dist/sym/arasaac/manifest.json"
-          for host in relaacja.jagiellona.one.pl relaacja-staging.jagiellona.one.pl; do
+          for host in aplikaacja.one.pl staging.aplikaacja.one.pl; do
             curl -fsS "https://$host/sym/arasaac/manifest.json" | cmp -s - "$built" ||
               { echo "::error::$host does not serve the new manifest"; exit 1; }
           done

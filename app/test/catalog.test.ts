@@ -1,6 +1,6 @@
 import { runInDurableObject } from 'cloudflare:test';
 import { env } from 'cloudflare:workers';
-import type { Board, BoardChanges, BoardTree, CatalogEntry, CatalogView } from '@relaacja/shared';
+import type { Board, BoardChanges, BoardTree, CatalogEntry, CatalogView } from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
 import { catalogFor, type Catalog } from '../src/worker/catalog/catalog.ts';
 import { apiAs, insertUser, makeApp, sessionCookie, uploadAs } from './helpers.ts';

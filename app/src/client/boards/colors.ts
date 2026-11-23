@@ -1,4 +1,4 @@
-import type { FitzgeraldRole } from '@relaacja/shared';
+import type { FitzgeraldRole } from '@aplikaacja/shared';
 
 /** Modified Fitzgerald Key (PLAN §3.3); full class names so Tailwind can see them. */
 export const ROLE_COLORS: Record<FitzgeraldRole | 'none', { border: string; background: string }> =

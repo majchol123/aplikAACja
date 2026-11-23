@@ -7,7 +7,7 @@ import {
   type LibrarySet,
   type Me,
   type Settings,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { api } from '../api.ts';

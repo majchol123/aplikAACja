@@ -4,7 +4,7 @@ import {
   type MediaInfo,
   type MediaList,
   type MediaSaved,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../api.ts';
 import { applyChanges } from '../boards/data.ts';

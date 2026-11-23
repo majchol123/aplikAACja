@@ -8,7 +8,7 @@ import {
   type PhraseItem,
   type SymbolRef,
   type Tile,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import {
   useEffect,
   useMemo,

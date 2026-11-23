@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, type Settings } from '@relaacja/shared';
+import { DEFAULT_SETTINGS, type Settings } from '@aplikaacja/shared';
 import { useState } from 'react';
 import { useAccountSettings, useUpdateAccountSettings } from '../settings/account.ts';
 

@@ -22,7 +22,7 @@ describe('CSRF guard (one.pl is not on the PSL, PLAN §4.1)', () => {
     ['sibling *.one.pl origin', { ...writeHeaders(), Origin: 'https://evil.one.pl' }],
     [
       'sibling host in the same zone',
-      { ...writeHeaders(), Origin: 'https://other.jagiellona.one.pl' },
+      { ...writeHeaders(), Origin: 'https://other.aplikaacja.one.pl' },
     ],
     ['origin prefix trick', { ...writeHeaders(), Origin: `${ORIGIN}.evil.one.pl` }],
     ['same-site fetch', { ...writeHeaders(), 'Sec-Fetch-Site': 'same-site' }],

@@ -4,7 +4,7 @@ import {
   type ShareCounts,
   type SharePhoto,
   type ShareStatus,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { newId } from '../lib/crypto.ts';
 import type { PackagePhoto } from './media.ts';
 

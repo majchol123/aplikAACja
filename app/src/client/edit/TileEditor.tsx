@@ -14,7 +14,7 @@ import {
   type SymbolRef,
   type Tile,
   type TileKind,
-} from '@relaacja/shared';
+} from '@aplikaacja/shared';
 import { useId, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { useSetPreferred } from '../boards/preferred.ts';

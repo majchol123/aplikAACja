@@ -1,4 +1,4 @@
-import { cellAt, toScreen, type Board, type Cell, type Tile } from '@relaacja/shared';
+import { cellAt, toScreen, type Board, type Cell, type Tile } from '@aplikaacja/shared';
 import type { ReactNode } from 'react';
 import { useGridLayout } from '../boards/layout.ts';
 

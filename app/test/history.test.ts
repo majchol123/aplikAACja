@@ -1,4 +1,4 @@
-import { PHRASE_LIMITS, type HistoryList } from '@relaacja/shared';
+import { PHRASE_LIMITS, type HistoryList } from '@aplikaacja/shared';
 import { describe, expect, it } from 'vitest';
 import { apiAs, insertUser, makeApp, sessionCookie } from './helpers.ts';
 

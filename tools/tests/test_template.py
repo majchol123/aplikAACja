@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from relaacja_tools.template import (
+from aplikaacja_tools.template import (
     SymbolIndex,
     TemplateError,
     build_template,

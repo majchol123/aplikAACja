@@ -8,9 +8,9 @@ export type Strategy = 'network' | 'page' | 'shell' | 'symbols';
 
 /** Bump a name when the format of its entries changes; activation drops other caches. */
 export const CACHES = {
-  pages: 'relaacja-pages-v1',
-  shell: 'relaacja-shell-v1',
-  symbols: 'relaacja-arasaac-v1',
+  pages: 'aplikaacja-pages-v1',
+  shell: 'aplikaacja-shell-v1',
+  symbols: 'aplikaacja-arasaac-v1',
 } as const;
 
 /** Old app files of earlier deploys and rarely used symbols are dropped beyond this. */
