@@ -25,6 +25,9 @@ const ACTION_LABEL: Record<string, string> = {
   'user.view': 'Podgląd danych konta',
   'category_icon.set': 'Obrazek folderu',
   'category_icon.reset': 'Automatyczny obrazek folderu',
+  'catalog.publish': 'Publikacja w katalogu tablic',
+  'catalog.edit': 'Zmiana wpisu w katalogu tablic',
+  'catalog.withdraw': 'Wycofanie z katalogu tablic',
 };
 
 export function actionLabel(action: string): string {
@@ -45,6 +48,11 @@ export function actionDetails(entry: AuditEntry): string {
       const symbol = typeof d.symbol === 'number' ? `, symbol ${d.symbol}` : '';
       return `${set}, folder ${String(d.key)}${symbol}`;
     }
+    case 'catalog.publish':
+      return `„${String(d.name)}”${d.photos ? ', ze zdjęciami' : ''}`;
+    case 'catalog.edit':
+    case 'catalog.withdraw':
+      return `„${String(d.name)}”`;
     default:
       return '';
   }

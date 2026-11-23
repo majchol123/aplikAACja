@@ -1,4 +1,13 @@
-import { TapFilter, type Board, type BoardTree, type Me, type Tile } from '@relaacja/shared';
+import {
+  TapFilter,
+  type Board,
+  type BoardTree,
+  phraseText,
+  type Me,
+  type PhraseItem,
+  type SymbolRef,
+  type Tile,
+} from '@relaacja/shared';
 import {
   useEffect,
   useMemo,
@@ -13,7 +22,19 @@ import { useSymbolResolver } from '../boards/data.ts';
 import { useDeviceSettings } from '../device.ts';
 import { useSpeaker } from '../speech.ts';
 import { useAccountSettings } from '../settings/account.ts';
-import { BackspaceIcon, LockIcon, PlayIcon, TrashIcon } from './icons.tsx';
+import { AllSymbols } from './AllSymbols.tsx';
+import { HistoryPanel } from './HistoryPanel.tsx';
+import {
+  BackspaceIcon,
+  ClockIcon,
+  GridIcon,
+  LockIcon,
+  PlayIcon,
+  SearchIcon,
+  TrashIcon,
+} from './icons.tsx';
+import { useHistory } from './phrases.ts';
+import { SearchPanel } from './SearchPanel.tsx';
 import { TileView } from './TileView.tsx';
 import { useWakeLock } from './wake-lock.ts';
 
@@ -21,9 +42,12 @@ interface SentenceItem {
   key: number;
   label: string;
   src: string | null;
+  symbol: SymbolRef | null;
 }
 
 const HOLD_MS = 2000;
+/** How long a tile found with the search keeps its ring. */
+const FOUND_MS = 4000;
 
 /** Communication view: grid of the current board, sentence bar, folder navigation (PLAN §2.1). */
 export function Communication({
@@ -51,24 +75,52 @@ export function Communication({
   const account = useAccountSettings();
   const allTiles = useMemo(() => tree.boards.flatMap((b) => b.tiles), [tree.boards]);
   const resolve = useSymbolResolver(me, allTiles);
+  const [searching, setSearching] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [browsing, setBrowsing] = useState(false);
+  const history = useHistory(me.id);
+  const [found, setFound] = useState<string | null>(null);
+  const foundTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(foundTimer.current), []);
   useWakeLock();
 
   if (!board) return null;
+
+  function add(item: Omit<SentenceItem, 'key'>): void {
+    setSentence((items) => [...items, { ...item, key: nextKey.current++ }]);
+    if (device.speakOnTap) speak(item.label);
+  }
+
+  function show(tile: Tile, on: Board): void {
+    setSearching(false);
+    onBoardChange(on.id);
+    setFound(tile.id);
+    window.clearTimeout(foundTimer.current);
+    foundTimer.current = window.setTimeout(() => setFound(null), FOUND_MS);
+  }
 
   function activate(tile: Tile): void {
     if (tile.kind === 'folder') {
       if (tile.targetBoardId && boards.has(tile.targetBoardId)) onBoardChange(tile.targetBoardId);
       return;
     }
-    setSentence((items) => [
-      ...items,
-      { key: nextKey.current++, label: tile.label, src: resolve(tile.symbol) },
-    ]);
-    if (device.speakOnTap) speak(tile.label);
+    add({ label: tile.label, src: resolve(tile.symbol), symbol: tile.symbol });
     if ((account.data?.returnToHome ?? true) && board?.parentId) onBoardChange(homeId);
   }
 
-  const speakSentence = () => speak(sentence.map((i) => i.label).join(' '));
+  const speakSentence = () => {
+    speak(sentence.map((i) => i.label).join(' '));
+    history.record(sentence.map(({ label, symbol }) => ({ label, symbol })));
+  };
+
+  function replay(items: PhraseItem[]): void {
+    setShowHistory(false);
+    setSentence(
+      items.map((item) => ({ ...item, key: nextKey.current++, src: resolve(item.symbol) })),
+    );
+    speak(phraseText(items));
+    history.record(items);
+  }
 
   return (
     <main className="comm-root h-dvh bg-slate-100">
@@ -85,14 +137,60 @@ export function Communication({
         homeId={homeId}
         onOpen={onBoardChange}
         className="[grid-area:nav]"
-      />
+      >
+        <ToolButton label="Szukaj" onClick={() => setSearching(true)}>
+          <SearchIcon />
+        </ToolButton>
+        <ToolButton label="Historia i ulubione" onClick={() => setShowHistory(true)}>
+          <ClockIcon />
+        </ToolButton>
+        {account.data?.showAllSymbols && (
+          <ToolButton label="Wszystkie symbole" onClick={() => setBrowsing(true)}>
+            <GridIcon />
+          </ToolButton>
+        )}
+      </BoardNav>
       <EditLock onUnlock={onEditMode} />
       <BoardGrid
         board={board}
         resolve={resolve}
         uppercase={account.data?.uppercaseLabels ?? false}
+        found={found}
         onActivate={activate}
       />
+      {browsing && (
+        <AllSymbols
+          me={me}
+          onPick={(item) => {
+            setBrowsing(false);
+            add(item);
+          }}
+          onClose={() => setBrowsing(false)}
+        />
+      )}
+      {showHistory && (
+        <HistoryPanel
+          history={history.entries}
+          resolve={resolve}
+          onPlay={replay}
+          onClearHistory={history.clear}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
+      {searching && (
+        <SearchPanel
+          me={me}
+          tree={tree}
+          sources={account.data?.searchSources ?? 'both'}
+          resolve={resolve}
+          onShowTile={show}
+          onPick={(item) => {
+            setSearching(false);
+            add(item);
+          }}
+          onClose={() => setSearching(false)}
+        />
+      )}
     </main>
   );
 }
@@ -160,6 +258,28 @@ function SentenceBar({
   );
 }
 
+/** A tool of communication mode next to the board navigation (search, history). */
+function ToolButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200"
+    >
+      {children}
+    </button>
+  );
+}
+
 function BarButton({
   label,
   disabled,
@@ -197,11 +317,14 @@ function BoardGrid({
   board,
   resolve,
   uppercase,
+  found,
   onActivate,
 }: {
   board: Board;
   resolve: (symbol: Tile['symbol']) => string | null;
   uppercase: boolean;
+  /** Tile found with the search, shown with a ring. */
+  found: string | null;
   onActivate: (tile: Tile) => void;
 }) {
   const [device] = useDeviceSettings();
@@ -289,6 +412,7 @@ function BoardGrid({
                 src={resolve(tile.symbol)}
                 uppercase={uppercase}
                 flash={flash === tile.id}
+                found={found === tile.id}
                 holdMs={held === tile.id ? holdMs : 0}
               />
             )}

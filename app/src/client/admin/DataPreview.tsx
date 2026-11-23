@@ -131,6 +131,7 @@ function SettingsPreview({ settings }: { settings: Settings }) {
       `${PRESET_LABELS[settings.speech.preset]}, tempo ${factor(settings.speech.rate)}, wysokość ${factor(settings.speech.pitch)}`,
     ],
     ['Wielkie litery na kafelkach', settings.uppercaseLabels ? 'tak' : 'nie'],
+    ['Przycisk „Wszystkie symbole”', settings.showAllSymbols ? 'tak' : 'nie'],
     ['Po wybraniu słowa w folderze wraca na pulpit', settings.returnToHome ? 'tak' : 'nie'],
     ['Wyszukiwanie', SOURCES[settings.searchSources]],
   ];

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.ts';
+import { forgetHistory } from '../comm/phrases.ts';
 import { useDeviceSettings } from '../device.ts';
 import { Dialog } from './Dialog.tsx';
 import { checkPin, PIN_LENGTH, type StoredPin } from './pin.ts';
@@ -59,6 +60,7 @@ export function PinPad({
     // Re-entering needs a Google sign-in, which is what the PIN stands in for.
     updateDevice({ pin: null });
     await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+    forgetHistory();
     location.assign('/');
   };
 

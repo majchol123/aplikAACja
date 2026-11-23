@@ -295,6 +295,10 @@ export function DevicePanel() {
         <AccountToggle pick={(s) => s.uppercaseLabels} patch={(v) => ({ uppercaseLabels: v })}>
           Etykiety wielkimi literami
         </AccountToggle>
+        <AccountToggle pick={(s) => s.showAllSymbols} patch={(v) => ({ showAllSymbols: v })}>
+          Przycisk „Wszystkie symbole” przy tablicy: kategorie zestawów symboli, także dla osób,
+          które nie czytają
+        </AccountToggle>
       </section>
     </>
   );

@@ -64,6 +64,10 @@ export const ROUTES = {
   putPreferredSymbol: { method: 'PUT', path: '/api/symbols/preferred', access: 'user' },
   // Folder pictures of the category browser (F2 step 6): read by all, chosen by admins.
   getCategoryIcons: { method: 'GET', path: '/api/symbols/category-icons', access: 'user' },
+  // Favourite phrases (PLAN §2.1); the last utterances never reach the server.
+  listFavorites: { method: 'GET', path: '/api/favorites', access: 'user' },
+  addFavorite: { method: 'POST', path: '/api/favorites', access: 'user' },
+  removeFavorite: { method: 'DELETE', path: '/api/favorites/:id', access: 'user' },
   // Own photos (PLAN §2.2); IDs are only looked up inside the caller's own vault.
   listMedia: { method: 'GET', path: '/api/media', access: 'user' },
   uploadMedia: {

@@ -70,6 +70,18 @@ export const GridIcon = ({ className = 'size-6' }) => (
     <rect x="14" y="14" width="7" height="7" rx="1" />
   </svg>
 );
+export const SearchIcon = ({ className = 'size-7' }) => (
+  <svg {...common} className={className}>
+    <circle cx="10.5" cy="10.5" r="6.5" />
+    <path d="m15.5 15.5 5 5" />
+  </svg>
+);
+export const ClockIcon = ({ className = 'size-7' }) => (
+  <svg {...common} className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
 export const StarIcon = ({ className = 'size-5' }) => (
   <svg {...common} className={className}>
     <path

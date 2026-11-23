@@ -229,3 +229,14 @@ test('PIN, grid size, moving between boards and deleting', async ({ page }) => {
   await dialog(page).getByRole('button', { name: 'Usuń', exact: true }).click();
   await expect(editTile(page, 'Picie')).toHaveCount(0);
 });
+
+test('the editor finds a tile anywhere in the tree and opens its board (F3)', async ({ page }) => {
+  await startEditing(page, 'Szukanie w edytorze', 'Tablica startowa');
+  await page.getByRole('button', { name: 'Szukaj kafelka' }).click();
+  const search = page.getByRole('dialog', { name: 'Szukaj' });
+  await expect(search.getByRole('tab')).toHaveCount(0);
+  await search.getByRole('searchbox').fill('dzem');
+  await search.getByRole('list', { name: 'Znalezione kafelki' }).getByRole('button').click();
+  await expect(current(page)).toHaveText('Śniadanie');
+  await expect(editTile(page, 'dżem')).toHaveClass(/tile-found/);
+});

@@ -40,6 +40,8 @@ export const SettingsSchema = z
       })
       .strict(),
     uppercaseLabels: z.boolean(),
+    /** Communication mode offers the category folders of the sets (F3; off by default). */
+    showAllSymbols: z.boolean(),
   })
   .strict();
 export type Settings = z.infer<typeof SettingsSchema>;
@@ -56,4 +58,5 @@ export const DEFAULT_SETTINGS: Settings = {
   contentFilter: { hideSexual: true, hideViolence: false },
   speech: { preset: 'woman', rate: 1, pitch: 1 },
   uppercaseLabels: false,
+  showAllSymbols: false,
 };

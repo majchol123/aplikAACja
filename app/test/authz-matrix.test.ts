@@ -51,6 +51,7 @@ interface Fixture {
   sentId: string;
   /** A catalogue entry (published directly into the catalogue object). */
   catalogId: string;
+  favoriteId: string;
 }
 
 const CATALOG_PHOTO = 'c'.repeat(26);
@@ -114,6 +115,15 @@ const EXPECTED: Record<string, Row> = {
     status: userOnly,
   },
   'GET /api/symbols/category-icons': { status: userOnly },
+  'GET /api/favorites': { status: userOnly },
+  'POST /api/favorites': {
+    body: { items: [{ label: 'tak', symbol: null }] },
+    status: { ...all(201), anon: 401, blocked: 403 },
+  },
+  'DELETE /api/favorites/:id': {
+    path: (f) => `/api/favorites/${f.favoriteId}`,
+    status: { ...ownedByA, userA: 204 },
+  },
   'GET /api/media': { status: userOnly },
   'POST /api/media': {
     form: () => photoForm('Mama', webp(64, 64)),
@@ -250,6 +260,9 @@ async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: Tes
   // A share of the home board sent to the owner's own address: one received, one sent.
   await api('POST', '/api/shares', { boardId, email: owner.email });
   const shares = await api<ShareLists>('GET', '/api/shares');
+  const favorite = await api<{ id: string }>('POST', '/api/favorites', {
+    items: [{ label: 'dziękuję', symbol: null }],
+  });
   // A catalogue entry with one photo.
   const entry = await catalogFor(env).publish({
     name: 'Katalog',
@@ -284,6 +297,7 @@ async function boardFixture(call: ReturnType<typeof makeApp>['call'], owner: Tes
     receivedId: shares.body.received[0]!.id,
     sentId: shares.body.sent[0]!.id,
     catalogId: entry.id,
+    favoriteId: favorite.body.id,
   } satisfies Fixture;
 }
 

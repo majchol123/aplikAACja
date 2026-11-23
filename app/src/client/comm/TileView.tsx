@@ -41,6 +41,7 @@ export function TileView({
   src,
   uppercase = false,
   flash = false,
+  found = false,
   holdMs = 0,
   ariaLabel,
   onClick,
@@ -51,6 +52,8 @@ export function TileView({
   uppercase?: boolean;
   /** Just activated: brief highlight (PLAN §2.5 feedback). */
   flash?: boolean;
+  /** Found with the search: a pulsing ring (F3). */
+  found?: boolean;
   /** Being held with a minimum hold time: progress ring over that time. */
   holdMs?: number;
   /** Accessible name when the tile does something else than speaking (editor). */
@@ -81,7 +84,7 @@ export function TileView({
       data-tile={tile.id}
       aria-label={ariaLabel ?? (folder ? `${tile.label}, folder` : tile.label)}
       onClick={onClick}
-      className={`tile ${style} ${folder ? 'tile-folder' : ''} ${flash ? 'tile-flash' : ''}`}
+      className={`tile ${style} ${folder ? 'tile-folder' : ''} ${flash ? 'tile-flash' : ''} ${found ? 'tile-found' : ''}`}
     >
       {tile.labelPosition === 'top' && label}
       {src && <img src={src} alt="" draggable={false} decoding="async" className="tile-img" />}

@@ -180,3 +180,98 @@ test('on a phone, upright and sideways, tiles keep their shape and whole-word la
   const grid = (await page.getByTestId('board-grid').boundingBox())!;
   expect(grid.y).toBeLessThan(90);
 });
+
+test('the search finds own tiles by an inflected word and adds library symbols (F3)', async ({
+  page,
+}) => {
+  await starterBoard(page, 'Szukanie');
+  await page.getByRole('button', { name: 'Szukaj' }).click();
+  const search = page.getByRole('dialog', { name: 'Szukaj' });
+  await search.getByRole('searchbox').fill('jablka');
+  const found = search.getByRole('list', { name: 'Znalezione kafelki' }).getByRole('button');
+  await expect(found).toHaveCount(1);
+  await expect(found).toContainText('jabłko');
+  await expect(found).toContainText('Start › Jedzenie › Przekąski i owoce');
+  const axe = await new AxeBuilder({ page }).include('dialog').analyze();
+  expect(axe.violations).toEqual([]);
+  await found.click();
+  await expect(search).toBeHidden();
+  await expect(current(page)).toHaveText('Przekąski i owoce');
+  await expect(tile(page, 'jabłko')).toHaveClass(/tile-found/);
+  await expect(sentence(page)).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Szukaj' }).click();
+  await search.getByRole('tab', { name: 'Biblioteka symboli' }).click();
+  await search.getByRole('searchbox').fill('jablka');
+  await search
+    .getByRole('list', { name: 'Znalezione symbole' })
+    .getByRole('button', { name: 'jabłko' })
+    .first()
+    .click();
+  await expect(search).toBeHidden();
+  await expect(sentence(page)).toHaveText(['jabłko']);
+  expect((await spoken(page)).at(-1)).toMatchObject({ text: 'jabłko' });
+});
+
+test('spoken sentences come back from the history; favourites follow the account (F3)', async ({
+  page,
+}) => {
+  await starterBoard(page, 'Historia');
+  await tile(page, 'chcę').click();
+  await tile(page, 'pomocy').click();
+  await page.getByRole('button', { name: 'Powiedz zdanie' }).click();
+  await page.getByRole('button', { name: 'Wyczyść zdanie' }).click();
+  await expect(sentence(page)).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Historia i ulubione' }).click();
+  const panel = page.getByRole('dialog', { name: 'Historia i ulubione' });
+  const recent = panel.getByRole('list', { name: 'Ostatnie wypowiedzi' });
+  await expect(recent.getByRole('listitem')).toHaveCount(1);
+  await recent.getByRole('button', { name: 'Dodaj do ulubionych: chcę pomocy' }).click();
+  const favorites = panel.getByRole('list', { name: 'Ulubione frazy' });
+  await expect(favorites.getByRole('button', { name: 'Powiedz: chcę pomocy' })).toBeVisible();
+  const axe = await new AxeBuilder({ page }).include('dialog').analyze();
+  expect(axe.violations).toEqual([]);
+  await favorites.getByRole('button', { name: 'Powiedz: chcę pomocy' }).click();
+  await expect(panel).toBeHidden();
+  await expect(sentence(page)).toHaveText(['chcę', 'pomocy']);
+  expect((await spoken(page)).at(-1)).toMatchObject({ text: 'chcę pomocy' });
+
+  // Favourites are on the account; the history stays on this device until sign-out.
+  await page.reload();
+  await page.getByRole('button', { name: 'Historia i ulubione' }).click();
+  await expect(favorites.getByRole('listitem')).toHaveCount(1);
+  await expect(recent.getByRole('listitem')).toHaveCount(1);
+  await panel.getByRole('button', { name: 'Wyczyść historię na tym urządzeniu' }).click();
+  await expect(panel).toContainText('Jeszcze nic nie powiedziano.');
+  await favorites.getByRole('button', { name: 'Usuń z ulubionych: chcę pomocy' }).click();
+  await expect(favorites.getByRole('listitem')).toHaveCount(0);
+});
+
+test('"Wszystkie symbole" opens the category folders when switched on (F3)', async ({ page }) => {
+  await starterBoard(page, 'Wszystkie symbole');
+  await expect(page.getByRole('button', { name: 'Wszystkie symbole' })).toBeHidden();
+  const status = await page.evaluate(async () => {
+    const res = await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Relaacja': '1' },
+      body: JSON.stringify({ showAllSymbols: true }),
+    });
+    return res.status;
+  });
+  expect(status).toBe(200);
+  await page.reload();
+  await page.getByRole('button', { name: 'Wszystkie symbole' }).click();
+  const browser = page.getByRole('dialog', { name: 'Wszystkie symbole' });
+  await browser.getByRole('button', { name: /^Odżywianie się, kategoria/ }).click();
+  await browser.getByRole('button', { name: /^Jedzenie, kategoria/ }).click();
+  await browser.getByRole('button', { name: /^Owoce, kategoria/ }).click();
+  const axe = await new AxeBuilder({ page }).include('dialog').analyze();
+  expect(axe.violations).toEqual([]);
+  await browser
+    .getByTestId('category-symbols')
+    .getByRole('button', { name: 'jabłko', exact: true })
+    .click();
+  await expect(browser).toBeHidden();
+  await expect(sentence(page)).toHaveText(['jabłko']);
+});

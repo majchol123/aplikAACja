@@ -2,13 +2,14 @@ import { DragDropProvider, useDraggable, useDroppable } from '@dnd-kit/react';
 import type { ComponentProps } from 'react';
 import { Accessibility, Feedback, PointerActivationConstraints, PointerSensor } from '@dnd-kit/dom';
 import type { Board, BoardTree, Me, Tile } from '@relaacja/shared';
-import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
 import { useBoardWrites } from '../boards/writes.ts';
-import { GearIcon, GridIcon, OpenIcon, PlusIcon } from '../comm/icons.tsx';
+import { GearIcon, GridIcon, OpenIcon, PlusIcon, SearchIcon } from '../comm/icons.tsx';
 import { TileView } from '../comm/TileView.tsx';
 import { useAccountSettings } from '../settings/account.ts';
+import { SearchPanel } from '../comm/SearchPanel.tsx';
 import { AddBoardDialog } from '../shares/AddBoardDialog.tsx';
 import { ShareDialog } from '../shares/ShareDialog.tsx';
 import { useShares } from '../shares/data.ts';
@@ -99,6 +100,14 @@ export function EditMode({
   const [editing, setEditing] = useState<Editing | null>(null);
   const [boardDialog, setBoardDialog] = useState(false);
   const [sharing, setSharing] = useState<'share' | 'inbox' | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState<string | null>(null);
+  // The ring of a tile found with the search fades after a few seconds.
+  useEffect(() => {
+    if (!found) return;
+    const timer = window.setTimeout(() => setFound(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [found]);
   const shares = useShares();
   const received = shares.data?.received.length ?? 0;
 
@@ -179,7 +188,31 @@ export function EditMode({
           </button>
         </div>
       )}
-      <BoardNav boards={boards} board={board} homeId={homeId} onOpen={onBoardChange} />
+      <BoardNav boards={boards} board={board} homeId={homeId} onOpen={onBoardChange}>
+        <button
+          type="button"
+          aria-label="Szukaj kafelka"
+          onClick={() => setSearching(true)}
+          className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200"
+        >
+          <SearchIcon />
+        </button>
+      </BoardNav>
+      {searching && (
+        <SearchPanel
+          me={me}
+          tree={tree}
+          sources="tiles"
+          resolve={resolve}
+          onShowTile={(tile, on) => {
+            setSearching(false);
+            onBoardChange(on.id);
+            setFound(tile.id);
+          }}
+          onPick={() => setSearching(false)}
+          onClose={() => setSearching(false)}
+        />
+      )}
       <p className="text-sm text-slate-700 short:hidden">
         Dotknij kafelka, aby go zmienić, albo pustego pola, aby dodać nowy. Przytrzymaj kafelek i
         przeciągnij, aby go przenieść.
@@ -188,6 +221,7 @@ export function EditMode({
         board={board}
         resolve={resolve}
         uppercase={uppercase}
+        found={found}
         onEdit={(tile) => open({ row: tile.row, col: tile.col, tileId: tile.id })}
         onAdd={(row, col) => open({ row, col, tileId: null })}
         onOpen={onBoardChange}
@@ -248,6 +282,7 @@ function EditGrid({
   board,
   resolve,
   uppercase,
+  found,
   onEdit,
   onAdd,
   onOpen,
@@ -256,6 +291,8 @@ function EditGrid({
   board: Board;
   resolve: (symbol: Tile['symbol']) => string | null;
   uppercase: boolean;
+  /** Tile found with the search, shown with a ring. */
+  found: string | null;
   onEdit: (tile: Tile) => void;
   onAdd: (row: number, col: number) => void;
   onOpen: (boardId: string) => void;
@@ -302,6 +339,7 @@ function EditGrid({
                     tile={tile}
                     src={resolve(tile.symbol)}
                     uppercase={uppercase}
+                    found={found === tile.id}
                     onEdit={() => !dragging.current && onEdit(tile)}
                     onOpen={onOpen}
                   />
@@ -337,12 +375,14 @@ function EditTile({
   tile,
   src,
   uppercase,
+  found,
   onEdit,
   onOpen,
 }: {
   tile: Tile;
   src: string | null;
   uppercase: boolean;
+  found: boolean;
   onEdit: () => void;
   onOpen: (boardId: string) => void;
 }) {
@@ -355,6 +395,7 @@ function EditTile({
         tile={tile}
         src={src}
         uppercase={uppercase}
+        found={found}
         ariaLabel={`Zmień kafelek: ${tile.label}${target ? ' (folder)' : ''}`}
         onClick={onEdit}
       />

@@ -1,6 +1,7 @@
 import type { Me } from '@relaacja/shared';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../api.ts';
+import { forgetHistory } from '../comm/phrases.ts';
 import { Library } from '../library/Library.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
 import { LockPanel } from './LockPanel.tsx';
@@ -8,6 +9,7 @@ import { PhotosPanel } from './PhotosPanel.tsx';
 import { SharesPanel } from './SharesPanel.tsx';
 
 function goHome(): void {
+  forgetHistory();
   location.assign('/');
 }
 

@@ -220,3 +220,24 @@ export class SymbolSearch {
     return best;
   }
 }
+
+/**
+ * The same matching for arbitrary labels (tiles of the account, saved phrases): returns
+ * the positions of the labels that match `query`, best first. Built once per label list.
+ */
+export function labelSearch(
+  labels: readonly string[],
+  lexicons: readonly Lexicon[],
+): (query: string, limit?: number) => number[] {
+  const index: SymbolIndex = {
+    v: 1,
+    set: 'arasaac',
+    name: 'labels',
+    items: labels.map((label, id) => ({ id, f: '', k: [label], r: 'misc' })),
+  };
+  const search = new SymbolSearch([index], lexicons);
+  return (query, limit = 50) =>
+    search
+      .search(query, { sets: ['arasaac'], hideSexual: false, hideViolence: false, limit })
+      .map((hit) => hit.id);
+}

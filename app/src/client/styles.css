@@ -228,6 +228,22 @@ html[data-state='anon'] .landing-reveal {
   filter: brightness(0.85);
   outline: max(3px, 3cqmin) solid #0f766e;
 }
+/* Found with the search (F3): a pulsing ring shows where the tile is. */
+.tile-found {
+  outline: max(4px, 4cqmin) solid #f59e0b;
+  outline-offset: max(2px, 1.5cqmin);
+  animation: tile-found 0.8s ease-in-out 4 alternate;
+}
+@keyframes tile-found {
+  to {
+    outline-color: #fde68a;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-found {
+    animation: none;
+  }
+}
 /* Minimum hold time: a ring fills while the tile is held (PLAN §2.5). */
 .hold-ring {
   position: absolute;

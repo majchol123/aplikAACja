@@ -5,7 +5,10 @@ import {
   ImportPackageSchema,
   treeShape,
   type BoardPackage,
+  type Favorite,
+  type FavoriteList,
   type ImportPackage,
+  type PhraseItem,
   type ShareCounts,
   type TemplateBoard,
   SettingsSchema,
@@ -30,6 +33,7 @@ import {
 import type { AppEnv } from '../env.ts';
 import type { CleanImage } from '../media/image.ts';
 import { BoardStore, type BoardError } from './boards.ts';
+import { FavoriteStore } from './favorites.ts';
 import { MediaStore, type MediaError, type PackagePhoto } from './media.ts';
 import { PreferredStore, type PreferredError } from './preferred.ts';
 import { migrateVault } from './schema.ts';
@@ -106,6 +110,7 @@ export class UserVault extends DurableObject<AppEnv> {
   private readonly preferred: PreferredStore;
   private readonly media: MediaStore;
   private readonly shares: ShareStore;
+  private readonly favorites: FavoriteStore;
 
   constructor(ctx: DurableObjectState, env: AppEnv) {
     super(ctx, env);
@@ -116,6 +121,7 @@ export class UserVault extends DurableObject<AppEnv> {
     this.preferred = new PreferredStore(ctx.storage);
     this.media = new MediaStore(ctx.storage);
     this.shares = new ShareStore(ctx.storage);
+    this.favorites = new FavoriteStore(ctx.storage);
   }
 
   private totals(): VaultTotals {
@@ -254,6 +260,21 @@ export class UserVault extends DurableObject<AppEnv> {
       settings: this.getSettings(),
       totals: this.totals(),
     };
+  }
+
+  // --- favourite phrases (F3, PLAN §2.1) ----------------------------------------------
+
+  listFavorites(): FavoriteList {
+    return { favorites: this.favorites.list() };
+  }
+
+  /** `items` must already be validated with AddFavoriteSchema by the caller. */
+  addFavorite(items: PhraseItem[]): Favorite | { error: 'quota_exceeded' } | RateLimited {
+    return this.spendWrite() ? this.favorites.add(items) : RATE_LIMITED;
+  }
+
+  removeFavorite(id: string): boolean | RateLimited {
+    return this.spendWrite() ? this.favorites.remove(id) : RATE_LIMITED;
   }
 
   // --- sharing boards (F6, PLAN §2.8) -------------------------------------------------
