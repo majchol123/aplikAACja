@@ -15,11 +15,10 @@ export function PolicyNotice() {
       className="flex flex-wrap items-center gap-3 rounded-xl bg-sky-50 px-4 py-3 text-sky-950 ring-1 ring-sky-200"
     >
       <p className="min-w-0 flex-1">
-        <strong>Zmiana polityki prywatności (24.11.2026):</strong> aplikacja liczy, ile zdań i
-        kafelków dziennie użyto na koncie — same liczby, bez słów i bez tego, które to kafelki —
-        żeby administrator wiedział, czy i jak bardzo aplikacja się przydaje. Liczniki można
-        wyłączyć w Ustawieniach („Liczniki użycia dla administratora”); wyłączenie je usuwa. Konto
-        można teraz też usunąć samodzielnie: Ustawienia → „Usuń konto”.{' '}
+        <strong>Zmiana polityki prywatności (23.11.2026):</strong> ostatnie wypowiedzi (do 50)
+        zapisują się teraz na koncie, więc historia jest taka sama na każdym urządzeniu. Można ją
+        wyłączyć w Ustawieniach („Zapisuj historię wypowiedzi”). Dane kont mają też zaszyfrowane
+        kopie zapasowe, przechowywane na terenie UE do 30 dni.{' '}
         <a className="font-semibold underline" href="/prywatnosc">
           Polityka prywatności
         </a>

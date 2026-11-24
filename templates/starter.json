@@ -720,16 +720,6 @@
                 "ref": "4940"
               },
               "colorRole": "noun"
-            },
-            {
-              "row": 1,
-              "col": 0,
-              "label": "kompot",
-              "symbol": {
-                "set": "arasaac",
-                "ref": "4575"
-              },
-              "colorRole": "noun"
             }
           ]
         }

@@ -38,7 +38,7 @@ tile = "Jedzenie"
 
 [[folders]]
 tile = "Picie#2276@noun"
-words = ["woda#32464", "sok", "mleko", "herbata#29802", "kakao#4940@noun", "kompot#4575"]
+words = ["woda#32464", "sok", "mleko", "herbata#29802", "kakao#4940@noun"]
 
 [[folders]]
 tile = "Uczucia#12359@descriptor"

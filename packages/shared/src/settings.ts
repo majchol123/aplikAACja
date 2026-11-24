@@ -86,7 +86,8 @@ export const DEFAULT_SETTINGS: Settings = {
 /**
  * Version of the privacy policy's last notable change, announced once in the app (the
  * policy promises it). 1: the history of utterances is saved on the account (2026-11-23).
- * 2: encrypted backups (2026-11-23). 3: usage counters with an opt-out, and deleting the
- * account from the settings (2026-11-24).
+ * 2: encrypted backups (2026-11-23). Usage counters and deleting the own account
+ * (2026-11-24) are not announced: nobody used the app in production yet, so no account
+ * was there under the older text.
  */
-export const POLICY_VERSION = 3;
+export const POLICY_VERSION = 2;

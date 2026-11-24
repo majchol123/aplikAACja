@@ -118,7 +118,7 @@ describe('board tree', () => {
       'Kolacja',
       'Przekąski i owoce',
     ]);
-    expect(t.boards.reduce((n, b) => n + b.tiles.length, 0)).toBe(106);
+    expect(t.boards.reduce((n, b) => n + b.tiles.length, 0)).toBe(105);
     expect(await integrity(user.id)).toEqual([]);
     const again = await api('POST', '/api/boards/home', { template: 'starter' });
     expect(again.body).toEqual({ error: 'already_initialized' });
