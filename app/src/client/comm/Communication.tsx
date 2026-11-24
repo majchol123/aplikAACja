@@ -30,6 +30,7 @@ import {
 import { useHistory } from './phrases.ts';
 import { SearchPanel } from './SearchPanel.tsx';
 import { BROWSE_START, SymbolFolders, type Browse, type PickedSymbol } from './SymbolFolders.tsx';
+import { useUsageCounter } from './usage.ts';
 import { useWakeLock } from './wake-lock.ts';
 
 interface SentenceItem {
@@ -80,6 +81,7 @@ export function Communication({
   const [browse, setBrowse] = useState<Browse | null>(null);
   const [phrasing, setPhrasing] = useState(false);
   const history = useHistory(me.id, showHistory);
+  const countUsage = useUsageCounter(me.id);
   const [found, setFound] = useState<string | null>(null);
   const foundTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(foundTimer.current), []);
@@ -111,6 +113,7 @@ export function Communication({
   function add(item: Omit<SentenceItem, 'key'>): void {
     setSentence((items) => [...items, { ...item, key: nextKey.current++ }]);
     if (device.speakOnTap) speak(item.speech ?? item.label);
+    countUsage('tiles');
   }
 
   function show(tile: Tile, on: Board): void {
@@ -148,6 +151,7 @@ export function Communication({
 
   const speakSentence = () => {
     speak(spokenText(sentence));
+    if (sentence.length > 0) countUsage('utterances');
     history.record(
       sentence.map(({ label, symbol, speech }) => ({
         label,
@@ -163,6 +167,7 @@ export function Communication({
       items.map((item) => ({ ...item, key: nextKey.current++, src: resolve(item.symbol) })),
     );
     speak(spokenText(items));
+    countUsage('utterances');
     history.record(items);
   }
 

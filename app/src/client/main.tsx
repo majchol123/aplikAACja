@@ -12,6 +12,8 @@ const LOGIN_ERRORS: Record<string, string> = {
   offline:
     'Brak połączenia z internetem. aplikAACja działa tylko online — sprawdź Wi-Fi i odśwież stronę.',
   unavailable: 'Serwer chwilowo nie odpowiada. Spróbuj ponownie za chwilę.',
+  // Not an error: Settings → "Usuń konto" lands here.
+  usuniete: 'Konto zostało usunięte razem z tablicami, zdjęciami i ustawieniami.',
 };
 
 function showLanding(errorKey: string | null): void {

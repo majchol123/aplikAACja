@@ -26,6 +26,13 @@ export const AdminUserSchema = z.object({
   tiles: z.number(),
   media: z.number(),
   storageBytes: z.number(),
+  /** Statistics v2 (usage.ts): the account lets its usage be counted. */
+  usageStats: z.boolean(),
+  /** Spoken phrases and tapped tiles in the last 7 and 30 days (UTC days, today included). */
+  utterancesWeek: z.number(),
+  utterancesMonth: z.number(),
+  tilesWeek: z.number(),
+  tilesMonth: z.number(),
 });
 export type AdminUser = z.infer<typeof AdminUserSchema>;
 
@@ -45,7 +52,8 @@ export type SetExtraSet = z.infer<typeof SetExtraSetSchema>;
 export const SetRoleSchema = z.object({ role: z.enum(['user', 'admin']) }).strict();
 export type SetRole = z.infer<typeof SetRoleSchema>;
 
-/** Hard delete is confirmed by typing the account's e-mail address. */
+/** Hard delete (by an admin, or DELETE /api/me by the account itself) is confirmed by typing
+ * the account's e-mail address. */
 export const DeleteUserSchema = z.object({ email: z.string().min(1).max(320) }).strict();
 export type DeleteUser = z.infer<typeof DeleteUserSchema>;
 
@@ -66,6 +74,8 @@ export const AUDIT_ACTIONS = [
   'user.extra_set',
   'user.role',
   'user.delete',
+  /** The account deleted itself (Settings → "Usuń konto"); actor = target. */
+  'user.delete_self',
   'user.view',
   'user.restore',
   'category_icon.set',

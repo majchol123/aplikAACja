@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.ts';
 import { forgetHistory } from '../comm/phrases.ts';
+import { forgetUsage } from '../comm/usage.ts';
 import { useDeviceSettings } from '../device.ts';
 import { Dialog } from './Dialog.tsx';
 import { checkPin, PIN_LENGTH, type StoredPin } from './pin.ts';
@@ -61,6 +62,7 @@ export function PinPad({
     updateDevice({ pin: null });
     await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
     forgetHistory();
+    forgetUsage();
     location.assign('/');
   };
 

@@ -8,6 +8,7 @@ import type {
   PreferredSymbols,
   Settings,
   SymbolRef,
+  UsageList,
 } from '@aplikaacja/shared';
 import { mediaUrl } from '@aplikaacja/shared';
 import { strToU8, zipSync, type Zippable } from 'fflate';
@@ -32,7 +33,8 @@ const README = (at: string) => `Kopia danych konta aplikAACja z ${at}
 tablice.obz   wszystkie tablice z folderami i obrazkami (Open Board Format):
               otworzy je aplikAACja („Dodaj tablicę” → „Z pliku”) i inne aplikacje AAC
 dane.json     konto, ustawienia, ulubione frazy, historia wypowiedzi, wybrane warianty
-              symboli, ustawienia tego urządzenia i spis zdjęć
+              symboli, liczniki użycia (liczby zdań i kafelków na dzień), ustawienia
+              tego urządzenia i spis zdjęć
 zdjecia/      wszystkie Twoje zdjęcia, także te, których nie ma na tablicach
 
 Symbole dodatkowego zestawu są w plikach tylko jako odwołania (bez obrazków).
@@ -50,13 +52,14 @@ export async function exportAccount(
   onProgress: (text: string) => void,
 ): Promise<{ blob: Blob; name: string; missing: number }> {
   onProgress('Pobieranie danych konta…');
-  const [tree, settings, favorites, history, preferred, media] = await Promise.all([
+  const [tree, settings, favorites, history, preferred, media, usage] = await Promise.all([
     api<BoardTree>('/api/boards'),
     api<Settings>('/api/settings'),
     api<FavoriteList>('/api/favorites'),
     api<HistoryList>('/api/history'),
     api<PreferredSymbols>('/api/symbols/preferred'),
     api<MediaList>('/api/media'),
+    api<UsageList>('/api/usage'),
   ]);
   const files: Zippable = {};
   let missing = 0;
@@ -93,6 +96,7 @@ export async function exportAccount(
     favorites: favorites.favorites,
     history: history.entries,
     preferredSymbols: preferred.items,
+    usage: usage.days,
     device: { ...deviceRest, pinSet: pin !== null },
     photos,
   };

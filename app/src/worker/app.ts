@@ -31,6 +31,7 @@ import { effectiveRole, parseAdminEmails, upsertGoogleUser, type UserRow } from 
 import type { AppContext } from './context.ts';
 import { newToken, sha256Hex, timingSafeEqual } from './lib/crypto.ts';
 import { defer } from './lib/defer.ts';
+import * as account from './routes/account.ts';
 import * as admin from './routes/admin.ts';
 import * as backup from './routes/backup.ts';
 import * as boards from './routes/boards.ts';
@@ -41,6 +42,7 @@ import * as history from './routes/history.ts';
 import * as media from './routes/media.ts';
 import * as shares from './routes/shares.ts';
 import * as symbols from './routes/symbols.ts';
+import * as usage from './routes/usage.ts';
 import { JSON_BODY_LIMIT, ROUTES, type RouteDef } from './routes/registry.ts';
 import { cookieConflictGuard } from './security/cookies.ts';
 import { csrfGuard } from './security/csrf.ts';
@@ -336,6 +338,8 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
     return c.json(me);
   });
 
+  defineRoute(ROUTES.deleteAccount, account.deleteOwnAccount(deps.now, SID));
+
   defineRoute(ROUTES.getSettings, async (c) => {
     return c.json(await vaultFor(c.env, c.get('user').userId).getSettings());
   });
@@ -346,6 +350,9 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
     const user = c.get('user');
     if (patch.data.activeSets?.includes('extra') && !user.extraSet) {
       return c.json({ error: 'extra_set_not_enabled' }, 403);
+    }
+    if (patch.data.usageStats !== undefined) {
+      await usage.setUsageStats(c.env.DB, user.userId, patch.data.usageStats);
     }
     const result = await vaultFor(c.env, user.userId).updateSettings(patch.data);
     if ('error' in result) return c.json(result, 429);
@@ -370,6 +377,8 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.listHistory, history.listHistory);
   defineRoute(ROUTES.addHistory, history.addHistory);
   defineRoute(ROUTES.clearHistory, history.clearHistory);
+  defineRoute(ROUTES.listUsage, usage.listUsage);
+  defineRoute(ROUTES.recordUsage, usage.recordUsage(deps.now));
   defineRoute(ROUTES.listMedia, media.listMedia);
   defineRoute(ROUTES.uploadMedia, media.uploadMedia);
   defineRoute(ROUTES.getMedia, media.getMedia);
@@ -401,6 +410,7 @@ export function createApp(overrides: Partial<AppDeps> = {}): Hono<AppContext> {
   defineRoute(ROUTES.adminUserData, admin.userData(deps.now));
   defineRoute(ROUTES.adminUserMedia, admin.userMedia);
   defineRoute(ROUTES.adminAudit, admin.listAudit);
+  defineRoute(ROUTES.adminUsage, usage.adminUsage(deps.now));
   defineRoute(ROUTES.adminBackupStatus, backup.status);
   defineRoute(ROUTES.adminBackupConfigure, backup.configure(deps.now));
   defineRoute(ROUTES.adminBackupDisable, backup.disable(deps.now));

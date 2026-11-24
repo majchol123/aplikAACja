@@ -2,7 +2,9 @@ import type { Me } from '@aplikaacja/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.ts';
 import { forgetHistory, sendHistoryNow } from '../comm/phrases.ts';
+import { forgetUsage, sendUsageNow } from '../comm/usage.ts';
 import { Library } from '../library/Library.tsx';
+import { DeleteAccountPanel } from './DeleteAccountPanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
 import { ExportPanel } from './ExportPanel.tsx';
 import { LockPanel } from './LockPanel.tsx';
@@ -12,6 +14,7 @@ import { SharesPanel } from './SharesPanel.tsx';
 
 function goHome(): void {
   forgetHistory();
+  forgetUsage();
   location.assign('/');
 }
 
@@ -31,14 +34,14 @@ export function SettingsScreen({
   const queryClient = useQueryClient();
   const logout = useMutation({
     mutationFn: async () => {
-      await sendHistoryNow(me.id, queryClient);
+      await Promise.all([sendHistoryNow(me.id, queryClient), sendUsageNow(me.id)]);
       return api('/api/auth/logout', { method: 'POST' });
     },
     onSettled: goHome,
   });
   const logoutAll = useMutation({
     mutationFn: async () => {
-      await sendHistoryNow(me.id, queryClient);
+      await Promise.all([sendHistoryNow(me.id, queryClient), sendUsageNow(me.id)]);
       return api('/api/auth/logout-all', { method: 'POST' });
     },
     onSettled: goHome,
@@ -114,6 +117,8 @@ export function SettingsScreen({
             Wyloguj ze wszystkich urządzeń
           </button>
         </section>
+
+        <DeleteAccountPanel me={me} />
       </main>
 
       <footer className="mt-8 pb-2 text-center text-sm text-slate-500">

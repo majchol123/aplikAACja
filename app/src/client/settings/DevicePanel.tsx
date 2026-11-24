@@ -350,6 +350,10 @@ export function DevicePanel() {
           Zapisuj historię wypowiedzi: ostatnie 50 na koncie, takie same na każdym urządzeniu
           (wyłączenie usuwa zapisaną historię)
         </AccountToggle>
+        <AccountToggle pick={(s) => s.usageStats} patch={(v) => ({ usageStats: v })}>
+          Liczniki użycia dla administratora: ile zdań i kafelków dziennie, bez słów i bez tego,
+          które to kafelki (wyłączenie usuwa zebrane liczniki)
+        </AccountToggle>
       </section>
     </>
   );

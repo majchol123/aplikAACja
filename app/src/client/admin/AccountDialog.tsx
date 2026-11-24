@@ -17,6 +17,7 @@ import { RestorePanel } from './RestorePanel.tsx';
 import {
   formatAgo,
   formatBytes,
+  formatCount,
   formatDateTime,
   lastActive,
   BOARDS_PL,
@@ -90,6 +91,12 @@ export function AccountDialog({
       ].join(', '),
     ],
     ['Zajęte miejsce', formatBytes(user.storageBytes)],
+    [
+      'Użycie',
+      user.usageStats
+        ? `7 dni: ${formatCount(user.utterancesWeek)} zdań, ${formatCount(user.tilesWeek)} kafelków; 30 dni: ${formatCount(user.utterancesMonth)} zdań, ${formatCount(user.tilesMonth)} kafelków`
+        : 'liczniki wyłączone przez użytkownika',
+    ],
   ];
 
   return (
@@ -103,7 +110,8 @@ export function AccountDialog({
         ))}
       </dl>
       <p className="mt-2 text-sm text-slate-600">
-        Liczby z ostatniego zapisu lub otwarcia tablic przez to konto.
+        Liczby tablic z ostatniego zapisu lub otwarcia tablic przez to konto; użycie z liczników
+        urządzeń (dni UTC).
       </p>
 
       <section className={section} aria-labelledby={`${id}-actions`}>

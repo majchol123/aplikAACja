@@ -14,6 +14,8 @@ export interface SessionUser {
   role: Role;
   status: AccountStatus;
   extraSet: boolean;
+  /** users.usage_stats: the account lets its usage be counted (statistics v2). */
+  usageStats: boolean;
   tokenHash: string;
 }
 
@@ -40,6 +42,7 @@ interface SessionJoinRow {
   role: Role;
   status: AccountStatus;
   extra_set_enabled: number;
+  usage_stats: number;
 }
 
 /**
@@ -57,7 +60,8 @@ export async function loadSession(
   const row = await db
     .prepare(
       `SELECT s.token_hash, s.user_id, s.last_seen_at, s.expires_at,
-              u.email, u.display_name, u.role, u.status, u.extra_set_enabled
+              u.email, u.display_name, u.role, u.status, u.extra_set_enabled,
+              u.usage_stats
          FROM sessions s JOIN users u ON u.id = s.user_id
         WHERE s.token_hash = ?1`,
     )
@@ -83,6 +87,7 @@ export async function loadSession(
     role: row.role,
     status: row.status,
     extraSet: row.extra_set_enabled === 1,
+    usageStats: row.usage_stats === 1,
     tokenHash,
   };
 }

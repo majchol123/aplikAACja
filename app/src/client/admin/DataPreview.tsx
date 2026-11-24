@@ -135,6 +135,7 @@ function SettingsPreview({ settings }: { settings: Settings }) {
     ['Przycisk „Generator fraz”', settings.showPhraseGenerator ? 'tak' : 'nie'],
     // Whether, not what: the history itself is not part of this view.
     ['Historia wypowiedzi na koncie', settings.keepHistory ? 'zapisywana' : 'wyłączona'],
+    ['Liczniki użycia', settings.usageStats ? 'włączone' : 'wyłączone'],
     ['Po wybraniu słowa w folderze wraca na pulpit', settings.returnToHome ? 'tak' : 'nie'],
     ['Wyszukiwanie', SOURCES[settings.searchSources]],
   ];

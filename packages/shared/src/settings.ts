@@ -52,6 +52,12 @@ export const SettingsSchema = z
     showPhraseGenerator: z.boolean(),
     /** The last utterances are saved on the account (on by default; off clears them). */
     keepHistory: z.boolean(),
+    /**
+     * Daily counts of spoken phrases and tapped tiles go to the server for the admin panel
+     * (statistics v2, usage.ts; on by default — legitimate interest with an opt-out). Off
+     * deletes the counts collected so far; the Worker keeps a copy in users.usage_stats.
+     */
+    usageStats: z.boolean(),
     /** Last privacy-policy change the account was told about (POLICY_VERSION). */
     policyNotice: z.number().int().min(0).max(1000),
   })
@@ -73,11 +79,14 @@ export const DEFAULT_SETTINGS: Settings = {
   showAllSymbols: true,
   showPhraseGenerator: true,
   keepHistory: true,
+  usageStats: true,
   policyNotice: 0,
 };
 
 /**
  * Version of the privacy policy's last notable change, announced once in the app (the
  * policy promises it). 1: the history of utterances is saved on the account (2026-11-23).
+ * 2: encrypted backups (2026-11-23). 3: usage counters with an opt-out, and deleting the
+ * account from the settings (2026-11-24).
  */
-export const POLICY_VERSION = 2;
+export const POLICY_VERSION = 3;

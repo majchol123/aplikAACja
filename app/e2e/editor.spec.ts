@@ -387,12 +387,12 @@ test('a notable privacy-policy change is announced once, where the account is lo
   const notice = page.getByRole('region', { name: 'Zmiana polityki prywatności' });
   // A new account starts under the current policy.
   await expect(notice).toHaveCount(0);
-  // An account told only about the previous change (POLICY_VERSION 1).
+  // An account told only about the previous change (POLICY_VERSION 2).
   const status = await page.evaluate(async () => {
     const res = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'X-Aplikaacja': '1' },
-      body: JSON.stringify({ policyNotice: 1 }),
+      body: JSON.stringify({ policyNotice: 2 }),
     });
     return res.status;
   });
@@ -401,8 +401,8 @@ test('a notable privacy-policy change is announced once, where the account is lo
   // Not in communication mode: the person who talks with the boards is not interrupted.
   await expect(notice).toHaveCount(0);
   await holdEditLock(page);
-  await expect(notice).toContainText('zapisują się teraz na koncie');
-  await expect(notice).toContainText('zaszyfrowane kopie zapasowe');
+  await expect(notice).toContainText('same liczby, bez słów');
+  await expect(notice).toContainText('Ustawienia → „Usuń konto”');
   await expect(notice.getByRole('link', { name: 'Polityka prywatności' })).toHaveAttribute(
     'href',
     '/prywatnosc',

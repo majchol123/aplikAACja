@@ -6,6 +6,7 @@ import { AccountDialog } from './AccountDialog.tsx';
 import { AuditLog } from './AuditLog.tsx';
 import { BackupPanel } from './BackupPanel.tsx';
 import { useAdminUsers } from './data.ts';
+import { UsageChart } from './UsageChart.tsx';
 import {
   adminStats,
   formatAgo,
@@ -136,6 +137,7 @@ function Accounts({ me }: { me: Me }) {
   return (
     <>
       <Stats stats={stats} />
+      <UsageChart />
       <section className={card} aria-labelledby={`${id}-title`}>
         <h2 id={`${id}-title`} className="text-lg font-bold text-brand-900">
           Konta
@@ -334,16 +336,28 @@ function Stats({ stats }: { stats: AdminStats }) {
       value: formatCount(stats.media),
       note: `${formatBytes(stats.storageBytes)} miejsca`,
     },
+    {
+      label: 'Zdania w ostatnich 7 dniach',
+      value: formatCount(stats.utterancesWeek),
+      note: `${formatCount(stats.utterancesMonth)} w ostatnich 30 dniach`,
+    },
+    {
+      label: 'Kafelki w ostatnich 7 dniach',
+      value: formatCount(stats.tilesWeek),
+      note: `${formatCount(stats.tilesMonth)} w ostatnich 30 dniach`,
+    },
+    {
+      label: 'Konta mówiące w ostatnich 7 dniach',
+      value: formatCount(stats.usedWeek),
+      note: `liczniki wyłączone: ${formatCount(stats.usageOff)}`,
+    },
   ];
   return (
     <section aria-labelledby="stats-title">
       <h2 id="stats-title" className="sr-only">
         Statystyki
       </h2>
-      <ul
-        className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6"
-        data-testid="admin-stats"
-      >
+      <ul className="grid grid-cols-2 gap-3 md:grid-cols-3" data-testid="admin-stats">
         {tiles.map((t) => (
           <li key={t.label} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-brand-100">
             <p className="text-sm text-slate-600">{t.label}</p>

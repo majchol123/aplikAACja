@@ -22,6 +22,7 @@ const ACTION_LABEL: Record<string, string> = {
   'user.extra_set': 'Dodatkowy zestaw',
   'user.role': 'Zmiana roli',
   'user.delete': 'Usunięcie konta',
+  'user.delete_self': 'Usunięcie konta przez użytkownika',
   'user.view': 'Podgląd danych konta',
   'user.restore': 'Przywrócenie wcześniejszego stanu konta',
   'category_icon.set': 'Obrazek folderu',
@@ -125,9 +126,17 @@ export interface AdminStats {
   tiles: number;
   media: number;
   storageBytes: number;
+  /** Statistics v2: spoken phrases and tapped tiles of all accounts, 7 and 30 days. */
+  utterancesWeek: number;
+  utterancesMonth: number;
+  tilesWeek: number;
+  tilesMonth: number;
+  /** Accounts that spoke or tapped in the last 7 days, and those with the counters off. */
+  usedWeek: number;
+  usageOff: number;
 }
 
-/** Statistics v1 (PLAN §2.6): computed from the account list, nothing else is collected. */
+/** Statistics v1 and v2 (PLAN §2.6): computed from the account list. */
 export function adminStats(users: readonly AdminUser[], now = Date.now()): AdminStats {
   const since = (days: number) => now - days * DAY_MS;
   const stats: AdminStats = {
@@ -142,6 +151,12 @@ export function adminStats(users: readonly AdminUser[], now = Date.now()): Admin
     tiles: 0,
     media: 0,
     storageBytes: 0,
+    utterancesWeek: 0,
+    utterancesMonth: 0,
+    tilesWeek: 0,
+    tilesMonth: 0,
+    usedWeek: 0,
+    usageOff: 0,
   };
   for (const user of users) {
     if (user.status === 'active') stats.active++;
@@ -155,6 +170,12 @@ export function adminStats(users: readonly AdminUser[], now = Date.now()): Admin
     stats.tiles += user.tiles;
     stats.media += user.media;
     stats.storageBytes += user.storageBytes;
+    stats.utterancesWeek += user.utterancesWeek;
+    stats.utterancesMonth += user.utterancesMonth;
+    stats.tilesWeek += user.tilesWeek;
+    stats.tilesMonth += user.tilesMonth;
+    if (user.utterancesWeek + user.tilesWeek > 0) stats.usedWeek++;
+    if (!user.usageStats) stats.usageOff++;
   }
   return stats;
 }

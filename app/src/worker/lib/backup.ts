@@ -24,11 +24,17 @@ export function validRecipient(recipient: string): boolean {
 
 /**
  * D1 tables in a backup; the rest is left out on purpose (a test checks every table is in
- * one of the two lists): live sessions are worthless after a restore and the backup token's
- * own hash has no place next to the data it unlocks.
+ * one of the two lists): live sessions are worthless after a restore, the backup token's
+ * own hash has no place next to the data it unlocks, and usage counters (statistics v2)
+ * are not the account's data to restore — fewer copies of them is the better default.
  */
 export const D1_BACKUP_TABLES = ['users', 'admin_audit', 'category_icons'] as const;
-export const D1_NOT_BACKED_UP = ['sessions', 'backup_config', 'd1_migrations'] as const;
+export const D1_NOT_BACKED_UP = [
+  'sessions',
+  'backup_config',
+  'd1_migrations',
+  'usage_daily',
+] as const;
 
 export interface TableDump {
   columns: string[];

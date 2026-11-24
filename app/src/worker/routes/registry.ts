@@ -48,6 +48,8 @@ export const ROUTES = {
   logoutAll: { method: 'POST', path: '/api/auth/logout-all', access: 'user' },
   devLogin: { method: 'POST', path: '/api/auth/dev-login', access: 'dev' },
   me: { method: 'GET', path: '/api/me', access: 'user' },
+  // The account deletes itself, confirmed by its e-mail (PLAN §4.3).
+  deleteAccount: { method: 'DELETE', path: '/api/me', access: 'user' },
   getSettings: { method: 'GET', path: '/api/settings', access: 'user' },
   patchSettings: { method: 'PATCH', path: '/api/settings', access: 'user' },
   // Board tree (PLAN §3.5); IDs in paths are only looked up inside the caller's own vault.
@@ -82,6 +84,9 @@ export const ROUTES = {
     maxBody: HISTORY_BODY_LIMIT,
   },
   clearHistory: { method: 'DELETE', path: '/api/history', access: 'user' },
+  // Statistics v2: daily counts only (shared usage.ts).
+  listUsage: { method: 'GET', path: '/api/usage', access: 'user' },
+  recordUsage: { method: 'POST', path: '/api/usage', access: 'user' },
   // Own photos (PLAN §2.2); IDs are only looked up inside the caller's own vault.
   listMedia: { method: 'GET', path: '/api/media', access: 'user' },
   uploadMedia: {
@@ -131,6 +136,7 @@ export const ROUTES = {
     access: 'admin',
   },
   adminAudit: { method: 'GET', path: '/api/admin/audit', access: 'admin' },
+  adminUsage: { method: 'GET', path: '/api/admin/usage', access: 'admin' },
   putCategoryIcon: { method: 'PUT', path: '/api/admin/category-icons', access: 'admin' },
   // Encrypted backups (F7, PLAN §6): a superadmin sets the age recipient and gets the
   // token; the backup job reads with it. Every file but the index is age-encrypted.

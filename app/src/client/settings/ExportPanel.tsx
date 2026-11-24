@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useBoardTree, useSymbolResolver } from '../boards/data.ts';
 import { sendHistoryNow } from '../comm/phrases.ts';
+import { sendUsageNow } from '../comm/usage.ts';
 import { useDeviceSettings } from '../device.ts';
 import { download } from '../shares/files.ts';
 import { exportAccount } from './export.ts';
@@ -23,7 +24,7 @@ export function ExportPanel({ me }: { me: Me }) {
     setResult(null);
     setBusy('Przygotowywanie…');
     try {
-      await sendHistoryNow(me.id, queryClient);
+      await Promise.all([sendHistoryNow(me.id, queryClient), sendUsageNow(me.id)]);
       const file = await exportAccount(me, device, resolve, setBusy);
       download(file.blob, file.name);
       setResult({
@@ -46,7 +47,7 @@ export function ExportPanel({ me }: { me: Me }) {
       </h2>
       <p className="mt-1 text-slate-600">
         Jeden plik ZIP ze wszystkim, co jest na koncie: tablice (plik .obz, który otworzą też inne
-        aplikacje AAC), zdjęcia, ulubione frazy, historia wypowiedzi i ustawienia.
+        aplikacje AAC), zdjęcia, ulubione frazy, historia wypowiedzi, liczniki użycia i ustawienia.
       </p>
       <button
         type="button"

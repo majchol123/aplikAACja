@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { catalogFor } from '../src/worker/catalog/catalog.ts';
 import { ROUTES } from '../src/worker/routes/registry.ts';
-import type { BoardChanges, ShareLists } from '@aplikaacja/shared';
+import { utcDay, type BoardChanges, type ShareLists } from '@aplikaacja/shared';
 import {
   apiAs,
   insertUser,
@@ -76,6 +76,11 @@ const EXPECTED: Record<string, Row> = {
   // DEV_AUTH is off in tests: indistinguishable from a missing route.
   'POST /api/auth/dev-login': { body: { sub: 'x', email: 'x@example.com' }, status: all(404) },
   'GET /api/me': { status: userOnly },
+  // A wrong address: nobody's account goes (422), and superadmins may not delete theirs.
+  'DELETE /api/me': {
+    body: { email: 'not-this-account@example.com' },
+    status: { ...all(422), anon: 401, blocked: 403, superadmin: 403 },
+  },
   'GET /api/settings': { status: userOnly },
   'PATCH /api/settings': { body: { returnToHome: false }, status: userOnly },
   'GET /api/boards': { status: userOnly },
@@ -133,6 +138,11 @@ const EXPECTED: Record<string, Row> = {
     status: userOnly,
   },
   'DELETE /api/history': { status: { ...all(204), anon: 401, blocked: 403 } },
+  'GET /api/usage': { status: userOnly },
+  'POST /api/usage': {
+    body: { days: [{ day: utcDay(Date.now()), utterances: 1, tiles: 2 }] },
+    status: { ...all(204), anon: 401, blocked: 403 },
+  },
   'GET /api/media': { status: userOnly },
   'POST /api/media': {
     form: () => photoForm('Mama', webp(64, 64)),
@@ -247,6 +257,7 @@ const EXPECTED: Record<string, Row> = {
     status: adminsOnly,
   },
   'GET /api/admin/audit': { status: adminsOnly },
+  'GET /api/admin/usage': { status: adminsOnly },
   'PUT /api/admin/category-icons': {
     body: { set: 'arasaac', key: 'verb', symbol: 6061 },
     status: { ...all(403), anon: 401, admin: 200, superadmin: 200 },
@@ -462,6 +473,11 @@ describe('cross-user isolation', () => {
           'status',
           'storageBytes',
           'tiles',
+          'tilesMonth',
+          'tilesWeek',
+          'usageStats',
+          'utterancesMonth',
+          'utterancesWeek',
         ].sort(),
       );
     }

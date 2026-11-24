@@ -25,6 +25,7 @@ import { effectiveRole, parseAdminEmails } from '../auth/users.ts';
 import type { AppContext } from '../context.ts';
 import { auditStatement } from '../lib/audit.ts';
 import { vaultFor } from '../vault/user-vault.ts';
+import { eraseAccount } from './account.ts';
 import { recordTotals } from './totals.ts';
 
 /**
@@ -50,11 +51,33 @@ interface AdminUserRow {
   tiles_count: number;
   media_count: number;
   storage_bytes: number;
+  usage_stats: number;
+  utterances_week: number;
+  utterances_month: number;
+  tiles_week: number;
+  tiles_month: number;
 }
 
 const USER_COLUMNS = `u.id, u.email, u.display_name, u.role, u.status, u.extra_set_enabled,
   u.created_at, u.last_login_at, u.blocked_at, u.boards_count, u.tiles_count, u.media_count,
-  u.storage_bytes, (SELECT MAX(s.last_seen_at) FROM sessions s WHERE s.user_id = u.id) AS last_seen_at`;
+  u.storage_bytes, (SELECT MAX(s.last_seen_at) FROM sessions s WHERE s.user_id = u.id) AS last_seen_at,
+  u.usage_stats, COALESCE(g.utterances_week, 0) AS utterances_week,
+  COALESCE(g.utterances_month, 0) AS utterances_month, COALESCE(g.tiles_week, 0) AS tiles_week,
+  COALESCE(g.tiles_month, 0) AS tiles_month`;
+
+/**
+ * Accounts with their usage of the last 7 and 30 days (statistics v2): one pass over that
+ * month's rows by the day index, not one per account. Days are UTC dates, the stored ones
+ * the devices' local dates; at this scale the difference of a few hours does not matter.
+ */
+const USERS_FROM = `users u LEFT JOIN (
+    SELECT user_id,
+           SUM(CASE WHEN day >= date('now', '-6 days') THEN utterances ELSE 0 END) AS utterances_week,
+           SUM(utterances) AS utterances_month,
+           SUM(CASE WHEN day >= date('now', '-6 days') THEN tiles ELSE 0 END) AS tiles_week,
+           SUM(tiles) AS tiles_month
+      FROM usage_daily WHERE day >= date('now', '-29 days') GROUP BY user_id
+  ) g ON g.user_id = u.id`;
 
 function toAdminUser(row: AdminUserRow, admins: Set<string>): AdminUser {
   return {
@@ -72,6 +95,11 @@ function toAdminUser(row: AdminUserRow, admins: Set<string>): AdminUser {
     tiles: row.tiles_count,
     media: row.media_count,
     storageBytes: row.storage_bytes,
+    usageStats: row.usage_stats === 1,
+    utterancesWeek: row.utterances_week,
+    utterancesMonth: row.utterances_month,
+    tilesWeek: row.tiles_week,
+    tilesMonth: row.tiles_month,
   };
 }
 
@@ -91,7 +119,7 @@ async function readBody<T>(c: Ctx, schema: z.ZodType<T>): Promise<T | null> {
 }
 
 async function loadUser(c: Ctx, id: string): Promise<AdminUser | null> {
-  const row = await c.env.DB.prepare(`SELECT ${USER_COLUMNS} FROM users u WHERE u.id = ?1`)
+  const row = await c.env.DB.prepare(`SELECT ${USER_COLUMNS} FROM ${USERS_FROM} WHERE u.id = ?1`)
     .bind(id)
     .first<AdminUserRow>();
   return row ? toAdminUser(row, parseAdminEmails(c.env.ADMIN_EMAILS)) : null;
@@ -112,7 +140,7 @@ async function answerUser(c: Ctx, id: string): Promise<Response> {
 /** GET /api/admin/users */
 export async function listUsers(c: Ctx): Promise<Response> {
   const { results } = await c.env.DB.prepare(
-    `SELECT ${USER_COLUMNS} FROM users u ORDER BY u.created_at DESC, u.id LIMIT ?1`,
+    `SELECT ${USER_COLUMNS} FROM ${USERS_FROM} ORDER BY u.created_at DESC, u.id LIMIT ?1`,
   )
     .bind(ADMIN_LIST_LIMIT + 1)
     .all<AdminUserRow>();
@@ -244,16 +272,12 @@ export function deleteUser(now: () => number) {
     if (input.email.trim().toLowerCase() !== user.email.toLowerCase()) {
       return c.json({ error: 'confirmation_mismatch' }, 422);
     }
-    const db = c.env.DB;
-    await db.batch([
-      db.prepare("UPDATE users SET status = 'deleting' WHERE id = ?1").bind(user.id),
-      db.prepare('DELETE FROM sessions WHERE user_id = ?1').bind(user.id),
-    ]);
-    await vaultFor(c.env, user.id).deleteAll();
-    await db.batch([
-      db.prepare('DELETE FROM users WHERE id = ?1').bind(user.id),
-      auditStatement(db, { at: now(), actor: actor(c).id, action: 'user.delete', target: user.id }),
-    ]);
+    await eraseAccount(c.env, {
+      at: now(),
+      actor: actor(c).id,
+      action: 'user.delete',
+      target: user.id,
+    });
     return c.body(null, 204);
   };
 }

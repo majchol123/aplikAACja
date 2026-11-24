@@ -145,6 +145,9 @@ test('a superadmin turns encrypted backups on; the job reads with the token alon
   page,
   request,
 }) => {
+  // The backup config is one row for the whole deployment, and the projects run in parallel
+  // workers: a second project enabling backups would revoke this one's token mid-test.
+  test.skip(test.info().project.name !== 'desktop', 'one deployment-wide config, one project');
   await mockArasaac(page);
   // CI lists this address in ADMIN_EMAILS (.dev.vars.example); a developer's own .dev.vars
   // may not, and superadmin comes from nowhere else.
@@ -159,6 +162,15 @@ test('a superadmin turns encrypted backups on; the job reads with the token alon
   await page.getByRole('button', { name: 'Otwórz panel administratora' }).click();
   await page.getByRole('button', { name: 'Kopie zapasowe' }).click();
   const panel = page.getByRole('region', { name: 'Kopie zapasowe' });
+  // A local run stopped halfway leaves backups on in the reused local D1.
+  const turnOff = panel.getByRole('button', { name: 'Wyłącz kopie zapasowe' });
+  await expect(
+    turnOff.or(panel.getByRole('button', { name: 'Włącz kopie zapasowe' })),
+  ).toBeVisible();
+  if (await turnOff.isVisible()) {
+    await turnOff.click();
+    await panel.getByRole('button', { name: 'Tak, wyłącz' }).click();
+  }
   const identity = await generateIdentity();
   const recipient = await identityToRecipient(identity);
   const field = panel.getByLabel(/Klucz publiczny age/);

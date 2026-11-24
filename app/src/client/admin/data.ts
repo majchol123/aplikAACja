@@ -1,4 +1,5 @@
 import type {
+  AdminUsage,
   AdminUser,
   AdminUserData,
   AdminUserList,
@@ -17,6 +18,15 @@ export function useAdminUsers() {
     queryKey: ADMIN_USERS_KEY,
     queryFn: () => api<AdminUserList>('/api/admin/users'),
     staleTime: 30_000,
+  });
+}
+
+/** Statistics v2: every account's spoken phrases and tapped tiles per day (last 30 days). */
+export function useAdminUsage() {
+  return useQuery({
+    queryKey: ['admin', 'usage'],
+    queryFn: () => api<AdminUsage>('/api/admin/usage'),
+    staleTime: 60_000,
   });
 }
 
