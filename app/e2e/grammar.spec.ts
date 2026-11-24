@@ -146,3 +146,42 @@ test('how the user speaks of themselves is asked at the first run (F8)', async (
   await word(page, 'Uczucia', 'zmęczony');
   await expect(sentence(page)).toHaveText(['zmęczony']);
 });
+
+test('the full level gives nouns their cases; a word a later one changes flashes (F8 G2)', async ({
+  page,
+}) => {
+  await starterBoard(page, 'Przypadki');
+  await holdEditLock(page);
+  await page.getByRole('button', { name: 'Ustawienia' }).click();
+  const level = page.getByLabel('Odmiana w zdaniu');
+  await level.selectOption('full');
+  await expect(level).toBeEnabled();
+  await expect(level).toHaveValue('full');
+  await page.getByRole('button', { name: 'Wróć do edycji' }).click();
+  await page.getByRole('button', { name: 'Gotowe' }).click();
+
+  // "chcieć" takes the genitive: the correct form, not the colloquial "chcę wodę".
+  await tile(page, 'chcę').click();
+  await word(page, 'Picie', 'woda');
+  await expect(sentence(page)).toHaveText(['chcę', 'wody']);
+  expect(await lastSpoken(page)).toBe('wody');
+  await page.getByRole('button', { name: 'Wyczyść zdanie' }).click();
+
+  await tile(page, 'nie chcę').click();
+  await word(page, 'Picie', 'mleko');
+  await expect(sentence(page)).toHaveText(['nie chcę', 'mleka']);
+  await page.getByRole('button', { name: 'Wyczyść zdanie' }).click();
+
+  // An adjective takes the gender of the noun after it — a change to an earlier word flashes.
+  await word(page, 'Uczucia', 'zmęczony');
+  await expect(sentence(page)).toHaveText(['zmęczony']);
+  await word(page, 'Osoby', 'mama');
+  await expect(sentence(page)).toHaveText(['zmęczona', 'mama']);
+  const animations = await sentence(page)
+    .first()
+    .locator('span')
+    .evaluate((el) => el.getAnimations().length);
+  expect(animations).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Powiedz zdanie' }).click();
+  expect(await lastSpoken(page)).toBe('zmęczona mama');
+});

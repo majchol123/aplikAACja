@@ -167,10 +167,60 @@ def test_animate_lemmas_add_categories_and_n1_minus_the_table(tmp_path: Path) ->
     assert built.data["animate"] == ["dziecko", "krowa", "lalka", "pilot"]
 
 
+def test_set_grammar_holds_nouns_and_adjectives_of_its_own(tmp_path: Path) -> None:
+    polimorf = tmp_path / "animate.tab"
+    polimorf.write_text(ANIMATE_SAMPLE + SAMPLE, "utf-8")
+    set_dir = tmp_path / "extra"
+    set_dir.mkdir()
+    (set_dir / "index.00000000.json").write_text(
+        json.dumps(
+            {
+                "items": [
+                    {"id": 1, "k": ["krowa"], "g": [2]},
+                    {"id": 2, "k": ["mleko"], "g": [1]},
+                    {"id": 3, "k": ["iść"], "g": [1]},
+                    {"id": 4, "k": ["duży"]},
+                ]
+            }
+        ),
+        "utf-8",
+    )
+    nodes = [{"id": 1, "n": "Napoje"}, {"id": 2, "n": "Zwierzęta"}]
+    (set_dir / "categories.00000000.json").write_text(json.dumps({"nodes": nodes}), "utf-8")
+    (set_dir / "manifest.json").write_text(
+        json.dumps({"index": "index.00000000.json", "categories": "categories.00000000.json"}),
+        "utf-8",
+    )
+    manifest, built = grammar.write_set_grammar(set_dir, polimorf, {"Zwierzęta"}, variants={})
+    data = json.loads((set_dir / str(manifest["grammar"])).read_text("utf-8"))
+    # Its nouns and adjectives only (the verb is in the mirror's file), the animals by folder.
+    assert lemmas(data) == ["Krowa", "duży", "krowa", "mleko"]
+    assert data["animate"] == ["krowa"] and data["government"] == {}
+    assert built.data == data
+
+
 def test_animate_file_compiles() -> None:
     include, exclude = grammar.load_animate()
     assert "koleżanka" in include and "dom" in exclude
     assert not include & exclude
+
+
+def test_government_keeps_the_core_verbs_and_names_the_rest(sample: Path) -> None:
+    table = {"pić": "acc", "bić się": "inst", "latać": "inst-"}
+    built = grammar.encode(sample, {"pić", "bić", "mama"}, {"pić"}, {}, None, table)
+    # "bić się" by its verb; "latać" is no verb of the core.
+    assert built.data["government"] == {"bić się": "inst", "pić": "acc"}
+    assert built.unknown_government == ["latać"]
+    assert built.ungoverned == []  # "pić" (the only reachable verb) has an entry
+
+
+def test_government_file_compiles(tmp_path: Path) -> None:
+    table = grammar.load_government()
+    assert table["chcieć"] == "gen" and table["dać"] == "dat+ acc"
+    bad = tmp_path / "government.toml"
+    bad.write_text('[government]\n"lubić" = "akk"\n', "utf-8")
+    with pytest.raises(ValueError, match="lubić"):
+        grammar.load_government(bad)
 
 
 def test_write_grammar_updates_manifest_and_prunes(tmp_path: Path, sample: Path) -> None:
@@ -200,3 +250,10 @@ def test_fixture_is_up_to_date() -> None:
     assert build_grammar_fixture.OUT.read_text("utf-8") == build_grammar_fixture.render(
         built.data
     ), "run: uv run build_grammar_fixture.py"
+
+
+@pytest.mark.skipif(not POLIMORF.exists(), reason="real PoliMorf not cached")
+def test_government_verbs_are_polimorf_verbs() -> None:
+    verbs = {e.lemma for e in grammar.read_entries(POLIMORF) if e.tag.startswith("inf:")}
+    unknown = [v for v in grammar.load_government() if v.removesuffix(" się") not in verbs]
+    assert unknown == []

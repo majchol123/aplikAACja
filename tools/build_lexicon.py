@@ -4,8 +4,9 @@ uv run build_lexicon.py --set-dir ../workers/arasaac/dist/sym/arasaac [--report]
 
 forms: normalized forms for search (PLAN D10); grammar: tagged forms for inflecting sentences
 (PLAN §2.10). --report lists vocabulary lemmas whose spoken forms are still ambiguous, to be
-settled in grammar/variants.toml, and the nouns taken for someone who can do something with why
-("animate", corrected in grammar/animate.toml).
+settled in grammar/variants.toml, the nouns taken for someone who can do something with why
+("animate", corrected in grammar/animate.toml) and the vocabulary's verbs without an entry in
+grammar/government.toml ("ungoverned": their nouns stay as on the tile).
 """
 
 import argparse
@@ -52,6 +53,8 @@ def main() -> None:
             print(f"{lemma}\t{tag}\t{' '.join(forms)}")
         for lemma, why in built.animate.items():
             print(f"animate\t{lemma}\t{why}")
+        for verb in built.ungoverned:
+            print(f"ungoverned\t{verb}")
     print(json.dumps(manifest, ensure_ascii=False))
 
 

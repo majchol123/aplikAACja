@@ -6,7 +6,8 @@ Output `grammar.<hash8>.json`, original spelling (unlike the normalized forms.<h
      "tags": [tag, ...],                         # NKJP tags, sorted
      "paradigms": [[ending, [[tag, suffix], ...]], ...],
      "lemmas": [[lemma, paradigm], ...],         # sorted
-     "animate": [lemma, ...]}                    # sorted: nouns naming someone (below)
+     "animate": [lemma, ...],                    # sorted: nouns naming someone (below)
+     "government": {verb: frame, ...}}           # what a verb's objects take (below)
 
 A paradigm is shared by every lemma that inflects the same way. `ending` is what follows the
 stem (the longest common prefix of the lemma and all its forms); a rule gives a form as stem +
@@ -23,6 +24,9 @@ would be 8 MB of JSON and too slow on a tablet.
 idę"). PoliMorf tells it only of masculine nouns (m1, m2, p1), which the app reads from the tags;
 for the others the list comes from the set's people and animal categories, PoliMorf's n1 nouns
 ("dziecko", "kurczę") and grammar/animate.toml. Older clients ignore the field.
+
+`government`: the rekcja table of grammar/government.toml ("lubić": "acc", "dać": "dat+ acc"),
+for the "Pełna" level (G2); only verbs of the core, so a typo fails the check, not the app.
 """
 
 from __future__ import annotations
@@ -51,6 +55,12 @@ log = logging.getLogger(__name__)
 GRAMMAR_VERSION = 1
 VARIANTS_FILE = Path(__file__).parents[1] / "grammar" / "variants.toml"
 ANIMATE_FILE = Path(__file__).parents[1] / "grammar" / "animate.toml"
+GOVERNMENT_FILE = Path(__file__).parents[1] / "grammar" / "government.toml"
+# A slot of a government frame: a case (+ someone only, - things only), "preposition:case", or
+# "thing" (a thing may be the subject). Read by packages/shared/src/inflect.ts.
+FRAME_TOKEN_RE = re.compile(
+    r"(?:gen|dat|acc|inst)[+-]?|[a-ząćęłńóśźż]+:(?:gen|dat|acc|inst|loc)|thing"
+)
 # Tiles the app creates itself: their words are in the core whatever the set has ("koleżanka").
 TEMPLATES = Path(__file__).parents[2] / "templates"
 
@@ -141,29 +151,41 @@ def template_words(templates: Path = TEMPLATES) -> set[str]:
     }
 
 
+def load_government(path: Path = GOVERNMENT_FILE) -> dict[str, str]:
+    """The [government] table: verb ("bać się" with its "się") → frame, checked."""
+    table = tomllib.loads(path.read_text("utf-8")).get("government", {})
+    for verb, frame in table.items():
+        tokens = frame.split() if isinstance(frame, str) else []
+        if not tokens or not all(FRAME_TOKEN_RE.fullmatch(t) for t in tokens):
+            raise ValueError(f"{path.name}: {verb!r} has a bad frame {frame!r}")
+    return dict(table)
+
+
 def load_variants(path: Path = VARIANTS_FILE) -> dict[str, re.Pattern[str]]:
     data = tomllib.loads(path.read_text("utf-8"))
     return {lemma: re.compile(pattern) for lemma, pattern in data.get("prefer", {}).items()}
 
 
-def animate_words(index: dict, categories: dict) -> set[str]:
-    """Lowercased one-word keywords of the set's people and animals (by category)."""
+def animate_words(
+    index: dict, categories: dict, names: frozenset[str] | set[str] | None = None
+) -> set[str]:
+    """Lowercased one-word keywords of the set's people and animals: by ARASAAC category keys,
+    or, for a set of its own (`names`), by the names of its folders."""
     nodes = {node["id"]: node for node in categories.get("nodes", [])}
 
     def keys(node_id: int) -> set[str]:
         out: set[str] = set()
         node = nodes.get(node_id)
         while node is not None:
-            if node.get("k"):
-                out.add(node["k"])
+            label = node.get("n") if names is not None else node.get("k")
+            if label:
+                out.add(label)
             node = nodes.get(node.get("p"))
         return out
 
-    animate = {
-        node_id
-        for node_id in nodes
-        if (k := keys(node_id)) & ANIMATE_CATEGORIES and not k & NOT_ANIMATE_CATEGORIES
-    }
+    wanted = ANIMATE_CATEGORIES if names is None else frozenset(names)
+    unwanted = NOT_ANIMATE_CATEGORIES if names is None else frozenset()
+    animate = {node_id for node_id in nodes if (k := keys(node_id)) & wanted and not k & unwanted}
     return {
         kw.lower()
         for item in index["items"]
@@ -216,6 +238,10 @@ class Grammar:
     ambiguous: list[tuple[str, str, list[str]]] = field(default_factory=list)
     # The animate list with why each lemma is on it, for `--report`.
     animate: dict[str, str] = field(default_factory=dict)
+    # Verbs of the government table that are no verb of the core (typos, missing lemmas).
+    unknown_government: list[str] = field(default_factory=list)
+    # Verbs of the vocabulary without a government entry, for `--report`.
+    ungoverned: list[str] = field(default_factory=list)
 
 
 def select_lemmas(polimorf: Path, vocab: set[str]) -> tuple[set[str], set[str]]:
@@ -236,10 +262,15 @@ def ordered_forms(
     lemma: str, tag: str, forms: set[str], variants: dict[str, re.Pattern[str]]
 ) -> list[str]:
     """Forms of one tag, preferred first: those the variants table names, then the rest (another
-    sense of a homograph stays reachable: "paść się" is said with "pasę"), alphabetically."""
+    sense of a homograph stays reachable: "paść się" is said with "pasę"), alphabetically. An
+    indeclinable loan keeps its lemma first ("kakao" before "kakaa")."""
     ordered = sorted(forms)
     prefer = variants.get(lemma)
-    if len(ordered) < 2 or prefer is None:
+    if len(ordered) < 2:
+        return ordered
+    if prefer is None:
+        if tag.startswith("subst:") and lemma.endswith("o") and lemma in forms:
+            return sorted(ordered, key=lambda f: f != lemma)
         return ordered
     return sorted(ordered, key=lambda f: prefer.fullmatch(f) is None)
 
@@ -263,10 +294,12 @@ def encode(
     reachable: set[str],
     variants: dict[str, re.Pattern[str]] | None = None,
     animate: dict[str, str] | None = None,
+    government: dict[str, str] | None = None,
 ) -> Grammar:
     """The grammar file of `core`; ambiguities are reported for the `reachable` lemmas.
-    `animate` (animate_lemmas) is a subset of `core`."""
+    `animate` (animate_lemmas) is a subset of `core`; `government` defaults to the table."""
     variants = load_variants() if variants is None else variants
+    government = load_government() if government is None else government
     by_lemma: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
     for e in read_entries(polimorf):
         if e.lemma in core:
@@ -308,7 +341,17 @@ def encode(
         "lemmas": lemmas,
         "animate": sorted(lemma for lemma in animate or {} if lemma in rules_of),
     }
-    return Grammar(data, ambiguous, dict(animate or {}))
+    verbs = {lemma for lemma, pairs in rules_of.items() if any(t[:4] == "inf:" for t, _ in pairs)}
+    known = {v: frame for v, frame in government.items() if v.removesuffix(" się") in verbs}
+    data["government"] = dict(sorted(known.items()))
+    governed = {verb.removesuffix(" się") for verb in known}
+    return Grammar(
+        data,
+        ambiguous,
+        dict(animate or {}),
+        unknown_government=sorted(set(government) - set(known)),
+        ungoverned=sorted(verbs & reachable - governed),
+    )
 
 
 def common_prefix(a: str, b: str) -> str:
@@ -360,6 +403,54 @@ def write_grammar(
         len(data) / 1e6,
         name,
         len(grammar.ambiguous),
+    )
+    if grammar.unknown_government:
+        log.warning("government.toml: no verb of the core: %s", grammar.unknown_government)
+    return manifest, grammar
+
+
+# Classes of a gated set's own file: verbs, names and closed classes are in the mirror's.
+SET_CLASSES = frozenset({"subst", "adj"})
+
+
+def write_set_grammar(
+    set_dir: Path,
+    polimorf: Path,
+    animate_folders: frozenset[str] | set[str] = frozenset(),
+    variants: dict[str, re.Pattern[str]] | None = None,
+) -> tuple[dict[str, object], Grammar]:
+    """grammar.<hash8>.json of a set served behind its gate (the extra set, PLAN §2.10 G2): the
+    nouns and adjectives of its vocabulary, joined in the app to the mirror's file. Built with
+    the set and deployed with it, so its words never reach the public file; `animate_folders`
+    names its folders of people and animals."""
+    index = load_index(set_dir)
+    manifest = read_manifest(set_dir) or {}
+    categories_file = manifest.get("categories")
+    categories = (
+        json.loads((set_dir / str(categories_file)).read_text("utf-8")) if categories_file else {}
+    )
+    vocab = vocabulary_words(index)
+    lemmas = {
+        e.lemma
+        for e in read_entries(polimorf)
+        if e.tag.split(":", 1)[0] in SET_CLASSES
+        and (e.form.lower() in vocab or e.lemma.lower() in vocab)
+    }
+    words = animate_words(index, categories, animate_folders)
+    someone = animate_lemmas(polimorf, words, lemmas)
+    grammar = encode(polimorf, lemmas, lemmas, variants, someone, government={})
+    data = canonical_json(grammar.data)
+    name = f"grammar.{hash8(data)}.json"
+    (set_dir / name).write_bytes(data)
+    manifest["grammar"] = name
+    write_manifest(set_dir, manifest)
+    prune_hashed_json(set_dir, manifest)
+    log.info(
+        "set grammar: %d lemmas (%d animate), %.2f MB → %s",
+        len(grammar.data["lemmas"]),  # type: ignore[arg-type]
+        len(grammar.data["animate"]),  # type: ignore[arg-type]
+        len(data) / 1e6,
+        name,
     )
     return manifest, grammar
 

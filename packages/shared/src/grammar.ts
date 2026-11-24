@@ -20,6 +20,11 @@ export interface GrammarData {
    * read from their tags. Missing in files built before it: no noun beyond those is someone.
    */
   animate?: string[];
+  /**
+   * What a verb's objects take ("lubić": "acc", "dać": "dat+ acc", "bać się": "gen"), from
+   * tools/grammar/government.toml; read by inflect.ts (level "full"). Missing in older files.
+   */
+  government?: Record<string, string>;
 }
 
 /** A parsed NKJP tag: the class and its positional attributes, each with its alternatives. */
@@ -53,7 +58,7 @@ export function parseGrammarData(json: unknown): GrammarData {
   if (typeof json !== 'object' || json === null) fail('not an object');
   const data = json as Record<string, unknown>;
   if (data.v !== GRAMMAR_FILE_VERSION) fail(`version ${String(data.v)}`);
-  const { tags, paradigms, lemmas, animate } = data;
+  const { tags, paradigms, lemmas, animate, government } = data;
   if (!Array.isArray(tags) || !tags.every((t) => typeof t === 'string')) fail('tags');
   if (!Array.isArray(paradigms)) fail('paradigms');
   for (const p of paradigms as unknown[]) {
@@ -90,6 +95,14 @@ export function parseGrammarData(json: unknown): GrammarData {
     (!Array.isArray(animate) || !animate.every((a) => typeof a === 'string'))
   )
     fail('animate');
+  if (
+    government !== undefined &&
+    (typeof government !== 'object' ||
+      government === null ||
+      Array.isArray(government) ||
+      !Object.values(government).every((f) => typeof f === 'string'))
+  )
+    fail('government');
   return data as unknown as GrammarData;
 }
 
@@ -108,19 +121,31 @@ export function matchCase(form: string, model: string): string {
 }
 
 export class GrammarLexicon {
+  /** Tags of the first file (tests, the admin preview). */
   readonly tags: readonly Tag[];
-  private readonly paradigms: GrammarData['paradigms'];
-  private readonly byLemma = new Map<string, number>();
-  private readonly animates: ReadonlySet<string>;
-  /** Form ending → [paradigm, tag]; built on the first analysis of a word that is no lemma. */
-  private bySuffix: Map<string, [number, number][]> | null = null;
+  private readonly parts: { tags: readonly Tag[]; paradigms: GrammarData['paradigms'] }[];
+  /** Lemma → [part, paradigm]; the first file that has a lemma wins. */
+  private readonly byLemma = new Map<string, [number, number]>();
+  private readonly animates = new Set<string>();
+  private readonly frames = new Map<string, string>();
+  /** Form ending → [part, paradigm, tag]; built on the first analysis of a word no lemma. */
+  private bySuffix: Map<string, [number, number, number][]> | null = null;
   private readonly analyses = new Map<string, readonly Analysis[]>();
 
-  constructor(data: GrammarData) {
-    this.tags = data.tags.map(parseTag);
-    this.paradigms = data.paradigms;
-    for (const [lemma, paradigm] of data.lemmas) this.byLemma.set(lemma, paradigm);
-    this.animates = new Set(data.animate ?? []);
+  /** The mirror's file, then those of other sets (the extra set's nouns, PLAN §2.10 G2). */
+  constructor(data: GrammarData, ...more: GrammarData[]) {
+    this.parts = [data, ...more].map((d) => ({
+      tags: d.tags.map(parseTag),
+      paradigms: d.paradigms,
+    }));
+    this.tags = this.parts[0]?.tags ?? [];
+    [data, ...more].forEach((d, part) => {
+      for (const [lemma, paradigm] of d.lemmas)
+        if (!this.byLemma.has(lemma)) this.byLemma.set(lemma, [part, paradigm]);
+      for (const lemma of d.animate ?? []) this.animates.add(lemma);
+      for (const [verb, frame] of Object.entries(d.government ?? {}))
+        if (!this.frames.has(verb)) this.frames.set(verb, frame);
+    });
   }
 
   get size(): number {
@@ -136,15 +161,21 @@ export class GrammarLexicon {
     return this.animates.has(lemma);
   }
 
+  /** The government frame of a verb ("bać się" with its "się"), GrammarData.government. */
+  government(verb: string): string | undefined {
+    return this.frames.get(verb);
+  }
+
   /** Every form of `lemma`; the forms of one tag are in order of preference. */
   forms(lemma: string): Form[] {
-    const p = this.byLemma.get(lemma);
-    const paradigm = p === undefined ? undefined : this.paradigms[p];
-    if (!paradigm) return [];
+    const at = this.byLemma.get(lemma);
+    const part = at && this.parts[at[0]];
+    const paradigm = at && part ? part.paradigms[at[1]] : undefined;
+    if (!part || !paradigm) return [];
     const [ending, rules] = paradigm;
     const stem = lemma.slice(0, lemma.length - ending.length);
     return rules.flatMap(([t, suffix]) => {
-      const tag = this.tags[t];
+      const tag = part.tags[t];
       return tag ? [{ form: stem + suffix, tag }] : [];
     });
   }
@@ -179,24 +210,27 @@ export class GrammarLexicon {
       const rules = index.get(word.slice(i));
       if (!rules) continue;
       const stem = word.slice(0, i);
-      for (const [p, t] of rules) {
-        const lemma = stem + (this.paradigms[p]?.[0] ?? '');
-        const tag = this.tags[t];
-        if (tag && this.byLemma.get(lemma) === p) out.push({ lemma, tag });
+      for (const [part, p, t] of rules) {
+        const lemma = stem + (this.parts[part]?.paradigms[p]?.[0] ?? '');
+        const tag = this.parts[part]?.tags[t];
+        const at = this.byLemma.get(lemma);
+        if (tag && at?.[0] === part && at[1] === p) out.push({ lemma, tag });
       }
     }
     return out;
   }
 
-  private suffixIndex(): Map<string, [number, number][]> {
+  private suffixIndex(): Map<string, [number, number, number][]> {
     if (this.bySuffix) return this.bySuffix;
-    const index = new Map<string, [number, number][]>();
-    this.paradigms.forEach(([, rules], p) => {
-      for (const [t, suffix] of rules) {
-        const list = index.get(suffix);
-        if (list) list.push([p, t]);
-        else index.set(suffix, [[p, t]]);
-      }
+    const index = new Map<string, [number, number, number][]>();
+    this.parts.forEach(({ paradigms }, part) => {
+      paradigms.forEach(([, rules], p) => {
+        for (const [t, suffix] of rules) {
+          const list = index.get(suffix);
+          if (list) list.push([part, p, t]);
+          else index.set(suffix, [[part, p, t]]);
+        }
+      });
     });
     this.bySuffix = index;
     return index;

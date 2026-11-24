@@ -39,6 +39,41 @@ describe('grammar lexicon (PLAN §2.10)', () => {
     expect(lexicon.analyze('zosi').map((a) => a.lemma)).toContain('Zosia');
   });
 
+  it('joins the files of several sets, the first winning', () => {
+    const extra = parseGrammarData({
+      v: 1,
+      tags: ['subst:sg:acc:f', 'subst:sg:nom:f'],
+      paradigms: [
+        [
+          'a',
+          [
+            [0, 'ę'],
+            [1, 'a'],
+          ],
+        ],
+      ],
+      lemmas: [
+        ['hulajnoga', 0],
+        ['mama', 0],
+      ],
+      animate: ['hulajnoga'],
+    });
+    const both = new GrammarLexicon(parseGrammarData(fixture), extra);
+    expect(both.forms('hulajnoga').map((f) => f.form)).toEqual(['hulajnogę', 'hulajnoga']);
+    expect(both.analyze('hulajnogę').map((a) => a.lemma)).toEqual(['hulajnoga']);
+    expect(both.animate('hulajnoga') && both.animate('mama')).toBe(true);
+    // "mama" keeps every form of the mirror's file.
+    expect(both.forms('mama').length).toBe(lexicon.forms('mama').length);
+    const words = [
+      { label: 'lubić', role: 'verb' as const, fixed: false },
+      { label: 'hulajnoga', role: 'noun' as const, fixed: false },
+    ];
+    expect(inflectSentence(words, both, { level: 'full', speaker: null })).toEqual([
+      'lubię',
+      'hulajnogę',
+    ]);
+  });
+
   it('rejects a file of another shape', () => {
     expect(() => parseGrammarData({ v: 2 })).toThrow(/version/);
     expect(() =>
@@ -207,5 +242,124 @@ describe('choosing a form by hand', () => {
     expect(groups('zmęczony', 'descriptor')['jaka?']?.[0]?.text).toBe('zmęczona');
     expect(groups('ja', 'person').Jeden?.map((c) => c.text)).toContain('mnie');
     expect(groups('xyz')).toEqual({});
+  });
+});
+
+describe('inflecting the sentence (G2: cases)', () => {
+  const full = (spec: string, speaker: SpeakerGender | null = null) => say(spec, speaker, 'full');
+
+  it('puts objects in the case the verb takes', () => {
+    expect(full('lubić:verb | piłka:noun')).toBe('lubię piłkę');
+    expect(full('chcę:verb | woda:noun')).toBe('chcę wody');
+    expect(full('ty | mieć:verb | kot:noun')).toBe('ty masz kota');
+    expect(full('szukać:verb | mama:noun')).toBe('szukam mamy');
+    expect(full('pomagać:verb | tata:person')).toBe('pomagam tacie');
+    expect(full('dać:verb | mama:noun | piłka:noun')).toBe('dam mamie piłkę');
+    expect(full('dać:verb | piłka:noun | mama:noun')).toBe('dam piłkę mamie');
+    expect(full('jechać:verb | autobus:noun')).toBe('jadę autobusem');
+    expect(full('jechać:verb | mama:noun')).toBe('jadę mama');
+    expect(full('bawić się:verb | lalka:noun')).toBe('bawię się lalką');
+  });
+
+  it('takes the object before the verb too, and the subject stays', () => {
+    expect(full('woda:noun | chcę:verb')).toBe('wody chcę');
+    expect(full('ja | pies:noun | karmić:verb')).toBe('ja psa karmię');
+    expect(full('mama:noun | kot:noun | karmić:verb')).toBe('mama kota karmi');
+    expect(full('mleko:noun | pić:verb')).toBe('mleko piję');
+  });
+
+  it('turns the accusative into the genitive after "nie"', () => {
+    expect(full('nie | lubić:verb | piłka:noun')).toBe('nie lubię piłki');
+    expect(full('nie chcę:negation | woda:noun')).toBe('nie chcę wody');
+    expect(full('nie | pomagać:verb | mama:noun')).toBe('nie pomagam mamie');
+  });
+
+  it('gives a noun after a preposition its case', () => {
+    expect(full('iść:verb | do | szkoła:noun')).toBe('idę do szkoły');
+    expect(full('być:verb | w | dom:noun')).toBe('jestem w domu');
+    expect(full('iść:verb | na | plac:noun')).toBe('idę na plac');
+    expect(full('iść:verb | na | spacer:noun')).toBe('idę na spacer');
+    expect(full('bawić się:verb | z | mama:noun')).toBe('bawię się z mamą');
+    expect(full('wracać:verb | z | szkoła:noun')).toBe('wracam ze szkoły');
+    expect(full('czekać:verb | na | tata:person')).toBe('czekam na tatę');
+    expect(full('grać:verb | w | piłka:noun')).toBe('gram w piłkę');
+    expect(full('położyć:verb | lalka:noun | na | stół:noun')).toBe('położę lalkę na stół');
+    expect(full('książka:noun | dla | mama:noun')).toBe('książka dla mamy');
+  });
+
+  it('makes adjectives agree with their noun, before or after it', () => {
+    expect(full('lubić:verb | duży:descriptor | piłka:noun')).toBe('lubię dużą piłkę');
+    expect(full('lubić:verb | piłka:noun | czerwony:descriptor')).toBe('lubię piłkę czerwoną');
+    expect(full('duży:descriptor | pies:noun | jeść:verb')).toBe('duży pies je');
+    expect(full('mała:descriptor | krowa:noun')).toBe('mała krowa');
+    expect(full('iść:verb | do | duży:descriptor | dom:noun')).toBe('idę do dużego domu');
+    expect(full('chcę:verb | zimny:descriptor | woda:noun')).toBe('chcę zimnej wody');
+  });
+
+  it('counts with numerals', () => {
+    expect(full('mieć:verb | dwa | piłka:noun')).toBe('mam dwie piłki');
+    expect(full('mieć:verb | pięć | piłka:noun')).toBe('mam pięć piłek');
+    expect(full('mieć:verb | 2 | kot:noun')).toBe('mam 2 koty');
+    expect(full('dwa | kot:noun | jeść:verb')).toBe('dwa koty jedzą');
+    expect(full('pięć | kot:noun | jeść:verb')).toBe('pięć kotów je');
+    expect(full('dwa | chłopiec:noun | iść:verb')).toBe('dwaj chłopcy idą');
+    expect(full('dwa | dziecko:noun | spać:verb')).toBe('dwoje dzieci śpi');
+    expect(full('mieć:verb | jeden | piłka:noun')).toBe('mam jedną piłkę');
+  });
+
+  it('says pronouns as objects', () => {
+    expect(full('lubić:verb | ty')).toBe('lubię cię');
+    expect(full('mama:person | kochać:verb | ja')).toBe('mama kocha mnie');
+    expect(full('dać:verb | on | piłka:noun')).toBe('dam mu piłkę');
+    expect(full('iść:verb | z | ty')).toBe('idę z tobą');
+    expect(full('iść:verb | do | on')).toBe('idę do niego');
+    expect(full('bawić się:verb | z | ja')).toBe('bawię się ze mną');
+    expect(full('lubić:verb | pani')).toBe('lubię panią');
+    // Followed by a verb, a pronoun still starts a clause of its own.
+    expect(full('ja | iść:verb | ty | iść:verb')).toBe('ja idę ty idziesz');
+  });
+
+  it('puts the noun after "być" in the instrumental, unless "to" is the subject', () => {
+    expect(full('ja | być:verb | lekarz:noun')).toBe('ja jestem lekarzem');
+    expect(full('mama:noun | być:verb | nauczycielka:noun')).toBe('mama jest nauczycielką');
+    expect(full('to | być:verb | piłka:noun')).toBe('to jest piłka');
+    expect(full('piłka:noun | być:verb | czerwony:descriptor')).toBe('piłka jest czerwona');
+  });
+
+  it('lets a thing be the subject of a verb a thing may do', () => {
+    expect(full('deszcz:noun | padać:verb')).toBe('deszcz pada');
+    expect(say('słońce:noun | świecić:verb')).toBe('słońce świeci');
+  });
+
+  it('handles idioms, containers, variants and requests', () => {
+    expect(full('mieć:verb | na | imię:noun | Ola')).toBe('mam na imię Ola');
+    expect(full('pić:verb | z | kubek:noun')).toBe('piję z kubka');
+    expect(full('pić:verb | herbata:noun | z | cukier:noun')).toBe('piję herbatę z cukrem');
+    expect(full('chcę:verb | dwa | lody:noun')).toBe('chcę dwóch lodów');
+    expect(full('lubić:verb | mój | pies:noun')).toBe('lubię mojego psa');
+    expect(full('po | obiad:noun | iść:verb | spać:verb')).toBe('po obiedzie idę spać');
+    // The speaker as the object asks someone; an object form already written fills its slot.
+    expect(full('pomóc:verb | ja')).toBe('pomóż mi');
+    expect(full('dać:verb | ja | jabłko:noun')).toBe('daj mi jabłko');
+    expect(full('!daj | mi | piłka:noun')).toBe('daj mi piłkę');
+    expect(full('mama:noun | dać:verb | ja | jabłko:noun')).toBe('mama da mi jabłko');
+    // A determiner in any form and whatever its role agrees; a tool takes the instrumental.
+    expect(full('szukać:verb | moja:misc | piłka:noun')).toBe('szukam mojej piłki');
+    expect(full('lubić:verb | ten | pies:noun')).toBe('lubię tego psa');
+    expect(full('myć:verb | ręka:noun | mydło:noun')).toBe('myję rękę mydłem');
+    expect(full('mieć:verb | sen:noun')).toBe('mam sen');
+    expect(full('nie | ma | mama:noun')).toBe('nie ma mamy');
+    expect(full('lubić:verb | sport:noun')).toBe('lubię sport');
+    // Not in the dictionary form, an adjective on its own stays as written.
+    expect(say('ja | zmęczona:descriptor', 'm')).toBe('ja zmęczona');
+  });
+
+  it('leaves alone what it is unsure of', () => {
+    // No entry in the table: the noun stays.
+    expect(full('iść:verb | mama:noun')).toBe('idę mama');
+    // The verbs level does no cases.
+    expect(say('lubić:verb | piłka:noun')).toBe('lubię piłka');
+    expect(full('!kocham | mama:noun')).toBe('kocham mamę');
+    expect(full('myć zęby:verb | mama:noun')).toBe('myję zęby mama');
   });
 });

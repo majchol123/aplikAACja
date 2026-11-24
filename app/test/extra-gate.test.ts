@@ -113,6 +113,7 @@ describe('/sym/extra/* gate', () => {
   it('validates the raw pathname', () => {
     expect(extraFile(`${ORIGIN}/sym/extra/manifest.json`)).toBe('manifest.json');
     expect(extraFile(`${ORIGIN}/sym/extra/forms.0123abcd.json`)).toBe('forms.0123abcd.json');
+    expect(extraFile(`${ORIGIN}/sym/extra/grammar.0123abcd.json`)).toBe('grammar.0123abcd.json');
     expect(extraFile(`${ORIGIN}/sym/extra/index.0123abcd.json`)).toBe('index.0123abcd.json');
     expect(extraFile(`${ORIGIN}/sym/extra/x/15028.0123abcd.webp`)).toBe('x/15028.0123abcd.webp');
     expect(extraFile(`${ORIGIN}/sym/extra/categories.0123abcd.json`)).toBe(

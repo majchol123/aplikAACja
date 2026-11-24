@@ -89,7 +89,7 @@ export function Communication({
   const [sentence, setSentence] = useState<SentenceItem[]>([]);
   const nextKey = useRef(0);
   const speak = useSpeaker();
-  const grammar = useGrammar();
+  const grammar = useGrammar(me.extraSet);
   // What the bar shows and says: the words in agreeing forms ("ty" + "iść" → "idziesz").
   const shown = useMemo(() => {
     const forms = sentenceForms(sentence, grammar);
@@ -404,6 +404,33 @@ function useHold(onHold: ((index: number) => void) | undefined) {
       : {};
 }
 
+/**
+ * Briefly marks a word whose form a later word changed ("duży" → "duża" after "piłka", F8 G2),
+ * so that the change is seen. A colour fading out, no movement.
+ */
+function useChangedWords(items: SentenceItem[]) {
+  const labels = useRef(new Map<number, string>());
+  const nodes = useRef(new Map<number, HTMLElement>());
+  useEffect(() => {
+    const before = labels.current;
+    for (const item of items) {
+      const was = before.get(item.key);
+      if (was === undefined || was === item.label) continue;
+      nodes.current
+        .get(item.key)
+        ?.animate?.([{ backgroundColor: '#fde68a' }, { backgroundColor: 'transparent' }], {
+          duration: 900,
+          easing: 'ease-out',
+        });
+    }
+    labels.current = new Map(items.map((i) => [i.key, i.label]));
+  }, [items]);
+  return (key: number) => (node: HTMLElement | null) => {
+    if (node) nodes.current.set(key, node);
+    else nodes.current.delete(key);
+  };
+}
+
 function SentenceBar({
   items,
   onSpeak,
@@ -421,6 +448,7 @@ function SentenceBar({
   const scroller = useRef<HTMLDivElement>(null);
   const hint = useId();
   const hold = useHold(onHold);
+  const changed = useChangedWords(items);
   useEffect(() => {
     scroller.current?.scrollTo({ left: scroller.current.scrollWidth, behavior: 'smooth' });
   }, [items.length]);
@@ -459,7 +487,10 @@ function SentenceBar({
                   className="min-h-0 w-16 flex-1 object-contain short:w-10"
                 />
               )}
-              <span className="text-base font-bold leading-tight text-slate-800 short:text-sm">
+              <span
+                ref={changed(item.key)}
+                className="rounded text-base font-bold leading-tight text-slate-800 short:text-sm"
+              >
                 {item.label}
               </span>
             </button>

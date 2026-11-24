@@ -6,7 +6,9 @@ import {
   parseGrammarData,
   SET_BASE,
   type FitzgeraldRole,
+  type GrammarData,
   type GrammarLevel,
+  type LibrarySet,
   type SpeakerGender,
 } from '@aplikaacja/shared';
 import { useQuery } from '@tanstack/react-query';
@@ -33,29 +35,52 @@ export interface SentenceWord {
   picked?: string;
 }
 
-async function loadLexicon(file: string): Promise<GrammarLexicon> {
-  const res = await fetch(SET_BASE.arasaac + file, {
+async function loadData(set: LibrarySet, file: string): Promise<GrammarData> {
+  const res = await fetch(SET_BASE[set] + file, {
     credentials: 'same-origin',
     headers: { Accept: 'application/json' },
   });
-  if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
-  return new GrammarLexicon(parseGrammarData(await res.json()));
+  if (!res.ok) throw new Error(`${set} ${file}: HTTP ${res.status}`);
+  return parseGrammarData(await res.json());
+}
+
+/**
+ * The mirror's lexicon joined with the extra set's nouns and adjectives (G2). The extra file
+ * comes through the account's gate and is never kept by the service worker; when it fails the
+ * mirror's lexicon is enough.
+ */
+async function loadLexicon(file: string, extraFile: string | undefined): Promise<GrammarLexicon> {
+  const [core, extra] = await Promise.all([
+    loadData('arasaac', file),
+    extraFile
+      ? loadData('extra', extraFile).catch((err: unknown) => {
+          console.warn('extra set grammar unavailable', err);
+          return null;
+        })
+      : null,
+  ]);
+  return extra ? new GrammarLexicon(core, extra) : new GrammarLexicon(core);
 }
 
 /**
  * The account's grammar settings and the lexicon of the ARASAAC mirror (F8, PLAN §2.10): a
- * public file, whatever sets are active, cached forever under its content-addressed name.
+ * public file, whatever sets are active, cached forever under its content-addressed name. With
+ * the extra set granted (`extraSet`), its own file joins it.
  */
-export function useGrammar(): Grammar {
+export function useGrammar(extraSet: boolean): Grammar {
   const account = useAccountSettings();
   const level = account.data?.grammar ?? DEFAULT_SETTINGS.grammar;
   const on = account.data !== undefined && level !== 'off';
   const manifest = useManifest('arasaac', on);
+  const extraManifest = useManifest('extra', on && extraSet);
   const file = manifest.data?.grammar;
+  // Waits for the extra manifest (a failed one counts as none) so the lexicon is built once.
+  const extraSettled = !extraSet || extraManifest.isSuccess || extraManifest.isError;
+  const extraFile = extraSet ? extraManifest.data?.grammar : undefined;
   const lexicon = useQuery({
-    queryKey: ['grammar', file],
-    queryFn: () => loadLexicon(file ?? ''),
-    enabled: on && file !== undefined,
+    queryKey: ['grammar', file, extraFile ?? null],
+    queryFn: () => loadLexicon(file ?? '', extraFile),
+    enabled: on && file !== undefined && extraSettled,
     staleTime: Infinity,
     gcTime: Infinity,
     retry: 1,

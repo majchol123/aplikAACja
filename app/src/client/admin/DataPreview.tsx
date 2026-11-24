@@ -2,6 +2,7 @@ import {
   adminMediaUrl,
   type AdminUser,
   type BoardTree,
+  type GrammarLevel,
   type MediaList,
   type Me,
   type Settings,
@@ -21,6 +22,12 @@ const PARTS: { id: Part; label: string }[] = [
   { id: 'photos', label: 'Zdjęcia' },
   { id: 'settings', label: 'Ustawienia' },
 ];
+
+const GRAMMAR_LABELS: Record<GrammarLevel, string> = {
+  off: 'wyłączona',
+  verbs: 'czasowniki',
+  full: 'pełna',
+};
 
 /**
  * Read-only view of another account (PLAN §2.6): its boards as it sees them (folders open,
@@ -155,7 +162,7 @@ function SettingsPreview({ settings }: { settings: Settings }) {
     ['Etykiety na kafelkach', settings.labelPosition === 'top' ? 'nad obrazkiem' : 'pod obrazkiem'],
     ['Folder „Wszystkie symbole” na pulpicie', settings.showAllSymbols ? 'tak' : 'nie'],
     ['Przycisk „Generator fraz”', settings.showPhraseGenerator ? 'tak' : 'nie'],
-    ['Odmiana wyrazów', settings.grammar === 'off' ? 'wyłączona' : 'czasowniki'],
+    ['Odmiana wyrazów', GRAMMAR_LABELS[settings.grammar]],
     [
       'Mówi o sobie',
       settings.speakerGender === 'f'

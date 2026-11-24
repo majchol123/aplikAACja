@@ -82,6 +82,7 @@ export function GrammarPanel() {
           }}
         >
           <option value="verbs">czasowniki (ja idę, ty idziesz)</option>
+          <option value="full">pełna (także: chcę wody, idę do parku, dwie piłki)</option>
           <option value="off">wyłączona (słowa jak na kafelkach)</option>
         </select>
       </label>

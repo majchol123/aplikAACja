@@ -7,7 +7,7 @@ import type { AppContext } from '../context.ts';
  * backslash, dot segment or Unicode look-alike fails the match.
  */
 const EXTRA_FILE =
-  /^\/sym\/extra\/([gx]\/[0-9]{1,10}\.[0-9a-f]{8}\.webp|(?:index|forms|categories)\.[0-9a-f]{8}\.json|manifest\.json)$/;
+  /^\/sym\/extra\/([gx]\/[0-9]{1,10}\.[0-9a-f]{8}\.webp|(?:index|forms|categories|grammar)\.[0-9a-f]{8}\.json|manifest\.json)$/;
 
 /** Upstream host is never resolved: service-binding requests go straight to the Worker. */
 const UPSTREAM = 'https://aplikaacja-extra.internal/';
