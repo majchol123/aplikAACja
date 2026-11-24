@@ -7,6 +7,7 @@ import { Library } from '../library/Library.tsx';
 import { DeleteAccountPanel } from './DeleteAccountPanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
 import { ExportPanel } from './ExportPanel.tsx';
+import { GrammarPanel } from './GrammarPanel.tsx';
 import { LockPanel } from './LockPanel.tsx';
 import { PhotosPanel } from './PhotosPanel.tsx';
 import { PolicyNotice } from './PolicyNotice.tsx';
@@ -77,6 +78,7 @@ export function SettingsScreen({
       <main className="mt-6 flex-1 space-y-6">
         <PolicyNotice />
         <DevicePanel />
+        <GrammarPanel />
         <LockPanel />
         <Library me={me} />
         <PhotosPanel />

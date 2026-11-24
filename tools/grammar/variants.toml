@@ -1,0 +1,81 @@
+# Which form the app says when PoliMorf lists several for one lemma and tag
+# (aplikaacja_tools/grammar.py).
+#
+# PoliMorf merges homographs under one lemma ("boleć": boli 'hurts' and boleje 'grieves';
+# "dostać": dostanę 'get' and dostoję 'stand out') and keeps archaic or regional variants
+# ("otwarł" next to "otworzył"). For each tag with several forms, those matching the lemma's
+# pattern (a Python regex over the whole form) come first and the first is said; the others stay
+# behind them, so another sense of a homograph remains reachable ("paść się" is said with "pasę",
+# see SENSES in packages/shared/src/inflect.ts). A traditional form wins over a newer or
+# colloquial variant (the correct form, never the colloquial one); where both
+# are standard, the more common one does.
+#
+# `uv run build_lexicon.py --set-dir … --report` lists the vocabulary lemmas still ambiguous.
+
+[prefer]
+"bazgrać" = "bazgra.*"
+"boleć" = "bol(?!ej).*|ból.*"
+"ciec" = "ciekn.*"
+"cuchnąć" = "cuchn.*"
+"deptać" = "depcz.*"
+"dojrzeć" = "dojrzej.*"
+"dokonywać" = "dokonuj.*"
+"dostać" = "dostan.*|dostań.*"
+"dygotać" = "dygocz.*"
+"dziać" = "dzia.*"
+"gdakać" = "gdacz.*"
+"gilgotać" = "gilgocz.*"
+"grzać" = "grza.*"
+"głaskać" = "głaszcz.*"
+"kasać" = "kasa.*"
+"klaskać" = "klaszcz.*"
+"kołatać" = "kołacz.*"
+"marznąć" = "marz.*"
+"nalać" = "nala.*"
+"oblać" = "obla.*"
+"oborać" = "oborz.*"
+"olać" = "ola.*"
+"orać" = "orz.*"
+"otworzyć" = "otworz.*"
+"pasać" = "pasa.*"
+"paść" = "pad.*"
+"piać" = "pia.*"
+"pluskać" = "pluszcz.*"
+"podgrzać" = "podgrza.*"
+"polać" = "pola.*"
+"postać" = "posto.*|postój.*"
+"posłać" = "pośl.*"
+"przechowywać" = "przechowuj.*"
+"przepaść" = "przepad.*"
+"przesłać" = "prześl.*"
+"przyklęknąć" = "przyklękn.*"
+"rechotać" = "rechocz.*"
+"rozgrzać" = "rozgrza.*"
+"rzec" = "rzekn.*"
+"siać" = "sia.*"
+"siorbać" = "siorbi.*"
+"spaść" = "spad.*"
+"stać" = "sto.*|stój.*"
+"szeptać" = "szepcz.*"
+"trzepotać" = "trzepocz.*"
+"udziać" = "udzia.*"
+"uklęknąć" = "uklękn.*"
+"upaść" = "upad.*"
+"warkotać" = "warkocz.*"
+"wiać" = "wia.*"
+"wlać" = "wla.*"
+"wpaść" = "wpad.*"
+"wrzeć" = "wrz.*"
+"wybuchnąć" = "wybuchn.*"
+"wykonywać" = "wykonuj.*"
+"wylać" = "wyla.*"
+"wypasać" = "wypasa.*"
+"wypaść" = "wypad.*"
+"wysmarkać" = "wysmarka.*"
+"wysłać" = "wyśl.*"
+"zwać" = "zw.*"
+"łaskotać" = "łaskocz.*"
+"śmiać" = "śmia.*"
+"śmieć" = "(?!śmią$).*"
+"żebrać" = "żebrz.*"
+"żąć" = "żn.*"

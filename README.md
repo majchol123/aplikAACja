@@ -12,7 +12,7 @@ Cloudflare Workers (plan Free) + Static Assets, Durable Objects (SQLite, jeden n
 | `packages/shared/` | schematy Zod, normalizacja tekstu, wyszukiwarka symboli, wspólne wektory testowe |
 | `workers/arasaac/` | publiczny mirror ARASAAC (Worker z samymi assetami, Route `/sym/arasaac/*`) |
 | `workers/extra/` | prywatny Worker opcjonalnego dodatkowego zestawu (assety poza repozytorium) |
-| `tools/` | budowa mirrora ARASAAC i indeksu, słownik odmian z PoliMorf |
+| `tools/` | budowa mirrora ARASAAC i indeksu, słowniki odmian z PoliMorf (wyszukiwanie i odmiana zdania; warianty form: `tools/grammar/variants.toml`) |
 
 ## Praca lokalna
 
@@ -36,7 +36,9 @@ Zestawy symboli lokalnie (opcjonalnie; bez nich biblioteka jest pusta, a E2E pod
 ```bash
 cd tools
 uv run build_arasaac.py --out ../workers/arasaac/dist        # ~12,7 tys. symboli, ~185 MB
-uv run build_lexicon.py --set-dir ../workers/arasaac/dist/sym/arasaac
+uv run build_lexicon.py --set-dir ../workers/arasaac/dist/sym/arasaac   # forms + grammar; --report
+# Grammar test vector (starter words + grammar/fixture-words.txt) from the real PoliMorf
+uv run build_grammar_fixture.py
 # Starter board: spec tools/template/starter.toml → templates/starter.json + HTML preview
 uv run build_template.py --spec template/starter.toml --set-dir ../workers/arasaac/dist/sym/arasaac \
   --out ../templates/starter.json --preview /tmp/starter-preview.html

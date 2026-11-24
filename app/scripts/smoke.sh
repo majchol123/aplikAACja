@@ -23,6 +23,11 @@ manifest="$(curl -sS "$origin/sym/arasaac/manifest.json")"
 index="$(python3 -c 'import json,sys; m=json.loads(sys.argv[1]); assert m["set"]=="arasaac" and m["count"]>10000 and m["categories"]; print(m["index"])' "$manifest")" ||
   fail "ARASAAC manifest invalid"
 [[ "$(status "/sym/arasaac/$index")" == 200 ]] || fail "ARASAAC index missing"
+# The grammar lexicon (F8) comes with the mirror's own workflow; once listed it must be there.
+grammar="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("grammar", ""))' "$manifest")"
+if [[ -n "$grammar" ]]; then
+  [[ "$(status "/sym/arasaac/$grammar")" == 200 ]] || fail "ARASAAC grammar lexicon missing"
+fi
 [[ "$(status /sym/extra/manifest.json)" == 401 ]] || fail "/sym/extra/* must require a session"
 
 privacy="$(curl -sS "$origin/prywatnosc")"

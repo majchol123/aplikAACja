@@ -155,6 +155,15 @@ function SettingsPreview({ settings }: { settings: Settings }) {
     ['Etykiety na kafelkach', settings.labelPosition === 'top' ? 'nad obrazkiem' : 'pod obrazkiem'],
     ['Folder „Wszystkie symbole” na pulpicie', settings.showAllSymbols ? 'tak' : 'nie'],
     ['Przycisk „Generator fraz”', settings.showPhraseGenerator ? 'tak' : 'nie'],
+    ['Odmiana wyrazów', settings.grammar === 'off' ? 'wyłączona' : 'czasowniki'],
+    [
+      'Mówi o sobie',
+      settings.speakerGender === 'f'
+        ? 'jak dziewczynka lub kobieta'
+        : settings.speakerGender === 'm'
+          ? 'jak chłopiec lub mężczyzna'
+          : 'nie wybrano (formy męskie)',
+    ],
     // Whether, not what: the history itself is not part of this view.
     ['Historia wypowiedzi na koncie', settings.keepHistory ? 'zapisywana' : 'wyłączona'],
     ['Liczniki użycia', settings.usageStats ? 'włączone' : 'wyłączone'],

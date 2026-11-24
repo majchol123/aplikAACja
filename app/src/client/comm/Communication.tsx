@@ -1,13 +1,25 @@
 import {
   type Board,
   type BoardTree,
+  type FitzgeraldRole,
   spokenText,
   type Me,
   type PhraseItem,
   type SymbolRef,
   type Tile,
 } from '@aplikaacja/shared';
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
 import { ALL_SYMBOLS_ID, ALL_SYMBOLS_TILE, withAllSymbols } from '../boards/allSymbols.ts';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
@@ -16,6 +28,8 @@ import { PhraseGenerator } from '../phrase/PhraseGenerator.tsx';
 import { useSpeaker } from '../speech.ts';
 import { useAccountSettings } from '../settings/account.ts';
 import { BoardGrid } from './BoardGrid.tsx';
+import { FormPicker } from './FormPicker.tsx';
+import { sentenceForms, useGrammar } from './grammar.ts';
 import { HistoryPanel } from './HistoryPanel.tsx';
 import {
   BackspaceIcon,
@@ -35,11 +49,18 @@ import { useWakeLock } from './wake-lock.ts';
 
 interface SentenceItem {
   key: number;
+  /** The tile's label or the symbol's word; the bar shows its form in the sentence (F8). */
   label: string;
   src: string | null;
   symbol: SymbolRef | null;
   /** Said instead of the label (Tile.speech). */
   speech?: string;
+  /** Fitzgerald role of the tile or symbol: tells the grammar "mam" (mieć) from "mam" (mama). */
+  role?: FitzgeraldRole | null;
+  /** Said as before, never inflected: history, favourites, the phrase generator. */
+  fixed?: boolean;
+  /** A form picked by hand ("Wybierz formę"). */
+  picked?: string;
 }
 
 const HOLD_MS = 2000;
@@ -68,6 +89,14 @@ export function Communication({
   const [sentence, setSentence] = useState<SentenceItem[]>([]);
   const nextKey = useRef(0);
   const speak = useSpeaker();
+  const grammar = useGrammar();
+  // What the bar shows and says: the words in agreeing forms ("ty" + "iść" → "idziesz").
+  const shown = useMemo(() => {
+    const forms = sentenceForms(sentence, grammar);
+    return sentence.map((item, i) => ({ ...item, label: forms[i] ?? item.label }));
+  }, [sentence, grammar]);
+  // Index of the word whose forms are offered (held in the bar).
+  const [picking, setPicking] = useState<number | null>(null);
   const [device, updateDevice] = useDeviceSettings();
   const account = useAccountSettings();
   const allTiles = useMemo(
@@ -103,6 +132,21 @@ export function Communication({
   const home = boards.get(homeId);
   if (!board || !home) return null;
   const showAll = account.data?.showAllSymbols ?? true;
+  const held = picking === null ? undefined : sentence[picking];
+
+  /** A form picked by hand for the held word, or undefined to let the grammar choose again. */
+  function pickForm(form: string | undefined): void {
+    setSentence((items) =>
+      items.map((item, i) => {
+        if (i !== picking) return item;
+        const next = { ...item };
+        if (form === undefined) delete next.picked;
+        else next.picked = form;
+        return next;
+      }),
+    );
+    setPicking(null);
+  }
 
   /** To a board, leaving "Wszystkie symbole". */
   function open(id: string): void {
@@ -112,7 +156,11 @@ export function Communication({
 
   function add(item: Omit<SentenceItem, 'key'>): void {
     setSentence((items) => [...items, { ...item, key: nextKey.current++ }]);
-    if (device.speakOnTap) speak(item.speech ?? item.label);
+    if (device.speakOnTap) {
+      // The new word in its form in the sentence: "ty" + "iść" says "idziesz".
+      const forms = sentenceForms([...sentence, item], grammar);
+      speak(item.speech ?? forms[forms.length - 1] ?? item.label);
+    }
     countUsage('tiles');
   }
 
@@ -137,6 +185,7 @@ export function Communication({
       label: tile.label,
       src: resolve(tile.symbol),
       symbol: tile.symbol,
+      role: tile.colorRole,
       ...(tile.speech ? { speech: tile.speech } : {}),
     });
     // A pinned board takes the place of the home board as the one to come back to.
@@ -149,11 +198,12 @@ export function Communication({
     if (account.data?.returnToHome ?? true) open(back);
   }
 
+  // The history keeps what was said, so a replay says it again word for word.
   const speakSentence = () => {
-    speak(spokenText(sentence));
-    if (sentence.length > 0) countUsage('utterances');
+    speak(spokenText(shown));
+    if (shown.length > 0) countUsage('utterances');
     history.record(
-      sentence.map(({ label, symbol, speech }) => ({
+      shown.map(({ label, symbol, speech }) => ({
         label,
         symbol,
         ...(speech ? { speech } : {}),
@@ -164,7 +214,12 @@ export function Communication({
   function replay(items: PhraseItem[]): void {
     setShowHistory(false);
     setSentence(
-      items.map((item) => ({ ...item, key: nextKey.current++, src: resolve(item.symbol) })),
+      items.map((item) => ({
+        ...item,
+        key: nextKey.current++,
+        src: resolve(item.symbol),
+        fixed: true,
+      })),
     );
     speak(spokenText(items));
     countUsage('utterances');
@@ -191,10 +246,11 @@ export function Communication({
     <main className="comm-root h-dvh bg-slate-100">
       <h1 className="sr-only">Tablica: {board.name}</h1>
       <SentenceBar
-        items={sentence}
+        items={shown}
         onSpeak={speakSentence}
         onBackspace={() => setSentence((items) => items.slice(0, -1))}
         onClear={() => setSentence([])}
+        onHold={grammar.lexicon ? setPicking : undefined}
       />
       {browse ? (
         <SymbolFolders
@@ -240,12 +296,25 @@ export function Communication({
           me={me}
           onToSentence={(items) => {
             setPhrasing(false);
+            // Typed words keep the forms they were typed in.
             setSentence((current) => [
               ...current,
-              ...items.map((item) => ({ ...item, key: nextKey.current++ })),
+              ...items.map((item) => ({ ...item, key: nextKey.current++, fixed: true })),
             ]);
           }}
           onClose={() => setPhrasing(false)}
+        />
+      )}
+      {held && grammar.lexicon && picking !== null && (
+        <FormPicker
+          label={held.label}
+          role={held.role ?? null}
+          shown={shown[picking]?.label ?? held.label}
+          picked={held.picked !== undefined}
+          lexicon={grammar.lexicon}
+          onPick={pickForm}
+          onSpeak={speak}
+          onClose={() => setPicking(null)}
         />
       )}
       {showHistory && (
@@ -278,33 +347,94 @@ export function Communication({
   );
 }
 
+/** Holding a word of the bar this long offers its forms (FormPicker). */
+const HOLD_FORMS_MS = 550;
+/** A finger moving further than this scrolls the bar instead. */
+const HOLD_SLOP_PX = 12;
+
+/**
+ * Press-and-hold on a word of the bar calls onHold. So does the context menu: a long press on
+ * Android, a right click, the menu key or Shift+F10 — mice and keyboards reach the forms too.
+ * The click ending a hold does not speak the sentence.
+ */
+function useHold(onHold: ((index: number) => void) | undefined) {
+  const timer = useRef<number | undefined>(undefined);
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const fired = useRef(false);
+  const cancel = useCallback(() => {
+    window.clearTimeout(timer.current);
+    origin.current = null;
+  }, []);
+  useEffect(() => cancel, [cancel]);
+  return (index: number) =>
+    onHold
+      ? {
+          onPointerDown: (e: PointerEvent) => {
+            fired.current = false;
+            if (e.button !== 0) return;
+            origin.current = { x: e.clientX, y: e.clientY };
+            window.clearTimeout(timer.current);
+            timer.current = window.setTimeout(() => {
+              fired.current = true;
+              origin.current = null;
+              onHold(index);
+            }, HOLD_FORMS_MS);
+          },
+          onPointerMove: (e: PointerEvent) => {
+            const o = origin.current;
+            if (o && Math.hypot(e.clientX - o.x, e.clientY - o.y) > HOLD_SLOP_PX) cancel();
+          },
+          onPointerUp: cancel,
+          onPointerCancel: cancel,
+          onPointerLeave: cancel,
+          onContextMenu: (e: MouseEvent) => {
+            e.preventDefault();
+            if (fired.current) return;
+            const pressing = origin.current !== null;
+            cancel();
+            if (pressing) fired.current = true;
+            onHold(index);
+          },
+          onClickCapture: (e: MouseEvent) => {
+            if (!fired.current) return;
+            fired.current = false;
+            e.stopPropagation();
+          },
+        }
+      : {};
+}
+
 function SentenceBar({
   items,
   onSpeak,
   onBackspace,
   onClear,
+  onHold,
 }: {
   items: SentenceItem[];
   onSpeak: () => void;
   onBackspace: () => void;
   onClear: () => void;
+  /** Holding a word offers its forms; undefined while there is no grammar lexicon. */
+  onHold: ((index: number) => void) | undefined;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
+  const hint = useId();
+  const hold = useHold(onHold);
   useEffect(() => {
     scroller.current?.scrollTo({ left: scroller.current.scrollWidth, behavior: 'smooth' });
   }, [items.length]);
   const empty = items.length === 0;
   return (
     <div className="flex h-24 shrink-0 items-stretch gap-2 [grid-area:bar] sm:h-28 short:h-14">
+      {/* A tap anywhere speaks the sentence; the words are buttons of their own (held: forms). */}
       <div
         ref={scroller}
-        role="button"
-        tabIndex={0}
+        role="group"
         aria-label={
           empty ? 'Pasek zdania jest pusty' : `Zdanie: ${items.map((i) => i.label).join(' ')}`
         }
         onClick={onSpeak}
-        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSpeak()}
         data-testid="sentence"
         className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto rounded-2xl bg-white px-3 shadow-sm ring-1 ring-slate-200"
       >
@@ -312,8 +442,13 @@ function SentenceBar({
           <Fragment key={item.key}>
             {/* Not drawn between flex items; keeps the words apart in the accessible text. */}
             {i > 0 && ' '}
-            <span
-              className="flex h-full max-h-24 shrink-0 flex-col items-center justify-center py-1 short:py-0.5"
+            <button
+              type="button"
+              {...hold(i)}
+              // Apart from the tile of the same word; the visible text leads (WCAG 2.5.3).
+              aria-label={`${item.label}, w zdaniu`}
+              aria-describedby={onHold ? hint : undefined}
+              className="flex h-full max-h-24 shrink-0 select-none flex-col items-center justify-center rounded-lg py-1 [-webkit-touch-callout:none] focus-visible:outline-2 focus-visible:outline-brand-600 short:py-0.5"
               data-testid="sentence-item"
             >
               {item.src && (
@@ -327,9 +462,14 @@ function SentenceBar({
               <span className="text-base font-bold leading-tight text-slate-800 short:text-sm">
                 {item.label}
               </span>
-            </span>
+            </button>
           </Fragment>
         ))}
+        {onHold && (
+          <span id={hint} className="sr-only">
+            Przytrzymaj słowo, aby wybrać jego formę.
+          </span>
+        )}
       </div>
       <BarButton label="Usuń ostatnie słowo" disabled={empty} onClick={onBackspace}>
         <BackspaceIcon />

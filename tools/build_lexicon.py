@@ -1,6 +1,10 @@
-"""Add the PoliMorf inflection lexicon (forms.<hash>.json) to a built symbol-set directory.
+"""Add the PoliMorf lexicons (forms.<hash>.json, grammar.<hash>.json) to a built symbol set.
 
-uv run build_lexicon.py --set-dir ../workers/arasaac/dist/sym/arasaac
+uv run build_lexicon.py --set-dir ../workers/arasaac/dist/sym/arasaac [--report]
+
+forms: normalized forms for search (PLAN D10); grammar: tagged forms for inflecting sentences
+(PLAN §2.10). --report lists vocabulary lemmas whose spoken forms are still ambiguous, to be
+settled in grammar/variants.toml.
 """
 
 import argparse
@@ -9,7 +13,7 @@ import logging
 import urllib.request
 from pathlib import Path
 
-from aplikaacja_tools import lexicon
+from aplikaacja_tools import grammar, lexicon
 from aplikaacja_tools.arasaac import https_request
 
 
@@ -33,11 +37,19 @@ def main() -> None:
     parser.add_argument("--set-dir", type=Path, required=True, help="directory with manifest.json")
     parser.add_argument("--polimorf", type=Path, help="PoliMorf .tab.gz (downloaded if omitted)")
     parser.add_argument("--cache", type=Path, default=Path(".cache/polimorf"))
+    parser.add_argument(
+        "--report", action="store_true", help="list ambiguous spoken forms of the vocabulary"
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     polimorf = args.polimorf or fetch_polimorf(args.cache)
-    print(json.dumps(lexicon.write_lexicon(args.set_dir, polimorf), ensure_ascii=False))
+    lexicon.write_lexicon(args.set_dir, polimorf)
+    manifest, built = grammar.write_grammar(args.set_dir, polimorf)
+    if args.report:
+        for lemma, tag, forms in built.ambiguous:
+            print(f"{lemma}\t{tag}\t{' '.join(forms)}")
+    print(json.dumps(manifest, ensure_ascii=False))
 
 
 if __name__ == "__main__":

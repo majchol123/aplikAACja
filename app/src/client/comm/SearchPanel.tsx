@@ -2,6 +2,7 @@ import {
   labelSearch,
   type Board,
   type BoardTree,
+  type FitzgeraldRole,
   type Me,
   type Settings,
   type SymbolHit,
@@ -80,7 +81,7 @@ export function SearchPanel({
   includeHidden?: boolean;
   resolve: (symbol: Tile['symbol']) => string | null;
   onShowTile: (tile: Tile, board: Board) => void;
-  onPick: (item: { label: string; src: string; symbol: SymbolRef }) => void;
+  onPick: (item: { label: string; src: string; symbol: SymbolRef; role: FitzgeraldRole }) => void;
   onClose: () => void;
 }) {
   const id = useId();
@@ -190,6 +191,7 @@ export function SearchPanel({
                       label: hit.label,
                       src: hit.src,
                       symbol: { set: hit.set, ref: String(hit.id) },
+                      role: hit.role,
                     })
                   }
                   className="flex w-full flex-col items-center rounded-2xl bg-white p-2 ring-1 ring-slate-200 hover:bg-brand-50"

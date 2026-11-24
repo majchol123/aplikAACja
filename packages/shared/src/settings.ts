@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LABEL_POSITIONS } from './boards.ts';
+import { GRAMMAR_LEVELS, SPEAKER_GENDERS } from './inflect.ts';
 import { VOICE_PRESETS } from './speech.ts';
 
 /**
@@ -56,6 +57,13 @@ export const SettingsSchema = z
      * with these defaults per key, so accounts that never switched it see it too.
      */
     showPhraseGenerator: z.boolean(),
+    /**
+     * Inflecting the sentence bar (F8, PLAN §2.10): off — words as on the tiles; verbs — the
+     * verb agrees with the subject, "ja" by default ("iść" → "idę"). On by default.
+     */
+    grammar: z.enum(GRAMMAR_LEVELS),
+    /** How the user speaks of themselves ("szedłem" / "szłam"); null: masculine forms. */
+    speakerGender: z.enum(SPEAKER_GENDERS).nullable(),
     /** The last utterances are saved on the account (on by default; off clears them). */
     keepHistory: z.boolean(),
     /**
@@ -85,6 +93,8 @@ export const DEFAULT_SETTINGS: Settings = {
   labelPosition: 'top',
   showAllSymbols: true,
   showPhraseGenerator: true,
+  grammar: 'verbs',
+  speakerGender: null,
   keepHistory: true,
   usageStats: true,
   policyNotice: 0,

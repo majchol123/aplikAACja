@@ -42,6 +42,8 @@ export const SetManifestSchema = z.object({
   forms: z.string().regex(hashedJson('forms')).optional(),
   /** Browsing tree (F2 step 6); sets built before it have none. */
   categories: z.string().regex(hashedJson('categories')).optional(),
+  /** Tagged forms for inflecting the sentence (F8, grammar.ts); only the ARASAAC mirror has it. */
+  grammar: z.string().regex(hashedJson('grammar')).optional(),
   count: z.number().int().nonnegative(),
 });
 export type SetManifest = z.infer<typeof SetManifestSchema>;

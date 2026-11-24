@@ -20,7 +20,7 @@ export const LIMITS = { shell: 200, symbols: 4000 } as const;
 export const PAGES: ReadonlySet<string> = new Set(['/', '/prywatnosc', '/o-aplikacji', '/pomoc']);
 
 const ARASAAC_FILE =
-  /^\/sym\/arasaac\/(?:p\/[0-9]{1,10}\.[0-9a-f]{8}\.webp|(?:index|forms|categories)\.[0-9a-f]{8}\.json)$/;
+  /^\/sym\/arasaac\/(?:p\/[0-9]{1,10}\.[0-9a-f]{8}\.webp|(?:index|forms|categories|grammar)\.[0-9a-f]{8}\.json)$/;
 const APP_FILE = /^\/assets\/[A-Za-z0-9._-]+$/;
 
 export function strategyFor(url: URL, origin: string, method: string, mode: string): Strategy {
@@ -31,8 +31,10 @@ export function strategyFor(url: URL, origin: string, method: string, mode: stri
   return 'network';
 }
 
-/** Index, lexicon and category tree of the mirror: only the newest of each is worth keeping. */
+/** Index, lexicons and category tree of the mirror: only the newest of each is worth keeping. */
 export function supersededBy(pathname: string): string | null {
-  const match = /^(\/sym\/arasaac\/(?:index|forms|categories)\.)[0-9a-f]{8}\.json$/.exec(pathname);
+  const match = /^(\/sym\/arasaac\/(?:index|forms|categories|grammar)\.)[0-9a-f]{8}\.json$/.exec(
+    pathname,
+  );
   return match?.[1] ?? null;
 }

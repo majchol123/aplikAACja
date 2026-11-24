@@ -1,4 +1,5 @@
 import { useCreateHome } from './boards/data.ts';
+import { SpeakerChoice } from './settings/GrammarPanel.tsx';
 
 /** First run of an account: no home board yet. */
 export function Onboarding({ onSettings }: { onSettings: () => void }) {
@@ -6,11 +7,19 @@ export function Onboarding({ onSettings }: { onSettings: () => void }) {
   const option =
     'flex flex-col items-start rounded-2xl bg-white p-6 text-left shadow-sm ring-1 ring-brand-100 hover:ring-brand-600 disabled:opacity-60';
   return (
-    <div className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-6 px-6 py-8">
+    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-6 px-6 py-8">
       <h1 className="text-3xl font-extrabold text-brand-900">Przygotujmy pierwszą tablicę</h1>
       <p className="text-lg text-slate-700">
         Tablicę można potem dowolnie zmieniać w trybie edycji: dodawać słowa, foldery i zdjęcia.
       </p>
+      {/* Asked once here, changed later in the settings (F8). */}
+      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-brand-100">
+        <p className="text-slate-700">
+          Aplikacja odmienia słowa w zdaniu, np. „zjadłem” albo „zjadłam”. Można to zmienić w
+          ustawieniach.
+        </p>
+        <SpeakerChoice legend="Jak użytkownik mówi o sobie?" />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <button
           type="button"
@@ -46,6 +55,6 @@ export function Onboarding({ onSettings }: { onSettings: () => void }) {
       >
         Ustawienia i konto
       </button>
-    </div>
+    </main>
   );
 }

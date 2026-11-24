@@ -12,6 +12,7 @@ describe('service worker routing (PLAN D11, §4.1)', () => {
     expect(at('/sym/arasaac/index.963a1920.json', 'cors')).toBe('symbols');
     expect(at('/sym/arasaac/forms.963a1920.json', 'cors')).toBe('symbols');
     expect(at('/sym/arasaac/categories.963a1920.json', 'cors')).toBe('symbols');
+    expect(at('/sym/arasaac/grammar.963a1920.json', 'cors')).toBe('symbols');
     expect(at('/', 'navigate')).toBe('page');
     expect(at('/prywatnosc?x=1', 'navigate')).toBe('page');
     expect(at('/o-aplikacji', 'navigate')).toBe('page');
@@ -52,6 +53,7 @@ describe('service worker routing (PLAN D11, §4.1)', () => {
     expect(supersededBy('/sym/arasaac/index.963a1920.json')).toBe('/sym/arasaac/index.');
     expect(supersededBy('/sym/arasaac/forms.963a1920.json')).toBe('/sym/arasaac/forms.');
     expect(supersededBy('/sym/arasaac/categories.963a1920.json')).toBe('/sym/arasaac/categories.');
+    expect(supersededBy('/sym/arasaac/grammar.963a1920.json')).toBe('/sym/arasaac/grammar.');
     expect(supersededBy('/sym/arasaac/p/2462.0a1b2c3d.webp')).toBeNull();
   });
 });

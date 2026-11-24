@@ -86,6 +86,8 @@ HEADERS_FILE = """\
   Cache-Control: public, max-age=31536000, immutable
 /sym/arasaac/categories.*
   Cache-Control: public, max-age=31536000, immutable
+/sym/arasaac/grammar.*
+  Cache-Control: public, max-age=31536000, immutable
 """
 
 Fetch = Callable[[str], bytes]

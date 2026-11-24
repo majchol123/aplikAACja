@@ -1,4 +1,4 @@
-import type { Board, LibrarySet, Me, SymbolRef, Tile } from '@aplikaacja/shared';
+import type { Board, FitzgeraldRole, LibrarySet, Me, SymbolRef, Tile } from '@aplikaacja/shared';
 import { useMemo, type ReactNode } from 'react';
 import { ALL_SYMBOLS_TILE } from '../boards/allSymbols.ts';
 import { BoardNav } from '../boards/BoardNav.tsx';
@@ -22,6 +22,8 @@ export interface PickedSymbol {
   label: string;
   src: string;
   symbol: SymbolRef;
+  /** The symbol's part of speech (grammar, F8). */
+  role: FitzgeraldRole | null;
 }
 
 const cell = (
@@ -175,7 +177,12 @@ export function SymbolFolders({
     if (kind === 'set') open({ set: key as LibrarySet, folder: null });
     else if (kind === 'cat') open({ folder: Number(key) });
     else if (kind === 'sym' && tile.symbol) {
-      onPick({ label: tile.label, src: level.srcs.get(tile.id) ?? '', symbol: tile.symbol });
+      onPick({
+        label: tile.label,
+        src: level.srcs.get(tile.id) ?? '',
+        symbol: tile.symbol,
+        role: tile.colorRole,
+      });
     }
   }
 

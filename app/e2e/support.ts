@@ -142,6 +142,8 @@ export async function mockArasaac(page: Page, { withStarter = false } = {}) {
     : vectors;
   const forms = readFileSync(resolve(VECTORS, 'sample-forms.json'));
   const categories = readFileSync(resolve(VECTORS, 'sample-categories.json'));
+  // Real PoliMorf forms of the starter template's words (tools/build_grammar_fixture.py).
+  const grammar = readFileSync(resolve(VECTORS, 'grammar.json'));
   const manifest = {
     v: 1,
     set: 'arasaac',
@@ -149,6 +151,7 @@ export async function mockArasaac(page: Page, { withStarter = false } = {}) {
     index: 'index.00000000.json',
     forms: 'forms.00000000.json',
     categories: 'categories.00000000.json',
+    grammar: 'grammar.00000000.json',
     count: index.items.length,
   };
   await page.route('**/sym/arasaac/**', (route) => {
@@ -159,6 +162,8 @@ export async function mockArasaac(page: Page, { withStarter = false } = {}) {
       return route.fulfill({ body: forms, contentType: 'application/json' });
     if (path.endsWith('/categories.00000000.json'))
       return route.fulfill({ body: categories, contentType: 'application/json' });
+    if (path.endsWith('/grammar.00000000.json'))
+      return route.fulfill({ body: grammar, contentType: 'application/json' });
     if (path.endsWith('.webp'))
       return route.fulfill({ body: TINY_WEBP, contentType: 'image/webp' });
     return route.fulfill({ status: 404 });

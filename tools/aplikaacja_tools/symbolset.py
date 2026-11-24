@@ -32,7 +32,7 @@ FLAG_SEX = 2
 FLAG_VIOLENCE = 4
 
 MANIFEST = "manifest.json"
-HASHED_JSON_RE = re.compile(r"^(index|forms|categories)\.[0-9a-f]{8}\.json$")
+HASHED_JSON_RE = re.compile(r"^(index|forms|categories|grammar)\.[0-9a-f]{8}\.json$")
 CATEGORY_ICON_RE = re.compile(r"^g/[0-9]{1,10}\.[0-9a-f]{8}\.webp$")
 # Same pattern as CATEGORY_KEY in packages/shared/src/symbols.ts.
 CATEGORY_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9 _-]{0,99}$")
@@ -202,8 +202,8 @@ def write_manifest(set_dir: Path, manifest: dict[str, object]) -> None:
 
 
 def prune_hashed_json(set_dir: Path, manifest: dict[str, object]) -> None:
-    """Remove superseded index/forms/categories files so only referenced ones get deployed."""
-    keep = {manifest.get("index"), manifest.get("forms"), manifest.get("categories")}
+    """Remove superseded index/forms/categories/grammar files so only referenced ones deploy."""
+    keep = {manifest.get(key) for key in ("index", "forms", "categories", "grammar")}
     for path in set_dir.iterdir():
         if HASHED_JSON_RE.match(path.name) and path.name not in keep:
             path.unlink()
