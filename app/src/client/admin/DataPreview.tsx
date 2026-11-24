@@ -9,6 +9,7 @@ import {
 } from '@aplikaacja/shared';
 import { useCallback, useState } from 'react';
 import { ReadOnlyBoards } from '../boards/ReadOnlyBoards.tsx';
+import { TileLookOf } from '../comm/tileLook.tsx';
 import { countPl } from '../edit/TileEditor.tsx';
 import { PRESET_LABELS } from '../settings/DevicePanel.tsx';
 import { useAdminUserData } from './data.ts';
@@ -58,17 +59,37 @@ export function DataPreview({ me, user }: { me: Me; user: AdminUser }) {
           </button>
         ))}
       </div>
-      {part === 'boards' && <BoardsPreview me={me} userId={user.id} tree={data.data.tree} />}
+      {part === 'boards' && (
+        <BoardsPreview
+          me={me}
+          userId={user.id}
+          tree={data.data.tree}
+          settings={data.data.settings}
+        />
+      )}
       {part === 'photos' && <PhotosPreview userId={user.id} media={data.data.media} />}
       {part === 'settings' && <SettingsPreview settings={data.data.settings} />}
     </div>
   );
 }
 
-function BoardsPreview({ me, userId, tree }: { me: Me; userId: string; tree: BoardTree }) {
+function BoardsPreview({
+  me,
+  userId,
+  tree,
+  settings,
+}: {
+  me: Me;
+  userId: string;
+  tree: BoardTree;
+  /** Its labels look as on that account's devices. */
+  settings: Settings;
+}) {
   const ownUrl = useCallback((id: string) => adminMediaUrl(userId, id), [userId]);
   return (
-    <ReadOnlyBoards me={me} tree={tree} ownUrl={ownUrl} empty="To konto nie ma jeszcze tablic." />
+    <TileLookOf settings={settings}>
+      <ReadOnlyBoards me={me} tree={tree} ownUrl={ownUrl} empty="To konto nie ma jeszcze tablic." />
+    </TileLookOf>
   );
 }
 
@@ -131,6 +152,7 @@ function SettingsPreview({ settings }: { settings: Settings }) {
       `${PRESET_LABELS[settings.speech.preset]}, tempo ${factor(settings.speech.rate)}, wysokość ${factor(settings.speech.pitch)}`,
     ],
     ['Wielkie litery na kafelkach', settings.uppercaseLabels ? 'tak' : 'nie'],
+    ['Etykiety na kafelkach', settings.labelPosition === 'top' ? 'nad obrazkiem' : 'pod obrazkiem'],
     ['Folder „Wszystkie symbole” na pulpicie', settings.showAllSymbols ? 'tak' : 'nie'],
     ['Przycisk „Generator fraz”', settings.showPhraseGenerator ? 'tak' : 'nie'],
     // Whether, not what: the history itself is not part of this view.

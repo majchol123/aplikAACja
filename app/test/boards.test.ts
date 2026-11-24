@@ -595,8 +595,30 @@ describe('board tree', () => {
       symbol: null,
       colorRole: null,
       fontSize: 'L',
+      // Never given one: the label goes where the account's setting puts it.
+      labelPosition: null,
+    });
+    // A place of its own, kept by other changes, and back to the setting.
+    const below = await api<BoardChanges>('PATCH', `/api/tiles/${tile.tile.id}`, {
+      rev: changed(res, start.id).rev,
       labelPosition: 'bottom',
     });
+    expect(changed(below, start.id).tiles[0]?.labelPosition).toBe('bottom');
+    const renamed = await api<BoardChanges>('PATCH', `/api/tiles/${tile.tile.id}`, {
+      rev: changed(below, start.id).rev,
+      label: 'chcę!',
+    });
+    expect(changed(renamed, start.id).tiles[0]?.labelPosition).toBe('bottom');
+    const following = await api<BoardChanges>('PATCH', `/api/tiles/${tile.tile.id}`, {
+      rev: changed(renamed, start.id).rev,
+      labelPosition: null,
+    });
+    expect(changed(following, start.id).tiles[0]?.labelPosition).toBeNull();
+    const wrong = await api('PATCH', `/api/tiles/${tile.tile.id}`, {
+      rev: changed(following, start.id).rev,
+      labelPosition: 'middle',
+    });
+    expect(wrong.status).toBe(400);
   });
 
   it('hides a tile in its cell and shows it again; packages keep it hidden', async () => {

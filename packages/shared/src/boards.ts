@@ -123,7 +123,8 @@ export type GridSize = z.infer<typeof GridSizeSchema>;
 export const GridCellSchema = z.object({ row: rowSchema, col: colSchema }).strict();
 
 const tileStyle = {
-  labelPosition: z.enum(LABEL_POSITIONS),
+  /** null: where the account's setting puts labels (Settings.labelPosition). */
+  labelPosition: z.enum(LABEL_POSITIONS).nullable(),
   fontSize: z.enum(FONT_SIZES),
   colorRole: FitzgeraldRoleSchema.nullable(),
   colorMode: z.enum(COLOR_MODES),
@@ -288,7 +289,8 @@ export interface Tile {
   /** Board opened by a folder tile; null for words. */
   targetBoardId: string | null;
   label: string;
-  labelPosition: LabelPosition;
+  /** The tile's own place for its label; null: the account's (Settings.labelPosition). */
+  labelPosition: LabelPosition | null;
   fontSize: FontSize;
   /** Fitzgerald Key colour; null = neutral. */
   colorRole: FitzgeraldRole | null;
@@ -348,7 +350,7 @@ export function packageTree(pkg: BoardPackage): BoardTree {
       kind: t.kind ?? 'word',
       targetBoardId: t.board ? add(t.board, t.label, id) : null,
       label: t.label,
-      labelPosition: t.labelPosition ?? 'bottom',
+      labelPosition: t.labelPosition ?? null,
       fontSize: t.fontSize ?? 'M',
       colorRole: t.colorRole ?? null,
       colorMode: t.colorMode ?? 'border',

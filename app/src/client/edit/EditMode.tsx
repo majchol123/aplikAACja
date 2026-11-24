@@ -119,7 +119,6 @@ export function EditMode({
   );
   const resolve = useSymbolResolver(me, allTiles);
   const account = useAccountSettings();
-  const uppercase = account.data?.uppercaseLabels ?? false;
   const writes = useBoardWrites();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [boardDialog, setBoardDialog] = useState(false);
@@ -261,7 +260,6 @@ export function EditMode({
       <EditGrid
         board={board}
         resolve={resolve}
-        uppercase={uppercase}
         showAll={account.data?.showAllSymbols ?? true}
         found={found}
         onAboutAll={() => {
@@ -291,7 +289,6 @@ export function EditMode({
           cell={{ row: editing.row, col: editing.col }}
           tile={editedTile}
           resolve={resolve}
-          uppercase={uppercase}
           write={writes.write}
           problem={writes.problem}
           onClose={() => setEditing(null)}
@@ -354,7 +351,6 @@ export function EditMode({
 function EditGrid({
   board,
   resolve,
-  uppercase,
   showAll,
   found,
   onAboutAll,
@@ -365,7 +361,6 @@ function EditGrid({
 }: {
   board: Board;
   resolve: (symbol: Tile['symbol']) => string | null;
-  uppercase: boolean;
   /** "Wszystkie symbole" is shown in communication mode (account setting). */
   showAll: boolean;
   /** Tile found with the search, shown with a ring. */
@@ -431,7 +426,6 @@ function EditGrid({
                     <TileView
                       tile={ALL_SYMBOLS_TILE}
                       src={resolve(ALL_SYMBOLS_TILE.symbol)}
-                      uppercase={uppercase}
                       ariaLabel={`${ALL_SYMBOLS_TILE.label}: stałe pole pulpitu${showAll ? '' : ' (ukryty)'}`}
                       onClick={onAboutAll}
                     />
@@ -451,7 +445,6 @@ function EditGrid({
                     key={tile.id}
                     tile={tile}
                     src={resolve(tile.symbol)}
-                    uppercase={uppercase}
                     found={found === tile.id}
                     onEdit={() => !dragging.current && onEdit(tile)}
                     onOpen={onOpen}
@@ -502,14 +495,12 @@ function EditCell({
 function EditTile({
   tile,
   src,
-  uppercase,
   found,
   onEdit,
   onOpen,
 }: {
   tile: Tile;
   src: string | null;
-  uppercase: boolean;
   found: boolean;
   onEdit: () => void;
   onOpen: (boardId: string) => void;
@@ -524,7 +515,6 @@ function EditTile({
         ref={ref}
         tile={tile}
         src={src}
-        uppercase={uppercase}
         found={found}
         ariaLabel={`Zmień kafelek: ${tile.label}${target ? ' (folder)' : ''}${tile.hidden ? ' (ukryty)' : ''}`}
         onClick={onEdit}

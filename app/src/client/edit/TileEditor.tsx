@@ -20,6 +20,7 @@ import { useId, useMemo, useRef, useState, type ChangeEvent, type ReactNode } fr
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { useSetPreferred } from '../boards/preferred.ts';
 import type { BoardWrite } from '../boards/writes.ts';
+import { useTileLook } from '../comm/tileLook.tsx';
 import { TileView } from '../comm/TileView.tsx';
 import { photoProblem, useUploadPhoto } from '../media/data.ts';
 import { PhotoCropper } from '../media/PhotoCropper.tsx';
@@ -48,7 +49,8 @@ const MODE_NAMES: Record<ColorMode, string> = { border: 'Ramka', background: 'T�
 interface Draft {
   label: string;
   kind: TileKind;
-  labelPosition: LabelPosition;
+  /** null: where the account's setting puts labels. */
+  labelPosition: LabelPosition | null;
   fontSize: FontSize;
   colorRole: FitzgeraldRole | null;
   colorMode: ColorMode;
@@ -145,7 +147,6 @@ export function TileEditor({
   cell,
   tile,
   resolve,
-  uppercase,
   write,
   problem,
   onClose,
@@ -158,18 +159,18 @@ export function TileEditor({
   cell: { row: number; col: number };
   tile: Tile | undefined;
   resolve: (symbol: Tile['symbol']) => string | null;
-  uppercase: boolean;
   write: (change: BoardWrite) => Promise<BoardChanges | null>;
   problem: string | null;
   onClose: () => void;
   onOpenFolder: (boardId: string) => void;
 }) {
   const id = useId();
+  const look = useTileLook();
   const setPreferred = useSetPreferred();
   const [draft, setDraft] = useState<Draft>(() => ({
     label: tile?.label ?? '',
     kind: tile?.kind ?? 'word',
-    labelPosition: tile?.labelPosition ?? 'bottom',
+    labelPosition: tile?.labelPosition ?? null,
     fontSize: tile?.fontSize ?? 'M',
     colorRole: tile?.colorRole ?? null,
     colorMode: tile?.colorMode ?? 'border',
@@ -427,7 +428,7 @@ export function TileEditor({
         <div className="space-y-5">
           <div className="flex items-end gap-4">
             <div className="tile-cell size-32 shrink-0" aria-hidden="true">
-              <TileView tile={preview} src={resolve(draft.symbol)} uppercase={uppercase} />
+              <TileView tile={preview} src={resolve(draft.symbol)} />
             </div>
             <label className={`${ui.field} flex-1`}>
               Etykieta
@@ -546,14 +547,24 @@ export function TileEditor({
         </div>
         <div className="space-y-5">
           <h3 className="text-base font-bold text-slate-800">Wygląd</h3>
-          <Choices
-            legend="Położenie etykiety"
-            name={`${id}-position`}
-            options={LABEL_POSITIONS}
-            value={draft.labelPosition}
-            onChange={(labelPosition) => change({ labelPosition })}
-            render={(p) => POSITION_NAMES[p]}
-          />
+          <div>
+            <Choices
+              legend="Położenie etykiety"
+              name={`${id}-position`}
+              options={LABEL_POSITIONS}
+              value={draft.labelPosition ?? look.labelPosition}
+              // The account's place is no place of the tile's own: the tile keeps following
+              // the setting when it changes.
+              onChange={(p) => change({ labelPosition: p === look.labelPosition ? null : p })}
+              render={(p) => POSITION_NAMES[p]}
+            />
+            {draft.labelPosition && draft.labelPosition !== look.labelPosition && (
+              <p className="mt-1 text-sm text-slate-600">
+                Inaczej niż na pozostałych kafelkach: ustawienie dla wszystkich jest w Ustawieniach
+                („Etykiety na kafelkach”).
+              </p>
+            )}
+          </div>
           <Choices
             legend="Rozmiar napisu"
             name={`${id}-size`}

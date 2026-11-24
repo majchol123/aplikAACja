@@ -79,11 +79,11 @@ describe('UserVault', () => {
         food,
       );
       sql.exec(
-        `INSERT INTO tiles (id, board_id, row, col, kind, target_board_id, label, color_role,
-                            symbol_set, symbol_ref, hidden, speech, created_at, updated_at)
-         VALUES ('${'a'.repeat(26)}', ?1, 0, 1, 'folder', ?2, 'Jedzenie', 'noun', NULL, NULL, 0, NULL, 1, 2),
-                ('${'b'.repeat(26)}', ?1, 1, 0, 'word', NULL, 'pić', 'verb', 'arasaac', '6061', 1, 'Chcę pić', 1, 2),
-                ('${'c'.repeat(26)}', ?2, 11, 11, 'word', NULL, 'jabłko', NULL, NULL, NULL, 0, NULL, 1, 2)`,
+        `INSERT INTO tiles (id, board_id, row, col, kind, target_board_id, label, label_position,
+                            color_role, symbol_set, symbol_ref, hidden, speech, created_at, updated_at)
+         VALUES ('${'a'.repeat(26)}', ?1, 0, 1, 'folder', ?2, 'Jedzenie', 'top', 'noun', NULL, NULL, 0, NULL, 1, 2),
+                ('${'b'.repeat(26)}', ?1, 1, 0, 'word', NULL, 'pić', 'bottom', 'verb', 'arasaac', '6061', 1, 'Chcę pić', 1, 2),
+                ('${'c'.repeat(26)}', ?2, 11, 11, 'word', NULL, 'jabłko', 'bottom', NULL, NULL, NULL, 0, NULL, 1, 2)`,
         home,
         food,
       );
@@ -94,7 +94,12 @@ describe('UserVault', () => {
       });
 
       expect(migrateVault(state.storage)).toBe(VAULT_MIGRATIONS.length);
-      expect(sql.exec('SELECT * FROM tiles ORDER BY id').toArray()).toEqual(before);
+      // v12 rewrites the table again: only 'top' stays the tile's own, 'bottom' was the default.
+      const kept = before.map((t) => ({
+        ...t,
+        label_position: t.label_position === 'top' ? 'top' : null,
+      }));
+      expect(sql.exec('SELECT * FROM tiles ORDER BY id').toArray()).toEqual(kept);
       expect(sql.exec('SELECT id, rows, cols, rev FROM boards ORDER BY id').toArray()).toEqual([
         { id: food, rows: 12, cols: 12, rev: 3 },
         { id: home, rows: 4, cols: 6, rev: 7 },
@@ -173,8 +178,9 @@ describe('UserVault', () => {
     };
     const after = (stub: DurableObjectStub<UserVault>) =>
       runInDurableObject(stub, (_i: UserVault, state) => {
-        migrateVault(state.storage);
         const sql = state.storage.sql;
+        // v10 alone: v12 changes the tree version of these tiles too.
+        applyMigration(sql, VAULT_MIGRATIONS[9]!);
         return {
           tiles: sql
             .exec<{ label: string; row: number; col: number }>(
@@ -244,7 +250,8 @@ describe('UserVault', () => {
           'h'.repeat(26),
           'f'.repeat(26),
         );
-        migrateVault(state.storage);
+        // v11 alone: v12 changes the tree version of this tile too.
+        applyMigration(sql, VAULT_MIGRATIONS[10]!);
         return {
           boards: sql.exec('SELECT name, rev FROM boards ORDER BY id').toArray(),
           version: sql.exec<{ version: number }>('SELECT version FROM vault_meta').one().version,
@@ -264,6 +271,69 @@ describe('UserVault', () => {
       boards: [{}, { name: 'Pulpit', rev: 5 }],
       version: 0,
     });
+  });
+
+  it("lets tiles follow the account's label setting unless they have their own (v12)", async () => {
+    const v11 = (name: string, places: string[]) =>
+      runInDurableObject(vaultFor(env, name), async (_i: UserVault, state) => {
+        await state.storage.deleteAll();
+        const sql = state.storage.sql;
+        sql.exec(
+          'CREATE TABLE _schema (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)',
+        );
+        for (const migration of VAULT_MIGRATIONS.slice(0, 11)) applyMigration(sql, migration);
+        sql.exec('INSERT INTO _schema (id, version) VALUES (1, 11)');
+        const home = 'h'.repeat(26);
+        sql.exec(
+          `INSERT INTO boards (id, name, parent_board_id, rows, cols, rev, created_at, updated_at)
+           VALUES (?, 'Pulpit', NULL, 4, 6, 5, 1, 2)`,
+          home,
+        );
+        places.forEach((place, i) =>
+          sql.exec(
+            `INSERT INTO tiles (id, board_id, row, col, kind, label, label_position, created_at,
+                                updated_at)
+             VALUES (?, ?, 1, ?, 'word', ?, ?, 1, 2)`,
+            place.padEnd(26, 'a'),
+            home,
+            i,
+            place,
+            place,
+          ),
+        );
+        expect(migrateVault(state.storage)).toBe(VAULT_MIGRATIONS.length);
+        const tiles = sql
+          .exec<{ label: string; label_position: string | null }>(
+            'SELECT label, label_position FROM tiles ORDER BY col',
+          )
+          .toArray();
+        // Still only these two places; a tile written without one follows the setting.
+        expect(() => sql.exec("UPDATE tiles SET label_position = 'middle'")).toThrow(/CHECK/);
+        sql.exec(
+          `INSERT INTO tiles (id, board_id, row, col, kind, label, created_at, updated_at)
+           VALUES (?, ?, 3, 5, 'word', 'nowy', 1, 2)`,
+          'n'.repeat(26),
+          home,
+        );
+        expect(
+          sql.exec("SELECT label_position AS p FROM tiles WHERE label = 'nowy'").one().p,
+        ).toBeNull();
+        return {
+          tiles: tiles.map((t) => [t.label, t.label_position]),
+          version: sql.exec<{ version: number }>('SELECT version FROM vault_meta').one().version,
+          problems: new BoardStore(state.storage).integrity(),
+        };
+      });
+    expect(await v11('vault-v11-places', ['bottom', 'top'])).toEqual({
+      tiles: [
+        ['bottom', null],
+        ['top', 'top'],
+      ],
+      version: 1,
+      problems: [],
+    });
+    // Nothing follows the setting: the boards look the same, the devices keep them.
+    expect(await v11('vault-v11-top', ['top'])).toMatchObject({ version: 0 });
   });
 
   it('keeps working on a newer schema after a code rollback', async () => {

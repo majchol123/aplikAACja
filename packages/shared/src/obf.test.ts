@@ -48,7 +48,6 @@ const pkg: BoardPackage = BoardPackageSchema.parse({
         col: 0,
         kind: 'word',
         label: 'zupa',
-        labelPosition: 'bottom',
         fontSize: 'M',
         colorRole: null,
         colorMode: 'border',
@@ -146,6 +145,9 @@ describe('Open Board Format', () => {
         [null, '0-2', null],
       ],
     });
+    // A label where the account puts them has no place of its own in the file.
+    expect(root.buttons[0]).not.toHaveProperty('ext_aplikaacja_label_position');
+    expect(root.buttons[1]).toMatchObject({ ext_aplikaacja_label_position: 'bottom' });
     expect(root.buttons[2]).toMatchObject({
       label: 'Owoce',
       load_board: { id: '1', path: 'boards/1.obf' },

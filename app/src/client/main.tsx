@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import { loadSession } from './api.ts';
+import { AccountTileLook } from './comm/tileLook.tsx';
 import './styles.css';
 
 const LOGIN_ERRORS: Record<string, string> = {
@@ -57,7 +58,9 @@ async function boot(): Promise<void> {
   createRoot(container).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <App me={session.me} />
+        <AccountTileLook>
+          <App me={session.me} />
+        </AccountTileLook>
       </QueryClientProvider>
     </StrictMode>,
   );

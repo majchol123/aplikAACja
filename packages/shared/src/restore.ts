@@ -47,7 +47,7 @@ export function restoreTree(dump: VaultDump): { tree: BoardTree; photos: DumpedP
       kind: t.kind as Tile['kind'],
       targetBoardId: text(t.target_board_id),
       label: String(t.label),
-      labelPosition: t.label_position as Tile['labelPosition'],
+      labelPosition: text(t.label_position) as Tile['labelPosition'],
       fontSize: t.font_size as Tile['fontSize'],
       colorRole: text(t.color_role) as Tile['colorRole'],
       colorMode: t.color_mode as Tile['colorMode'],

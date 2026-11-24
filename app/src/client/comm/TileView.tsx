@@ -2,6 +2,7 @@ import type { Tile } from '@aplikaacja/shared';
 import { useMemo, type CSSProperties, type Ref } from 'react';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { FolderIcon } from './icons.tsx';
+import { useTileLook } from './tileLook.tsx';
 
 const LABEL_SIZE: Record<Tile['fontSize'], string> = {
   S: 'tile-label-s',
@@ -34,12 +35,12 @@ function widestWord(label: string, uppercase: boolean): number {
 
 /**
  * One tile. Sizes are relative to its grid cell (container query units, styles.css), so
- * labels and borders scale with the grid. Activation is handled by the grid (TapFilter).
+ * labels and borders scale with the grid. Activation is handled by the grid (TapFilter); the
+ * account's look (upper case, where labels go) comes from tileLook.tsx.
  */
 export function TileView({
   tile,
   src,
-  uppercase = false,
   flash = false,
   found = false,
   holdMs = 0,
@@ -49,7 +50,6 @@ export function TileView({
 }: {
   tile: Tile;
   src: string | null;
-  uppercase?: boolean;
   /** Just activated: brief highlight (PLAN §2.5 feedback). */
   flash?: boolean;
   /** Found with the search: a pulsing ring (F3). */
@@ -67,6 +67,8 @@ export function TileView({
       ? `tile-filled ${colors.background} ${colors.border}`
       : `tile-outline bg-white ${colors.border}`;
   const folder = tile.kind === 'folder';
+  const { uppercase, labelPosition } = useTileLook();
+  const above = (tile.labelPosition ?? labelPosition) === 'top';
   const word = useMemo(() => widestWord(tile.label, uppercase), [tile.label, uppercase]);
   const fit = { '--word': word.toFixed(3) };
   const label = (
@@ -82,11 +84,12 @@ export function TileView({
       ref={ref}
       type="button"
       data-tile={tile.id}
+      data-label={above ? 'top' : 'bottom'}
       aria-label={ariaLabel ?? (folder ? `${tile.label}, folder` : tile.label)}
       onClick={onClick}
       className={`tile ${style} ${folder ? 'tile-folder' : ''} ${flash ? 'tile-flash' : ''} ${found ? 'tile-found' : ''}`}
     >
-      {tile.labelPosition === 'top' && label}
+      {above && label}
       {src && (
         <img
           src={src}
@@ -97,7 +100,7 @@ export function TileView({
           className="tile-img"
         />
       )}
-      {tile.labelPosition === 'bottom' && label}
+      {!above && label}
       {holdMs > 0 && (
         <svg className="hold-ring" viewBox="0 0 100 100" aria-hidden="true">
           <circle

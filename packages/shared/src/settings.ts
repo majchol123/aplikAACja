@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LABEL_POSITIONS } from './boards.ts';
 import { VOICE_PRESETS } from './speech.ts';
 
 /**
@@ -41,6 +42,11 @@ export const SettingsSchema = z
       .strict(),
     uppercaseLabels: z.boolean(),
     /**
+     * Labels above or below the pictures, for every tile without a place of its own
+     * (Tile.labelPosition null).
+     */
+    labelPosition: z.enum(LABEL_POSITIONS),
+    /**
      * The folder "Wszystkie symbole" in the first cell of the home board: the category
      * folders of the active sets (F3). On by default; off leaves that cell empty.
      */
@@ -76,6 +82,7 @@ export const DEFAULT_SETTINGS: Settings = {
   contentFilter: { hideSexual: true, hideViolence: false },
   speech: { preset: 'woman', rate: 1, pitch: 1 },
   uppercaseLabels: false,
+  labelPosition: 'top',
   showAllSymbols: true,
   showPhraseGenerator: true,
   keepHistory: true,

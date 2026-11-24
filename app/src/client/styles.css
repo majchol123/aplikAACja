@@ -384,6 +384,23 @@ html[data-state='anon'] .landing-reveal {
     padding-right: var(--reserve);
   }
 }
+/*
+ * Label above the picture: the corner marks (folder, "ukryty", the open button of edit mode)
+ * go to the bottom corners, over the picture as they were over its top, so they never cover
+ * the label. Wide cells have the label beside the picture: the marks keep their places.
+ */
+@container not (min-aspect-ratio: 19 / 10) {
+  .tile[data-label='top'] .tile-badge,
+  .tile[data-label='top'] ~ .tile-hidden-badge,
+  .tile[data-label='top'] ~ .edit-open {
+    top: auto;
+    bottom: 3cqmin;
+  }
+  .tile-folder[data-label='top'] {
+    border-top-right-radius: 9cqmin;
+    border-bottom-right-radius: 2cqmin;
+  }
+}
 
 /* Hidden tile in edit mode and previews: dimmed and marked; communication mode leaves its cell empty. */
 /* The picture fades, the label keeps its contrast (WCAG AA). */

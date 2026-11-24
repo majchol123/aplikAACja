@@ -114,9 +114,13 @@ test('edit mode needs a 2-second hold; settings keep device and account values',
   await page.getByLabel('Rodzaj głosu').selectOption('man');
   await page.getByRole('button', { name: 'Test głosu' }).click();
   expect((await spoken(page)).at(-1)).toMatchObject({ voice: 'Krzysztof' });
-  // Account-wide: stay in the folder after a word; capital letters.
+  // Account-wide: stay in the folder after a word; capital letters below the pictures.
   await page.getByRole('checkbox', { name: /wracaj na pulpit/ }).uncheck();
   await page.getByRole('checkbox', { name: 'Etykiety wielkimi literami' }).check();
+  const place = page.getByLabel('Etykiety na kafelkach');
+  await expect(place).toHaveValue('top');
+  await place.selectOption('bottom');
+  await expect(place).toBeEnabled();
   await page.getByRole('button', { name: 'Wróć do edycji' }).click();
   await page.getByRole('button', { name: 'Gotowe' }).click();
 
@@ -126,6 +130,7 @@ test('edit mode needs a 2-second hold; settings keep device and account values',
   await tile(page, 'chleb').click();
   await expect(current(page)).toHaveText('Śniadanie');
   await expect(tile(page, 'chleb').locator('.tile-label')).toHaveCSS('text-transform', 'uppercase');
+  await expect(tile(page, 'chleb').locator('img + .tile-label')).toHaveCount(1);
   expect((await spoken(page)).at(-1)).toMatchObject({ text: 'chleb', voice: 'Krzysztof' });
   await page.getByRole('button', { name: 'Wstecz' }).click();
   await expect(current(page)).toHaveText('Jedzenie');
@@ -135,6 +140,7 @@ test('edit mode needs a 2-second hold; settings keep device and account values',
   await tile(page, 'Uczucia, folder').click();
   await tile(page, 'wesoły').click();
   await expect(current(page)).toHaveText('Uczucia');
+  await expect(tile(page, 'wesoły').locator('img + .tile-label')).toHaveCount(1);
   expect((await spoken(page)).at(-1)).toMatchObject({ text: 'wesoły', voice: 'Krzysztof' });
   await page.getByRole('button', { name: 'Pulpit' }).click();
   await expect(current(page)).toHaveText('Pulpit');

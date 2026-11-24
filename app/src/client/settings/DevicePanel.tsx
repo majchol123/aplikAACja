@@ -3,6 +3,7 @@ import {
   MIN_HOLD_STEPS,
   polishVoices,
   VOICE_PRESETS,
+  type LabelPosition,
   type MotorSettings,
   type Settings,
   type SettingsPatch,
@@ -100,6 +101,38 @@ function AccountToggle({
       />
       {children}
     </label>
+  );
+}
+
+/** Where labels go on every tile that has no place of its own (set in the tile editor). */
+function LabelPlace() {
+  const id = useId();
+  const account = useAccountSettings();
+  const update = useUpdateAccountSettings();
+  const [pending, setPending] = useState<LabelPosition | null>(null);
+  return (
+    <div className="mt-4">
+      <label className={`${field} sm:max-w-sm`}>
+        Etykiety na kafelkach
+        <select
+          className={select}
+          disabled={!account.data || update.isPending}
+          value={pending ?? (account.data ?? DEFAULT_SETTINGS).labelPosition}
+          aria-describedby={`${id}-hint`}
+          onChange={(e) => {
+            const labelPosition = e.target.value as LabelPosition;
+            setPending(labelPosition);
+            update.mutate({ labelPosition }, { onSettled: () => setPending(null) });
+          }}
+        >
+          <option value="top">nad obrazkiem</option>
+          <option value="bottom">pod obrazkiem</option>
+        </select>
+      </label>
+      <p id={`${id}-hint`} className="mt-1 text-sm text-slate-600">
+        Kafelek, któremu w trybie edycji wybrano inne położenie, zostaje przy swoim.
+      </p>
+    </div>
   );
 }
 
@@ -336,6 +369,7 @@ export function DevicePanel() {
         <AccountToggle pick={(s) => s.uppercaseLabels} patch={(v) => ({ uppercaseLabels: v })}>
           Etykiety wielkimi literami
         </AccountToggle>
+        <LabelPlace />
         <AccountToggle pick={(s) => s.showAllSymbols} patch={(v) => ({ showAllSymbols: v })}>
           Folder „Wszystkie symbole” w pierwszym polu pulpitu: kategorie zestawów symboli, także dla
           osób, które nie czytają (wyłączony zostawia to pole puste)

@@ -38,7 +38,7 @@ const cell = (
   kind,
   targetBoardId: null,
   label,
-  labelPosition: 'bottom',
+  labelPosition: null,
   fontSize: 'M',
   colorRole: null,
   colorMode: 'border',
@@ -60,7 +60,6 @@ export function SymbolFolders({
   home,
   boards,
   cols,
-  uppercase,
   resolve,
   tools,
   onBrowse,
@@ -73,7 +72,6 @@ export function SymbolFolders({
   boards: Map<string, Board>;
   /** Columns of the drawn grid (those of the home board). */
   cols: number;
-  uppercase: boolean;
   /** Pictures of library symbols by reference (the board resolver). */
   resolve: (symbol: Tile['symbol']) => string | null;
   /** Buttons at the right end of the navigation (search, history…). */
@@ -220,7 +218,6 @@ export function SymbolFolders({
         <BoardGrid
           board={level.board}
           srcOf={(tile) => level.srcs.get(tile.id) ?? resolve(tile.symbol)}
-          uppercase={uppercase}
           found={null}
           onActivate={activate}
         />

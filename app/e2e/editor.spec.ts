@@ -135,10 +135,14 @@ test('tiles are dragged, restyled, and the chosen variant of a word is remembere
   );
   await expect(grid.locator('.tile-cell').nth(23)).toContainText('tak');
 
+  // Labels above the pictures (the account's setting) until a tile has a place of its own.
+  await expect(editTile(page, 'nie').locator('.tile-label + img')).toHaveCount(1);
   await editTile(page, 'nie').click();
   const form = dialog(page);
   await form.getByText('XL', { exact: true }).click();
-  await form.getByText('Nad obrazkiem').click();
+  await expect(form.getByRole('radio', { name: 'Nad obrazkiem' })).toBeChecked();
+  await form.getByText('Pod obrazkiem').click();
+  await expect(form).toContainText('Inaczej niż na pozostałych kafelkach');
   await form.getByText('Tło', { exact: true }).click();
   await form.getByText('Przeczenia').click();
   await form.getByRole('button', { name: 'Zapisz' }).click();
@@ -147,7 +151,7 @@ test('tiles are dragged, restyled, and the chosen variant of a word is remembere
   await expect(nie).toHaveClass(/tile-filled/);
   await expect(nie).toHaveClass(/bg-red-200/);
   await expect(nie.locator('.tile-label')).toHaveClass(/tile-label-xl/);
-  await expect(nie.locator(':first-child')).toHaveClass(/tile-label/);
+  await expect(nie.locator('img + .tile-label')).toHaveCount(1);
 
   // Two symbols match "nos": pick the second one, it comes first (starred) next time.
   await addTile(page, 'wiersz 2, kolumna 5', 'nos', { variant: 1 });

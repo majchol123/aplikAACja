@@ -53,7 +53,8 @@ export function subtreePackage(
             col: tile.col,
             kind: target && !seen.has(target.id) ? tile.kind : 'word',
             label: tile.label,
-            labelPosition: tile.labelPosition,
+            // Absent: where the receiving account puts labels.
+            ...(tile.labelPosition ? { labelPosition: tile.labelPosition } : {}),
             fontSize: tile.fontSize,
             colorRole: tile.colorRole,
             colorMode: tile.colorMode,
@@ -236,7 +237,8 @@ export function packageToObz(
         label: tile.label,
         border_color: css(role ? role.border : NEUTRAL_BORDER),
         background_color: css(role && filled ? role.background : WHITE),
-        ext_aplikaacja_label_position: tile.labelPosition ?? 'bottom',
+        // Absent: the label goes where the importing account puts labels.
+        ...(tile.labelPosition ? { ext_aplikaacja_label_position: tile.labelPosition } : {}),
         ext_aplikaacja_font_size: tile.fontSize ?? 'M',
         ext_aplikaacja_color_role: tile.colorRole ?? null,
         ext_aplikaacja_color_mode: tile.colorMode ?? 'border',
@@ -387,7 +389,7 @@ const SymbolExtSchema = z.discriminatedUnion('set', [
 
 const FolderExtSchema = z
   .object({
-    labelPosition: z.enum(['top', 'bottom']),
+    labelPosition: z.enum(['top', 'bottom']).nullable(),
     fontSize: z.enum(['S', 'M', 'L', 'XL']),
     colorRole: ButtonSchema.shape.ext_aplikaacja_color_role.unwrap(),
     colorMode: z.enum(['background', 'border']),

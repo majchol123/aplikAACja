@@ -171,7 +171,6 @@ export function Communication({
     history.record(items);
   }
 
-  const uppercase = account.data?.uppercaseLabels ?? false;
   const tools = (
     <>
       <ToolButton label="Szukaj" onClick={() => setSearching(true)}>
@@ -204,7 +203,6 @@ export function Communication({
           home={home}
           boards={boards}
           cols={home.cols}
-          uppercase={uppercase}
           resolve={resolve}
           tools={tools}
           onBrowse={(next) => (next ? setBrowse(next) : open(homeId))}
@@ -231,7 +229,6 @@ export function Communication({
           <BoardGrid
             board={withAllSymbols(board, !showAll)}
             srcOf={(tile) => resolve(tile.symbol)}
-            uppercase={uppercase}
             found={found}
             onActivate={activate}
           />

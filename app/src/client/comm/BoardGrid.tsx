@@ -12,14 +12,12 @@ const FLASH_MS = 150;
 export function BoardGrid({
   board,
   srcOf,
-  uppercase,
   found,
   onActivate,
 }: {
   board: Board;
   /** The tile's picture. */
   srcOf: (tile: Tile) => string | null;
-  uppercase: boolean;
   /** Tile found with the search, shown with a ring. */
   found: string | null;
   onActivate: (tile: Tile) => void;
@@ -121,7 +119,6 @@ export function BoardGrid({
               <TileView
                 tile={tile}
                 src={srcOf(tile)}
-                uppercase={uppercase}
                 flash={flash === tile.id}
                 found={found === tile.id}
                 holdMs={held === tile.id ? holdMs : 0}

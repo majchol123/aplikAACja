@@ -76,6 +76,26 @@ function nameHome(sql: SqlStorage): void {
 }
 
 /**
+ * v12 — a tile's label goes where the account's setting puts labels (Settings.labelPosition)
+ * unless the tile has a place of its own: label_position NULL is the setting. SQLite cannot
+ * drop NOT NULL, so the column is replaced (no index, trigger or other CHECK names it). Until
+ * now every tile stored a place and 'bottom' was the default, so only 'top' stays the tile's
+ * own. The tree version changes, so devices load the boards again.
+ */
+function labelsFollowSettings(sql: SqlStorage): void {
+  sql.exec(
+    `ALTER TABLE tiles ADD COLUMN label_place TEXT CHECK (label_place IN ('top', 'bottom'));
+     UPDATE tiles SET label_place = 'top' WHERE label_position = 'top';
+     ALTER TABLE tiles DROP COLUMN label_position;
+     ALTER TABLE tiles RENAME COLUMN label_place TO label_position;`,
+  );
+  const following = sql
+    .exec<{ n: number }>('SELECT COUNT(*) AS n FROM tiles WHERE label_position IS NULL')
+    .one().n;
+  if (following > 0) sql.exec('UPDATE vault_meta SET version = version + 1 WHERE id = 1');
+}
+
+/**
  * Forward-only schema migrations of the per-user SQLite database. Applied lazily on the
  * first access of each Durable Object (inside blockConcurrencyWhile), so every migration
  * must stay backward compatible with the currently deployed code.
@@ -363,6 +383,8 @@ export const VAULT_MIGRATIONS: readonly Migration[] = [
   freeReservedCell,
   // v11 — the home board is always "Pulpit" (see nameHome).
   nameHome,
+  // v12 — labels follow the account's setting unless a tile has its own (labelsFollowSettings).
+  labelsFollowSettings,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {

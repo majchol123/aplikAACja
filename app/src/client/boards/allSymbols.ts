@@ -9,7 +9,7 @@ export const ALL_SYMBOLS_TILE: Tile = {
   kind: 'folder',
   targetBoardId: null,
   label: 'Wszystkie symbole',
-  labelPosition: 'bottom',
+  labelPosition: null,
   fontSize: 'M',
   colorRole: null,
   colorMode: 'border',

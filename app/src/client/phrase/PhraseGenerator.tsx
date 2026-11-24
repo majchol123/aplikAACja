@@ -22,6 +22,7 @@ import { ROLE_COLORS } from '../boards/colors.ts';
 import { applyChanges } from '../boards/data.ts';
 import { usePreferredSymbols } from '../boards/preferred.ts';
 import { useAddFavorite } from '../comm/phrases.ts';
+import { useTileLook } from '../comm/tileLook.tsx';
 import { Dialog } from '../edit/Dialog.tsx';
 import { SymbolPicker, type PickerItem } from '../edit/SymbolPicker.tsx';
 import { ui } from '../edit/ui.ts';
@@ -115,11 +116,13 @@ export function PhraseGenerator({
   const favorite = useAddFavorite();
   const [text, setText] = useState('');
   const deferred = useDeferredValue(text);
+  // Starts as the account's tiles look.
+  const tileLook = useTileLook();
   const [look, setLook] = useState<Look>({
-    labelTop: false,
+    labelTop: tileLook.labelPosition === 'top',
     size: 'M',
     colors: 'border',
-    uppercase: false,
+    uppercase: tileLook.uppercase,
     symbolNames: false,
     skipFunctionWords: false,
   });
@@ -172,6 +175,7 @@ export function PhraseGenerator({
     const cols = Math.min(BOARD_LIMITS.maxCols, Math.max(1, Math.min(6, items.length)));
     const rows = Math.min(BOARD_LIMITS.maxRows, Math.ceil(items.length / cols));
     const name = clip(phraseText(items), BOARD_LIMITS.labelMax);
+    const place = look.labelTop ? 'top' : 'bottom';
     const pkg: BoardPackage = {
       v: 1,
       name,
@@ -183,7 +187,8 @@ export function PhraseGenerator({
           col: i % cols,
           kind: 'word',
           label: item.label,
-          labelPosition: look.labelTop ? 'top' : 'bottom',
+          // The account's place stays the setting's, so the tiles follow it when it changes.
+          labelPosition: place === tileLook.labelPosition ? null : place,
           fontSize: look.size,
           colorRole: look.colors === 'none' ? null : (item.pic?.role ?? null),
           colorMode: look.colors === 'background' ? 'background' : 'border',
