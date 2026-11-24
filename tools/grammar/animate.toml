@@ -1,0 +1,31 @@
+# Nouns naming someone who can do something, i.e. the subject of a sentence: "krowa" + "iść" →
+# "krowa idzie", while "mleko" + "pić" → "mleko piję" (packages/shared/src/inflect.ts).
+# PoliMorf's masculine personal and animal nouns (m1, m2, p1) already are. The builder adds the
+# nouns of the set's people and animal categories (aplikaacja_tools/grammar.py) and PoliMorf's
+# n1 nouns ("dziecko", "kurczę"); this table corrects that. `build_lexicon.py --report` lists
+# the result with why each noun is on it. Groups ("rodzina", "policja", "stado") stay: they act.
+
+[animate]
+# Someone, but not in those categories (only lemmas the grammar file has count).
+include = [
+  "koleżanka", "przyjaciółka", "sąsiadka", "terapeutka", "logopedka", "przedszkolanka",
+  "wychowawczyni", "niania", "teściowa", "chrzestna", "prababcia", "córeczka", "siostrzyczka",
+  "rybka", "myszka", "żabka", "kotka", "kaczuszka", "pszczółka", "klacz", "suczka", "kózka",
+  "kurka",
+]
+# In those categories, but not someone: body parts, things, places, food, events, fields.
+exclude = [
+  "administracja", "akwarium", "angiologia", "arabski", "archeologia", "balet", "batut",
+  "biografia", "ceremonia", "cukiernia", "czwarta", "czwarty", "dom", "dozownik", "drób",
+  "drzemka", "dzieciństwo", "dziób", "egiptologia", "emerytura", "fizjoterapia", "grzebień",
+  "głodna", "głód", "imię", "jura", "kinezjologia", "kinezjoterapia", "komunikacja", "koral",
+  "korona", "kwarantanna", "magia", "miska", "mięso", "młodość", "monarchia", "muszla", "muzyka",
+  "mydło", "nazwisko", "neseser", "niepełnosprawność", "obiad", "obroża", "odpoczynek",
+  "odpowiedzialna", "ogon", "oko", "otoczenie", "pasta", "plaga", "płetwa", "pobudka",
+  "podajnik", "podkładka", "podpaska", "pomoc", "popiersie", "posiłek", "praca", "pragnienie",
+  "przerwa", "przygoda", "przyjaźń", "rozwód", "rząd", "samodzielność", "sarkofag", "skóra",
+  "smycz", "star", "starość", "stomatologia", "sylwetka", "szampon", "szczoteczka", "tampon",
+  "taniec", "teczka", "trampolina", "ucho", "wejście", "wesele", "weterynaria", "wjazd",
+  "wsparcie", "współpraca", "wyjście", "wylęg", "zarażenie", "zatrudnienie", "zawód", "zbroja",
+  "zebranie", "ślub", "życie",
+]

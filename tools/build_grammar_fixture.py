@@ -4,7 +4,8 @@ uv run build_grammar_fixture.py [--polimorf .cache/polimorf/PoliMorf-0.6.7.tab.g
 
 The fixture holds every lemma of the starter template's labels and of grammar/fixture-words.txt,
 plus the pronouns and "być": the test vector of the TypeScript grammar reader and the grammar
-file of the e2e mirror. tests/test_grammar.py checks it is up to date when PoliMorf is cached.
+file of the e2e mirror. The words of its "animate:" lines stand in for the set's people and
+animals. tests/test_grammar.py checks it is up to date when PoliMorf is cached.
 """
 
 import argparse
@@ -16,28 +17,28 @@ from aplikaacja_tools import grammar
 
 ROOT = Path(__file__).parents[1]
 OUT = ROOT / "packages/shared/test-vectors/grammar.json"
-TEMPLATE = ROOT / "templates/starter.json"
 WORDS = Path(__file__).parent / "grammar/fixture-words.txt"
 POLIMORF = Path(__file__).parent / ".cache/polimorf/PoliMorf-0.6.7.tab.gz"
 
 
-def template_labels(node: object) -> list[str]:
-    if isinstance(node, dict):
-        own = [node["label"]] if isinstance(node.get("label"), str) else []
-        return own + [label for value in node.values() for label in template_labels(value)]
-    if isinstance(node, list):
-        return [label for value in node for label in template_labels(value)]
-    return []
+ANIMATE = "animate:"
 
 
 def fixture_words() -> set[str]:
     words = set()
     for line in WORDS.read_text("utf-8").splitlines():
         if not line.startswith("#"):
-            words.update(line.split())
-    for label in template_labels(json.loads(TEMPLATE.read_text("utf-8"))):
-        words.update(grammar.WORD_RE.findall(label))
-    return words
+            words.update(line.removeprefix(ANIMATE).split())
+    return words | grammar.template_words()
+
+
+def animate_words() -> set[str]:
+    lines = WORDS.read_text("utf-8").splitlines()
+    return {w for line in lines if line.startswith(ANIMATE) for w in line[len(ANIMATE) :].split()}
+
+
+def build(polimorf: Path) -> grammar.Grammar:
+    return grammar.fixture(polimorf, fixture_words(), animate=animate_words())
 
 
 def render(data: dict) -> str:
@@ -49,7 +50,7 @@ def main() -> None:
     parser.add_argument("--polimorf", type=Path, default=POLIMORF)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    built = grammar.fixture(args.polimorf, fixture_words())
+    built = build(args.polimorf)
     OUT.write_text(render(built.data), "utf-8")
     logging.info("%s: %d lemmas", OUT, len(built.data["lemmas"]))
 

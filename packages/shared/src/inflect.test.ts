@@ -47,6 +47,9 @@ describe('grammar lexicon (PLAN §2.10)', () => {
     expect(() =>
       parseGrammarData({ v: 1, tags: ['x'], paradigms: [['ć', [[0, 'ę']]]], lemmas: [['pis', 0]] }),
     ).toThrow(/lemma pis/);
+    expect(() =>
+      parseGrammarData({ v: 1, tags: [], paradigms: [], lemmas: [], animate: [1] }),
+    ).toThrow(/animate/);
   });
 });
 
@@ -72,6 +75,32 @@ describe('inflecting the sentence (G1: verbs)', () => {
   it('takes things before a verb for objects, not subjects', () => {
     expect(say('mleko:noun | pić:verb')).toBe('mleko piję');
     expect(say('sok:noun | chcę:verb')).toBe('sok chcę');
+  });
+
+  it('takes people and animals of any gender for subjects (animate list)', () => {
+    // ARASAAC gives "mama", "nauczycielka" the role "noun", not "person".
+    expect(say('mama:noun | iść:verb')).toBe('mama idzie');
+    expect(say('nauczycielka:noun | iść:verb')).toBe('nauczycielka idzie');
+    expect(say('krowa:noun | iść:verb')).toBe('krowa idzie');
+    expect(say('mysz:noun | uciekać:verb')).toBe('mysz ucieka');
+    expect(say('dziecko:noun | spać:verb')).toBe('dziecko śpi');
+    expect(say('wczoraj | krowa:noun | iść:verb', 'f')).toBe('wczoraj krowa szła');
+    expect(say('krowa:noun | zmęczony:descriptor')).toBe('krowa zmęczona');
+    expect(say('krowa:noun | i | owca:noun | jeść:verb')).toBe('krowa i owca jedzą');
+    // The table drops what the categories bring in wrongly; the rest stay objects.
+    expect(say('dom:noun | iść:verb')).toBe('dom idę');
+    expect(say('ogon:noun | mieć:verb')).toBe('ogon mam');
+    // Role "person" names someone even when the lexicon lacks the word.
+    expect(say('Burek:person | iść:verb')).toBe('Burek idzie');
+    expect(say('wczoraj | Hania:person | iść:verb')).toBe('wczoraj Hania szła');
+  });
+
+  it('prefers a pronoun, else the first one naming someone', () => {
+    expect(say('ja:person | pies:noun | karmić:verb')).toBe('ja pies karmię');
+    expect(say('pies:noun | ty:person | karmić:verb')).toBe('pies ty karmisz');
+    expect(say('mama:person | tata:person | kochać:verb')).toBe('mama tata kocha');
+    expect(say('z | mamą | ty:person | iść:verb')).toBe('z mamą ty idziesz');
+    expect(say('mama:noun | i | ja:person | iść:verb')).toBe('mama i ja idziemy');
   });
 
   it('inflects the verb inside a longer label', () => {

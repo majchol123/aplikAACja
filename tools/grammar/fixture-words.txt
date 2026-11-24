@@ -1,10 +1,14 @@
 # Words whose lemmas go into packages/shared/test-vectors/grammar.json besides the starter
-# template's labels (build_grammar_fixture.py): what the grammar tests and e2e speak.
+# template's labels (build_grammar_fixture.py): what the grammar tests and e2e speak. Words of
+# an "animate:" line also stand in for the set's people and animals (grammar/animate.toml).
 iść pójść chodzić jechać biegać spać nieść
 chcieć pić jeść zjeść mieć lubić bawić myć czytać rysować grać
 boleć bać podobać smakować stać dostać otworzyć prosić dziękować przepraszać
+karmić uciekać kochać
 zmęczony wesoły smutny głodny duży czerwony
 mama tata babcia dziadek rodzice brat siostra kolega koleżanka dziecko dzieci pan pani
 kot pies krowa mleko sok woda jabłko piłka dom park ząb zęby szkoła
 Zosia Ola Kasia
 wczoraj jutro teraz potem później wcześniej nie pomocy
+animate: mama tata babcia dziadek brat siostra kolega dziecko pan pani kot pies krowa owca
+animate: mysz nauczycielka dom ogon

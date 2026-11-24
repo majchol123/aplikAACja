@@ -9,8 +9,9 @@ on:
   schedule:
     - cron: '17 3 * * 1,4'
   workflow_dispatch:
-  # A change to the builders or their data (grammar/variants.toml, category names) rebuilds the
-  # mirror with its lexicons; it is deployed only when the result differs from what is live.
+  # A change to the builders or their data (grammar/variants.toml, animate.toml, category names,
+  # the templates whose words the grammar file holds) rebuilds the mirror with its lexicons; it
+  # is deployed only when the result differs from what is live.
   push:
     branches: [main]
     paths:
@@ -19,6 +20,7 @@ on:
       - 'tools/grammar/**'
       - 'tools/build_arasaac.py'
       - 'tools/build_lexicon.py'
+      - 'templates/**'
 
 permissions:
   contents: read

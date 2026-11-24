@@ -286,7 +286,7 @@ function readWord(word: GrammarWord, lexicon: GrammarLexicon, speaker: Agreement
   if (word.fixed || FORMULAS.has(text) || (word.role && FIXED_ROLES.has(word.role)) || ownSubject) {
     if (finiteReading) info.finite = true;
     if (own) info.subject = own === 'speaker' ? speaker : own;
-    const noun = nounReading(readings[0] ?? [], word.role);
+    const noun = nounReading(readings[0] ?? [], word.role, lexicon, tokens[0]?.core ?? '');
     if (noun && !ownSubject) Object.assign(info, noun);
     return info;
   }
@@ -313,7 +313,7 @@ function readWord(word: GrammarWord, lexicon: GrammarLexicon, speaker: Agreement
     }
   }
   if (finiteReading && role === 'descriptor') info.finite = true;
-  const noun = nounReading(readings[0] ?? [], role);
+  const noun = nounReading(readings[0] ?? [], role, lexicon, tokens[0]?.core ?? '');
   if (noun) Object.assign(info, noun);
   return info;
 }
@@ -365,21 +365,34 @@ function adjectiveHead(tokens: Token[], readings: (readonly Analysis[])[]): Head
 
 /**
  * A noun in the nominative. It may be the subject only when it names someone: role "person",
- * a masculine personal or animal noun ("tata", "kot"), a name. "mleko" + "pić" must not say
- * "mleko pije", so other nouns before a verb are taken for objects (PLAN §2.10).
+ * a masculine personal or animal noun ("tata", "kot"), a name, a noun of the lexicon's animate
+ * list ("mama", "krowa", "dziecko" — ARASAAC's "mama" has the role "noun"). "mleko" + "pić"
+ * must not say "mleko pije", so other nouns before a verb are taken for objects (PLAN §2.10).
  */
 function nounReading(
   readings: readonly Analysis[],
   role: FitzgeraldRole | null,
+  lexicon: GrammarLexicon,
+  label: string,
 ): Pick<WordInfo, 'noun' | 'subject' | 'nominal'> | undefined {
   const nominative = readings.filter((a) => a.tag.pos === 'subst' && has(a.tag, 1, 'nom'));
   const reading = nominative.find((a) => has(a.tag, 0, 'sg')) ?? nominative[0];
-  if (!reading) return undefined;
+  if (!reading) {
+    if (role !== 'person' || readings.length > 0) return undefined;
+    // Someone the lexicon does not know ("Burek", an own tile): 3rd person, the gender guessed.
+    const guess: Agreement = { person: 3, plural: false, gender: /a$/i.test(label) ? 'f' : 'm1' };
+    return { noun: true, subject: guess, nominal: guess };
+  }
   const agreement = nounAgreement(reading.tag);
   const g = reading.tag.attrs[2] ?? [];
   const name = reading.lemma.charAt(0) !== reading.lemma.charAt(0).toLowerCase();
   const someone =
-    role === 'person' || g.includes('m1') || g.includes('m2') || g.includes('p1') || name;
+    role === 'person' ||
+    g.includes('m1') ||
+    g.includes('m2') ||
+    g.includes('p1') ||
+    name ||
+    lexicon.animate(reading.lemma);
   return someone
     ? { noun: true, subject: agreement, nominal: agreement }
     : { noun: true, nominal: agreement };
@@ -497,19 +510,34 @@ function clauses(infos: WordInfo[]): { start: number; end: number; frozen: boole
 
 /** The subject before `at` (and its coordinated partners: "ja i mama"), if any. */
 function subjectBefore(infos: WordInfo[], start: number, at: number): Agreement | undefined {
-  for (let j = at - 1; j >= start; j--) {
-    const subject = infos[j]?.subject;
-    if (!subject || (j > start && infos[j - 1]?.preposition)) continue;
-    // Partners on either side need not name someone themselves: "mama i tata", "ja i mama".
-    const partners: Agreement[] = [];
-    for (let k = j; k - 2 >= start && infos[k - 1]?.and; k -= 2) {
-      const partner = infos[k - 2]?.subject ?? infos[k - 2]?.nominal;
+  // A pronoun wins ("ja" + "pies" + "karmić" → "karmię"), else the first one naming someone
+  // ("mama" + "tata" + "kochać" → "kocha"). Not after a preposition ("z mamą").
+  let chosen = -1;
+  for (let j = start; j < at; j++) {
+    const info = infos[j];
+    if (!info?.subject || (j > start && infos[j - 1]?.preposition)) continue;
+    if (chosen < 0) chosen = j;
+    if (!info.noun) {
+      chosen = j;
+      break;
+    }
+  }
+  const subject = infos[chosen]?.subject;
+  if (!subject) return undefined;
+  // Partners on either side need not name someone themselves: "mama i tata", "ja i mama".
+  const partners: Agreement[] = [];
+  for (const step of [-2, 2]) {
+    for (
+      let k = chosen;
+      k + step >= start && k + step < at && infos[k + step / 2]?.and;
+      k += step
+    ) {
+      const partner = infos[k + step]?.subject ?? infos[k + step]?.nominal;
       if (!partner) break;
       partners.push(partner);
     }
-    return combine(subject, partners);
   }
-  return undefined;
+  return combine(subject, partners);
 }
 
 /**

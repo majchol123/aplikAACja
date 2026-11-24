@@ -115,6 +115,64 @@ def test_variants_file_compiles() -> None:
     assert variants["boleć"].fullmatch("boli") and not variants["boleć"].fullmatch("boleje")
 
 
+# People and animals: nouns of any gender, PoliMorf's n1, an m1/m3 homograph, a name.
+ANIMATE_SAMPLE = """\
+krowa\tkrowa\tsubst:sg:nom:f\tpospolita
+krowy\tkrowa\tsubst:sg:gen:f\tpospolita
+krowy\tkrowa\tsubst:pl:nom:f\tpospolita
+Krowa\tKrowa\tsubst:sg:nom:f\tgeograficzna
+dziecko\tdziecko\tsubst:sg:nom:n1\tpospolita
+oko\toko\tsubst:sg:nom:n1\tpospolita
+kot\tkot\tsubst:sg:nom:m2\tpospolita
+pilot\tpilot\tsubst:sg:nom:m1\tpospolita
+pilot\tpilot\tsubst:sg:nom:m3\tpospolita
+mleko\tmleko\tsubst:sg:nom:n2\tpospolita
+lalka\tlalka\tsubst:sg:nom:f\tpospolita
+"""
+
+
+def test_animate_words_come_from_people_and_animal_categories() -> None:
+    categories = {
+        "nodes": [
+            {"id": 1, "n": "Organizmy żywe", "k": "living being"},
+            {"id": 2, "n": "Zwierzę", "k": "animal", "p": 1},
+            {"id": 3, "n": "Ssak", "k": "mammal", "p": 2},
+            {"id": 4, "n": "Anatomia zwierzęcia", "k": "animal anatomy", "p": 2},
+            {"id": 5, "n": "Odżywianie się", "k": "feeding"},
+        ]
+    }
+    index = {
+        "items": [
+            {"id": 1, "k": ["Krowa"], "g": [3]},  # in a subcategory
+            {"id": 2, "k": ["ogon"], "g": [4]},  # about animals, not one
+            {"id": 3, "k": ["mleko"], "g": [5]},
+            {"id": 4, "k": ["kot", "mały kot"], "g": [5, 2]},  # one word only
+            {"id": 5, "k": ["pies"]},  # in no category
+        ]
+    }
+    assert grammar.animate_words(index, categories) == {"krowa", "kot"}
+
+
+def test_animate_lemmas_add_categories_and_n1_minus_the_table(tmp_path: Path) -> None:
+    path = tmp_path / "animate.tab"
+    path.write_text(ANIMATE_SAMPLE, "utf-8")
+    core = {"krowa", "Krowa", "dziecko", "oko", "kot", "pilot", "mleko", "lalka"}
+    table = ({"lalka"}, {"oko", "mleko"})
+    got = grammar.animate_lemmas(path, {"krowy", "kot", "pilot", "mleko"}, core, table)
+    # krowa by a form of its keyword, dziecko as n1 (oko too, but the table drops it), pilot for
+    # its m3 reading, lalka by the table. Not kot (m2: the app reads it from the tag) nor the
+    # name Krowa.
+    assert got == {"dziecko": "n1", "krowa": "krowy", "lalka": "animate.toml", "pilot": "pilot"}
+    built = grammar.encode(path, core, core, {}, got)
+    assert built.data["animate"] == ["dziecko", "krowa", "lalka", "pilot"]
+
+
+def test_animate_file_compiles() -> None:
+    include, exclude = grammar.load_animate()
+    assert "koleżanka" in include and "dom" in exclude
+    assert not include & exclude
+
+
 def test_write_grammar_updates_manifest_and_prunes(tmp_path: Path, sample: Path) -> None:
     arasaac.build(tmp_path / "out", tmp_path / "cache", fetch=FakeHttp(), workers=1, min_items=0)
     set_dir = tmp_path / "out" / arasaac.SET_DIR
@@ -124,6 +182,7 @@ def test_write_grammar_updates_manifest_and_prunes(tmp_path: Path, sample: Path)
     data = json.loads((set_dir / manifest["grammar"]).read_text("utf-8"))
     assert data["v"] == grammar.GRAMMAR_VERSION
     assert "pić" in lemmas(data)  # in the sample catalogue's vocabulary and a verb
+    assert data["animate"] == []  # the sample's "living being" holds only a face
 
     # A rebuild with another result replaces the file; the index stays referenced.
     grammar.write_grammar(set_dir, sample, variants={"boleć": re.compile("boli")})
@@ -137,7 +196,7 @@ POLIMORF = Path(__file__).parents[1] / ".cache/polimorf" / "PoliMorf-0.6.7.tab.g
 
 @pytest.mark.skipif(not POLIMORF.exists(), reason="real PoliMorf not cached")
 def test_fixture_is_up_to_date() -> None:
-    built = grammar.fixture(POLIMORF, build_grammar_fixture.fixture_words())
+    built = build_grammar_fixture.build(POLIMORF)
     assert build_grammar_fixture.OUT.read_text("utf-8") == build_grammar_fixture.render(
         built.data
     ), "run: uv run build_grammar_fixture.py"

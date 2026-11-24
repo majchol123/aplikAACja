@@ -15,6 +15,11 @@ export interface GrammarData {
   paradigms: [string, [number, string][]][];
   /** [lemma, paradigm], sorted. */
   lemmas: [string, number][];
+  /**
+   * Nouns naming someone who can do something ("krowa", "mama"), sorted; m1/m2/p1 nouns are
+   * read from their tags. Missing in files built before it: no noun beyond those is someone.
+   */
+  animate?: string[];
 }
 
 /** A parsed NKJP tag: the class and its positional attributes, each with its alternatives. */
@@ -48,7 +53,7 @@ export function parseGrammarData(json: unknown): GrammarData {
   if (typeof json !== 'object' || json === null) fail('not an object');
   const data = json as Record<string, unknown>;
   if (data.v !== GRAMMAR_FILE_VERSION) fail(`version ${String(data.v)}`);
-  const { tags, paradigms, lemmas } = data;
+  const { tags, paradigms, lemmas, animate } = data;
   if (!Array.isArray(tags) || !tags.every((t) => typeof t === 'string')) fail('tags');
   if (!Array.isArray(paradigms)) fail('paradigms');
   for (const p of paradigms as unknown[]) {
@@ -80,6 +85,11 @@ export function parseGrammarData(json: unknown): GrammarData {
     const ending = (paradigms[l[1] as number] as [string, unknown])[0];
     if (!(l[0] as string).endsWith(ending)) fail(`lemma ${l[0] as string}`);
   }
+  if (
+    animate !== undefined &&
+    (!Array.isArray(animate) || !animate.every((a) => typeof a === 'string'))
+  )
+    fail('animate');
   return data as unknown as GrammarData;
 }
 
@@ -101,6 +111,7 @@ export class GrammarLexicon {
   readonly tags: readonly Tag[];
   private readonly paradigms: GrammarData['paradigms'];
   private readonly byLemma = new Map<string, number>();
+  private readonly animates: ReadonlySet<string>;
   /** Form ending → [paradigm, tag]; built on the first analysis of a word that is no lemma. */
   private bySuffix: Map<string, [number, number][]> | null = null;
   private readonly analyses = new Map<string, readonly Analysis[]>();
@@ -109,6 +120,7 @@ export class GrammarLexicon {
     this.tags = data.tags.map(parseTag);
     this.paradigms = data.paradigms;
     for (const [lemma, paradigm] of data.lemmas) this.byLemma.set(lemma, paradigm);
+    this.animates = new Set(data.animate ?? []);
   }
 
   get size(): number {
@@ -117,6 +129,11 @@ export class GrammarLexicon {
 
   has(lemma: string): boolean {
     return this.byLemma.has(lemma);
+  }
+
+  /** Whether the noun `lemma` names someone beyond its tags (GrammarData.animate). */
+  animate(lemma: string): boolean {
+    return this.animates.has(lemma);
   }
 
   /** Every form of `lemma`; the forms of one tag are in order of preference. */

@@ -67,6 +67,11 @@ test('the verb agrees with the subject, "ja" by default (F8)', async ({ page }) 
   await tile(page, 'nie chcę').click();
   await expect(sentence(page)).toHaveText(['mama', 'nie chce']);
   await page.getByRole('button', { name: 'Wyczyść zdanie' }).click();
+  // Not an ARASAAC keyword: in the lexicon because the template has it.
+  await word(page, 'Osoby', 'koleżanka');
+  await tile(page, 'chcę').click();
+  await expect(sentence(page)).toHaveText(['koleżanka', 'chce']);
+  await page.getByRole('button', { name: 'Wyczyść zdanie' }).click();
 
   // "boli" is said as it is, whoever comes before it.
   await tile(page, 'ty').click();

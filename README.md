@@ -12,7 +12,7 @@ Cloudflare Workers (plan Free) + Static Assets, Durable Objects (SQLite, jeden n
 | `packages/shared/` | schematy Zod, normalizacja tekstu, wyszukiwarka symboli, wspólne wektory testowe |
 | `workers/arasaac/` | publiczny mirror ARASAAC (Worker z samymi assetami, Route `/sym/arasaac/*`) |
 | `workers/extra/` | prywatny Worker opcjonalnego dodatkowego zestawu (assety poza repozytorium) |
-| `tools/` | budowa mirrora ARASAAC i indeksu, słowniki odmian z PoliMorf (wyszukiwanie i odmiana zdania; warianty form: `tools/grammar/variants.toml`) |
+| `tools/` | budowa mirrora ARASAAC i indeksu, słowniki odmian z PoliMorf (wyszukiwanie i odmiana zdania; warianty form: `tools/grammar/variants.toml`, kto może być podmiotem: `tools/grammar/animate.toml`) |
 
 ## Praca lokalna
 
