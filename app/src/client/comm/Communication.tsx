@@ -24,6 +24,7 @@ import {
 import { ALL_SYMBOLS_ID, ALL_SYMBOLS_TILE, withAllSymbols } from '../boards/allSymbols.ts';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
+import { BoardPrintSheet } from '../boards/PrintBoardDialog.tsx';
 import { useDeviceSettings } from '../device.ts';
 import { PhraseGenerator } from '../phrase/PhraseGenerator.tsx';
 import { useSpeaker } from '../speech.ts';
@@ -367,6 +368,9 @@ export function Communication({
           }}
           onClose={() => setSearching(false)}
         />
+      )}
+      {!phrasing && !searching && !showHistory && picking === null && !browse && (
+        <BoardPrintSheet board={board} resolve={resolve} />
       )}
     </main>
   );

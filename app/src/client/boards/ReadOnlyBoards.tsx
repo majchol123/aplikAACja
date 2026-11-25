@@ -1,9 +1,11 @@
 import { cellAt, type Board, type BoardTree, type Me } from '@aplikaacja/shared';
 import { useMemo, useState } from 'react';
+import { PrintIcon } from '../comm/icons.tsx';
 import { TileView } from '../comm/TileView.tsx';
 import { BoardNav } from './BoardNav.tsx';
 import { useSymbolResolver } from './data.ts';
 import { useGridAttributes, useGridLayout } from './layout.ts';
+import { PrintBoardDialog } from './PrintBoardDialog.tsx';
 
 /**
  * A board tree to look at, not to use: folders open, tiles neither speak nor change.
@@ -23,18 +25,32 @@ export function ReadOnlyBoards({
 }) {
   const boards = useMemo(() => new Map(tree.boards.map((b) => [b.id, b])), [tree.boards]);
   const [boardId, setBoardId] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
   const homeId = tree.homeId;
   const board = boards.get(boardId ?? homeId ?? '') ?? (homeId ? boards.get(homeId) : undefined);
+  const resolve = useSymbolResolver(me, board?.tiles ?? [], ownUrl);
   if (!homeId || !board) return <p className="mt-3 text-slate-600">{empty}</p>;
   return (
     <div className="mt-3">
-      <BoardNav boards={boards} board={board} homeId={homeId} onOpen={setBoardId} />
+      <BoardNav boards={boards} board={board} homeId={homeId} onOpen={setBoardId}>
+        <button
+          type="button"
+          aria-label="Drukuj tablicę"
+          onClick={() => setPrinting(true)}
+          className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200"
+        >
+          <PrintIcon />
+        </button>
+      </BoardNav>
       <Grid me={me} board={board} ownUrl={ownUrl} onOpen={setBoardId} />
       <p className="mt-2 text-sm text-slate-600">
         Podgląd tylko do odczytu: foldery się otwierają, kafelki nie mówią.
         {!me.extraSet &&
           ' Zamiast symboli dodatkowego zestawu widać podobne symbole ARASAAC, dobrane po napisie.'}
       </p>
+      {printing && (
+        <PrintBoardDialog board={board} resolve={resolve} onClose={() => setPrinting(false)} />
+      )}
     </div>
   );
 }

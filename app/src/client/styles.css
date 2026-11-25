@@ -451,3 +451,69 @@ html[data-state='anon'] .landing-reveal {
     print-color-adjust: exact;
   }
 }
+
+/* Board print (boards/PrintBoardDialog.tsx): sheet on paper + miniature preview in the dialog. */
+.board-print-preview-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.65rem;
+}
+.board-print-preview-page .board-print-grid {
+  display: grid;
+  flex: 1 1 0;
+  min-height: 0;
+  gap: 0.25rem;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
+}
+.board-print-preview-page .tile-label-s,
+.board-print-preview-page .tile-label-m,
+.board-print-preview-page .tile-label-l,
+.board-print-preview-page .tile-label-xl {
+  --min: 5px;
+}
+.board-print-preview-page .tile-outline {
+  border-width: max(1.5px, 5cqmin);
+}
+.board-print-preview-page .tile-filled {
+  border-width: max(1px, 2.5cqmin);
+}
+
+.board-sheet {
+  display: none;
+}
+@media print {
+  body:has(> .board-sheet):not(:has(> .phrase-sheet)) {
+    background: #fff;
+    margin: 0;
+  }
+  body:has(> .board-sheet):not(:has(> .phrase-sheet)) > :not(.board-sheet),
+  body:has(> .board-sheet):not(:has(> .phrase-sheet)) dialog {
+    display: none !important;
+  }
+  .board-sheet {
+    display: block;
+    color: #0f172a;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .board-print-page {
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+    height: calc(100vh - 1mm);
+    break-after: page;
+  }
+  .board-print-page:last-child {
+    break-after: auto;
+  }
+  .board-print-grid {
+    display: grid;
+    flex: 1 1 0;
+    min-height: 0;
+    gap: 3mm;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
+  }
+}

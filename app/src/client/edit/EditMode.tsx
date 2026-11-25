@@ -15,6 +15,7 @@ import { ALL_SYMBOLS_TILE } from '../boards/allSymbols.ts';
 import { BoardNav } from '../boards/BoardNav.tsx';
 import { useSymbolResolver } from '../boards/data.ts';
 import { useGridAttributes, useGridLayout } from '../boards/layout.ts';
+import { BoardPrintSheet, PrintBoardDialog } from '../boards/PrintBoardDialog.tsx';
 import { useBoardWrites } from '../boards/writes.ts';
 import {
   GearIcon,
@@ -22,6 +23,7 @@ import {
   KeyboardIcon,
   OpenIcon,
   PlusIcon,
+  PrintIcon,
   SearchIcon,
 } from '../comm/icons.tsx';
 import { TileView } from '../comm/TileView.tsx';
@@ -125,6 +127,7 @@ export function EditMode({
   const [sharing, setSharing] = useState<'share' | 'inbox' | null>(null);
   const [searching, setSearching] = useState(false);
   const [phrasing, setPhrasing] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [aboutAll, setAboutAll] = useState(false);
   const [found, setFound] = useState<string | null>(null);
   // The ring of a tile found with the search fades after a few seconds.
@@ -162,6 +165,16 @@ export function EditMode({
           className="flex items-center gap-2 rounded-full border border-brand-700 bg-white px-4 py-2 font-semibold text-brand-800 hover:bg-brand-50"
         >
           <GridIcon /> {board.parentId ? 'Nazwa i siatka' : 'Siatka'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            writes.dismiss();
+            setPrinting(true);
+          }}
+          className="flex items-center gap-2 rounded-full border border-brand-700 bg-white px-4 py-2 font-semibold text-brand-800 hover:bg-brand-50"
+        >
+          <PrintIcon className="size-5" /> Drukuj
         </button>
         <button
           type="button"
@@ -344,6 +357,16 @@ export function EditMode({
           }
         />
       )}
+      {printing && (
+        <PrintBoardDialog board={board} resolve={resolve} onClose={() => setPrinting(false)} />
+      )}
+      {!printing &&
+        !phrasing &&
+        !editing &&
+        !boardDialog &&
+        !sharing &&
+        !searching &&
+        !aboutAll && <BoardPrintSheet board={board} resolve={resolve} />}
     </main>
   );
 }
