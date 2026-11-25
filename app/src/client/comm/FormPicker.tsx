@@ -1,4 +1,9 @@
-import { formChoices, type FitzgeraldRole, type GrammarLexicon } from '@aplikaacja/shared';
+import {
+  formChoices,
+  type FitzgeraldRole,
+  type GrammarLexicon,
+  type TileGrammar,
+} from '@aplikaacja/shared';
 import { useMemo } from 'react';
 import { Dialog } from '../edit/Dialog.tsx';
 
@@ -10,6 +15,7 @@ import { Dialog } from '../edit/Dialog.tsx';
 export function FormPicker({
   label,
   role,
+  grammar,
   shown,
   picked,
   lexicon,
@@ -20,6 +26,8 @@ export function FormPicker({
   /** The tile's label: the base the forms are made from. */
   label: string;
   role: FitzgeraldRole | null;
+  /** The tile's own word ("hulajnoga" like "noga", G3). */
+  grammar: TileGrammar | null;
   /** What the bar shows now. */
   shown: string;
   picked: boolean;
@@ -30,8 +38,12 @@ export function FormPicker({
   onClose: () => void;
 }) {
   const groups = useMemo(
-    () => formChoices({ label, role, fixed: false }, lexicon),
-    [label, role, lexicon],
+    () =>
+      formChoices(
+        { label, role, fixed: false, ...(grammar?.like ? { like: grammar.like } : {}) },
+        lexicon,
+      ),
+    [label, role, grammar, lexicon],
   );
   const choose = (form: string) => {
     onSpeak(form);

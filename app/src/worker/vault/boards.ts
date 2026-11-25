@@ -14,6 +14,7 @@ import {
   type TemplateBoard,
   type Tile,
   isReservedCell,
+  parseTileGrammar,
   subtreePackage,
   treeShape,
 } from '@aplikaacja/shared';
@@ -70,13 +71,14 @@ type TileRow = {
   symbol_ref: string | null;
   hidden: number;
   speech: string | null;
+  grammar: string | null;
 };
 
 type MetaRow = { epoch: string; version: number; boards: number; tiles: number };
 
 const BOARD_COLUMNS = 'id, name, parent_board_id, rows, cols, rev';
 const TILE_COLUMNS =
-  'id, board_id, row, col, kind, target_board_id, label, label_position, font_size, color_role, color_mode, symbol_set, symbol_ref, hidden, speech';
+  'id, board_id, row, col, kind, target_board_id, label, label_position, font_size, color_role, color_mode, symbol_set, symbol_ref, hidden, speech, grammar';
 
 /** Recursion guard for tree queries; far above maxDepth, below SQLite's limits. */
 const WALK_LIMIT = 64;
@@ -99,6 +101,7 @@ function toTile(row: TileRow): Tile {
         : null,
     hidden: row.hidden === 1,
     speech: row.speech,
+    grammar: parseTileGrammar(row.grammar),
   };
 }
 
@@ -435,8 +438,8 @@ export class BoardStore {
     this.sql.exec(
       `INSERT INTO tiles (id, board_id, row, col, kind, target_board_id, label, label_position,
                           font_size, color_role, color_mode, symbol_set, symbol_ref, hidden,
-                          speech, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                          speech, grammar, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       newId(),
       boardId,
       tile.row,
@@ -452,6 +455,7 @@ export class BoardStore {
       tile.symbol?.ref ?? null,
       tile.hidden ? 1 : 0,
       tile.speech ?? null,
+      tile.grammar ? JSON.stringify(tile.grammar) : null,
       now,
       now,
     );
@@ -538,7 +542,7 @@ export class BoardStore {
       this.sql.exec(
         `UPDATE tiles SET kind = ?, target_board_id = ?, label = ?, label_position = ?,
                           font_size = ?, color_role = ?, color_mode = ?, symbol_set = ?,
-                          symbol_ref = ?, hidden = ?, speech = ?, updated_at = ?
+                          symbol_ref = ?, hidden = ?, speech = ?, grammar = ?, updated_at = ?
           WHERE id = ?`,
         kind,
         kind === 'folder' ? target : null,
@@ -551,6 +555,11 @@ export class BoardStore {
         symbol === undefined ? tile.symbol_ref : (symbol?.ref ?? null),
         input.hidden === undefined ? tile.hidden : input.hidden ? 1 : 0,
         input.speech === undefined ? tile.speech : input.speech,
+        input.grammar === undefined
+          ? tile.grammar
+          : input.grammar
+            ? JSON.stringify(input.grammar)
+            : null,
         now,
         tileId,
       );

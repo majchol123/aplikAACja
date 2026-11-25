@@ -1,4 +1,4 @@
-import type { Board, BoardTree, Tile } from './boards.ts';
+import { parseTileGrammar, type Board, type BoardTree, type Tile } from './boards.ts';
 
 /**
  * Restoring boards from an encrypted backup (PLAN §6): the vault's tables as the backup
@@ -55,6 +55,7 @@ export function restoreTree(dump: VaultDump): { tree: BoardTree; photos: DumpedP
       // Backups made before the vault had these columns: nothing hidden, labels said.
       hidden: Number(t.hidden ?? 0) === 1,
       speech: text(t.speech),
+      grammar: parseTileGrammar(t.grammar),
     };
     const board = String(t.board_id);
     tilesOf.set(board, [...(tilesOf.get(board) ?? []), tile]);

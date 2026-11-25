@@ -385,6 +385,9 @@ export const VAULT_MIGRATIONS: readonly Migration[] = [
   nameHome,
   // v12 — labels follow the account's setting unless a tile has its own (labelsFollowSettings).
   labelsFollowSettings,
+  // v13 — how a tile's word inflects (F8 G3): TileGrammarSchema as JSON; NULL as the lexicon
+  // reads the label.
+  `ALTER TABLE tiles ADD COLUMN grammar TEXT CHECK (grammar IS NULL OR length(grammar) <= 200);`,
 ];
 
 export function migrateVault(storage: DurableObjectStorage): number {

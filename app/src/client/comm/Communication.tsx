@@ -7,6 +7,7 @@ import {
   type PhraseItem,
   type SymbolRef,
   type Tile,
+  type TileGrammar,
 } from '@aplikaacja/shared';
 import {
   Fragment,
@@ -61,6 +62,8 @@ interface SentenceItem {
   fixed?: boolean;
   /** A form picked by hand ("Wybierz formę"). */
   picked?: string;
+  /** How the tile's word inflects (Tile.grammar, G3). */
+  grammar?: TileGrammar | null;
 }
 
 const HOLD_MS = 2000;
@@ -129,9 +132,27 @@ export function Communication({
     if (boardId === null && pinned) onBoardChange(pinned);
   }, [boardId, pinned, onBoardChange]);
 
+  // G4: on this device tiles may show the form their word takes in the sentence now ("ty" →
+  // "iść" shows "idziesz"); a tapped tile still brings its own label (activate).
+  const showAll = account.data?.showAllSymbols ?? true;
+  const onScreen = useMemo(() => {
+    if (!board) return undefined;
+    const drawn = withAllSymbols(board, !showAll);
+    if (!device.previewForms || !grammar.lexicon || grammar.level === 'off') return drawn;
+    let changed = false;
+    const tiles = drawn.tiles.map((tile) => {
+      if (tile.kind !== 'word' || tile.speech || tile.grammar?.fixed) return tile;
+      const next = { label: tile.label, role: tile.colorRole, grammar: tile.grammar };
+      const form = sentenceForms([...sentence, next], grammar).at(-1);
+      if (!form || form === tile.label) return tile;
+      changed = true;
+      return { ...tile, label: form };
+    });
+    return changed ? { ...drawn, tiles } : drawn;
+  }, [board, showAll, device.previewForms, grammar, sentence]);
+
   const home = boards.get(homeId);
   if (!board || !home) return null;
-  const showAll = account.data?.showAllSymbols ?? true;
   const held = picking === null ? undefined : sentence[picking];
 
   /** A form picked by hand for the held word, or undefined to let the grammar choose again. */
@@ -172,7 +193,9 @@ export function Communication({
     foundTimer.current = window.setTimeout(() => setFound(null), FOUND_MS);
   }
 
-  function activate(tile: Tile): void {
+  function activate(drawn: Tile): void {
+    // Shown in its form in the sentence (G4): the word itself goes to the sentence.
+    const tile = board?.tiles.find((t) => t.id === drawn.id) ?? drawn;
     if (tile.id === ALL_SYMBOLS_ID) {
       setBrowse(BROWSE_START);
       return;
@@ -187,6 +210,7 @@ export function Communication({
       symbol: tile.symbol,
       role: tile.colorRole,
       ...(tile.speech ? { speech: tile.speech } : {}),
+      ...(tile.grammar ? { grammar: tile.grammar } : {}),
     });
     // A pinned board takes the place of the home board as the one to come back to.
     if ((account.data?.returnToHome ?? true) && board?.id !== back) onBoardChange(back);
@@ -283,7 +307,7 @@ export function Communication({
             {tools}
           </BoardNav>
           <BoardGrid
-            board={withAllSymbols(board, !showAll)}
+            board={onScreen ?? board}
             srcOf={(tile) => resolve(tile.symbol)}
             found={found}
             onActivate={activate}
@@ -309,6 +333,7 @@ export function Communication({
         <FormPicker
           label={held.label}
           role={held.role ?? null}
+          grammar={held.grammar ?? null}
           shown={shown[picking]?.label ?? held.label}
           picked={held.picked !== undefined}
           lexicon={grammar.lexicon}

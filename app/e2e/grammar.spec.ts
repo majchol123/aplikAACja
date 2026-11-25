@@ -138,7 +138,7 @@ test('how the user speaks of themselves is asked at the first run (F8)', async (
   await page.getByRole('button', { name: 'Ustawienia' }).click();
   await expect(page.getByRole('radio', { name: /Jak dziewczynka lub kobieta/ })).toBeChecked();
   const level = page.getByLabel('Odmiana w zdaniu');
-  await expect(level).toHaveValue('verbs');
+  await expect(level).toHaveValue('full');
   await level.selectOption('off');
   await expect(level).toBeEnabled();
   await page.getByRole('button', { name: 'Wróć do edycji' }).click();
@@ -147,18 +147,11 @@ test('how the user speaks of themselves is asked at the first run (F8)', async (
   await expect(sentence(page)).toHaveText(['zmęczony']);
 });
 
-test('the full level gives nouns their cases; a word a later one changes flashes (F8 G2)', async ({
+test('nouns take their cases by default; a word a later one changes flashes (F8 G2)', async ({
   page,
 }) => {
+  // "Pełna" is the default level.
   await starterBoard(page, 'Przypadki');
-  await holdEditLock(page);
-  await page.getByRole('button', { name: 'Ustawienia' }).click();
-  const level = page.getByLabel('Odmiana w zdaniu');
-  await level.selectOption('full');
-  await expect(level).toBeEnabled();
-  await expect(level).toHaveValue('full');
-  await page.getByRole('button', { name: 'Wróć do edycji' }).click();
-  await page.getByRole('button', { name: 'Gotowe' }).click();
 
   // "chcieć" takes the genitive: the correct form, not the colloquial "chcę wodę".
   await tile(page, 'chcę').click();
@@ -184,4 +177,76 @@ test('the full level gives nouns their cases; a word a later one changes flashes
   expect(animations).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Powiedz zdanie' }).click();
   expect(await lastSpoken(page)).toBe('zmęczona mama');
+});
+
+test('an own word inflects like another one; the editor shows its forms (F8 G3)', async ({
+  page,
+}) => {
+  await starterBoard(page, 'Własne słowo');
+  await holdEditLock(page);
+  await page.getByRole('button', { name: 'Otwórz folder Zabawa' }).click();
+  await page
+    .getByRole('button', { name: /^Dodaj kafelek:/ })
+    .first()
+    .click();
+  const form = page.getByRole('dialog');
+  await form.getByLabel('Etykieta').fill('hulajnoga');
+  const grammar = form.getByRole('group', { name: 'Odmiana w zdaniu' });
+  await expect(grammar).toContainText('Aplikacja nie zna słowa „hulajnoga”');
+  await grammar.getByRole('button', { name: 'jak „noga”' }).click();
+  await expect(grammar.getByRole('button', { name: 'jak „noga”' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(grammar).toContainText('hulajnogę');
+  const axe = await new AxeBuilder({ page }).analyze();
+  expect(axe.violations).toEqual([]);
+  await form.getByRole('button', { name: 'Zapisz' }).click();
+  await expect(form).toHaveCount(0);
+  await page.getByRole('button', { name: 'Gotowe' }).click();
+
+  await page.getByRole('button', { name: 'Pulpit' }).click();
+  await tile(page, 'chcę').click();
+  await word(page, 'Zabawa', 'hulajnoga');
+  await expect(sentence(page)).toHaveText(['chcę', 'hulajnogi']);
+
+  // The editor keeps the choice; "Nie odmieniaj" makes the tile say its label.
+  await holdEditLock(page);
+  await page.getByRole('button', { name: 'Otwórz folder Zabawa' }).click();
+  await page.getByRole('button', { name: 'Zmień kafelek: hulajnoga' }).click();
+  await expect(
+    form
+      .getByRole('group', { name: 'Odmiana w zdaniu' })
+      .getByRole('button', { name: 'jak „noga”' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await form.getByLabel('Nie odmieniaj').check();
+  await form.getByRole('button', { name: 'Zapisz' }).click();
+  await expect(form).toHaveCount(0);
+  await page.getByRole('button', { name: 'Gotowe' }).click();
+  await page.getByRole('button', { name: 'Pulpit' }).click();
+  await tile(page, 'chcę').click();
+  await word(page, 'Zabawa', 'hulajnoga');
+  await expect(sentence(page)).toHaveText(['chcę', 'hulajnoga']);
+});
+
+test('tiles may show the form their word takes in the sentence (F8 G4)', async ({ page }) => {
+  await starterBoard(page, 'Podglad');
+  // Off by default: labels stay as they are.
+  await tile(page, 'ty').click();
+  await expect(tile(page, 'chcę')).toBeVisible();
+  await page.getByRole('button', { name: 'Wyczyść zdanie' }).click();
+
+  await holdEditLock(page);
+  await page.getByRole('button', { name: 'Ustawienia' }).click();
+  await page.getByLabel(/Podpisy kafelków w formie/).check();
+  await page.getByRole('button', { name: 'Wróć do edycji' }).click();
+  await page.getByRole('button', { name: 'Gotowe' }).click();
+
+  await expect(tile(page, 'chcę')).toBeVisible();
+  await tile(page, 'ty').click();
+  // The label and the accessible name both follow the sentence.
+  await expect(tile(page, 'chcesz')).toBeVisible();
+  await tile(page, 'chcesz').click();
+  await expect(sentence(page)).toHaveText(['ty', 'chcesz']);
+  expect(await lastSpoken(page)).toBe('chcesz');
 });

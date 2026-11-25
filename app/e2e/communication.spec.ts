@@ -57,14 +57,15 @@ test('a sentence built through a folder is spoken (PLAN F2)', async ({ page }) =
   await expect(current(page)).toHaveText('Picie');
   await expect(page.getByRole('button', { name: 'Pulpit', exact: true })).toBeEnabled();
   await tile(page, 'sok').click();
-  await expect(sentence(page)).toHaveText(['chcę', 'sok']);
+  // "chcieć" takes the genitive (grammar level "Pełna", the default).
+  await expect(sentence(page)).toHaveText(['chcę', 'soku']);
   // Back on the home board after a word (default "return to home").
   await expect(current(page)).toHaveText('Pulpit');
 
   await page.getByRole('button', { name: 'Powiedz zdanie' }).click();
-  expect((await spoken(page)).at(-1)?.text).toBe('chcę sok');
+  expect((await spoken(page)).at(-1)?.text).toBe('chcę soku');
   await page.getByTestId('sentence').click();
-  expect((await spoken(page)).at(-1)?.text).toBe('chcę sok');
+  expect((await spoken(page)).at(-1)?.text).toBe('chcę soku');
 
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations).toEqual([]);
@@ -210,7 +211,7 @@ test('a pinned board is where choosing a word comes back to, until unpinned', as
   await page.getByRole('button', { name: 'Pulpit' }).click();
   await page.getByRole('button', { name: 'Wróć do przypiętej tablicy: Picie' }).click();
   await expect(current(page)).toHaveText('Picie');
-  await expect(sentence(page)).toHaveText(['sok', 'chcę']);
+  await expect(sentence(page)).toHaveText(['soku', 'chcę']);
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations).toEqual([]);
 

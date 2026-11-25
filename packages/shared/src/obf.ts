@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   BOARD_LIMITS,
+  parseTileGrammar,
   SHARED_HOME_NAME,
   type Board,
   type BoardPackage,
@@ -61,6 +62,7 @@ export function subtreePackage(
             symbol: tile.symbol,
             ...(tile.hidden ? { hidden: true } : {}),
             ...(tile.speech ? { speech: tile.speech } : {}),
+            ...(tile.grammar ? { grammar: tile.grammar } : {}),
             ...(target && !seen.has(target.id) ? { board: build(target) } : {}),
           };
         }),
@@ -246,6 +248,7 @@ export function packageToObz(
       // Open Board's own fields: other apps hide the button and say its words too.
       if (tile.hidden) button.hidden = true;
       if (tile.speech) button.vocalization = tile.speech;
+      if (tile.grammar) button.ext_aplikaacja_grammar = tile.grammar;
       if (tile.symbol) {
         const image = imageFor(tile.symbol);
         used.add(image);
@@ -350,6 +353,8 @@ const ButtonSchema = z
       .nullable()
       .optional(),
     ext_aplikaacja_color_mode: z.enum(['background', 'border']).optional(),
+    /** Checked by parseTileGrammar: a malformed one drops only itself. */
+    ext_aplikaacja_grammar: z.unknown().optional(),
   })
   .loose();
 
@@ -535,6 +540,9 @@ export function obzToPackage(files: Readonly<Record<string, Uint8Array>>): ObzIm
         // Words of its own (Open Board's vocalization), unless they are just the label.
         const speech = cleanText(button.vocalization, BOARD_LIMITS.speechMax);
         if (speech && speech !== label) tile.speech = speech;
+        // How its word inflects (F8 G3); a malformed one is dropped, not the button.
+        const grammar = parseTileGrammar(button.ext_aplikaacja_grammar);
+        if (grammar) tile.grammar = grammar;
         if (button.ext_aplikaacja_label_position)
           tile.labelPosition = button.ext_aplikaacja_label_position;
         if (button.ext_aplikaacja_font_size) tile.fontSize = button.ext_aplikaacja_font_size;

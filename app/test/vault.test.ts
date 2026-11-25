@@ -94,10 +94,12 @@ describe('UserVault', () => {
       });
 
       expect(migrateVault(state.storage)).toBe(VAULT_MIGRATIONS.length);
-      // v12 rewrites the table again: only 'top' stays the tile's own, 'bottom' was the default.
+      // v12 rewrites the table again: only 'top' stays the tile's own, 'bottom' was the default;
+      // v13 adds how the word inflects (none yet).
       const kept = before.map((t) => ({
         ...t,
         label_position: t.label_position === 'top' ? 'top' : null,
+        grammar: null,
       }));
       expect(sql.exec('SELECT * FROM tiles ORDER BY id').toArray()).toEqual(kept);
       expect(sql.exec('SELECT id, rows, cols, rev FROM boards ORDER BY id').toArray()).toEqual([

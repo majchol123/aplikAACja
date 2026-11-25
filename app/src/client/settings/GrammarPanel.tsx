@@ -1,6 +1,8 @@
 import { DEFAULT_SETTINGS, type GrammarLevel, type SpeakerGender } from '@aplikaacja/shared';
 import { useId, useState } from 'react';
+import { useDeviceSettings } from '../device.ts';
 import { useAccountSettings, useUpdateAccountSettings } from './account.ts';
+import { DeviceToggle } from './DevicePanel.tsx';
 
 const card = 'rounded-2xl bg-white p-6 shadow-sm ring-1 ring-brand-100';
 const field = 'block text-sm font-medium text-slate-700';
@@ -59,6 +61,7 @@ export function GrammarPanel() {
   const update = useUpdateAccountSettings();
   const [pending, setPending] = useState<GrammarLevel | null>(null);
   const level = pending ?? (account.data ?? DEFAULT_SETTINGS).grammar;
+  const [device, updateDevice] = useDeviceSettings();
   return (
     <section className={card} aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`} className="text-lg font-bold text-brand-900">
@@ -81,12 +84,20 @@ export function GrammarPanel() {
             update.mutate({ grammar }, { onSettled: () => setPending(null) });
           }}
         >
-          <option value="verbs">czasowniki (ja idę, ty idziesz)</option>
-          <option value="full">pełna (także: chcę wody, idę do parku, dwie piłki)</option>
+          <option value="full">pełna (ja idę, chcę wody, idę do parku, dwie piłki)</option>
+          <option value="verbs">tylko czasowniki (ja idę, ty idziesz)</option>
           <option value="off">wyłączona (słowa jak na kafelkach)</option>
         </select>
       </label>
       <SpeakerChoice legend="Jak użytkownik mówi o sobie?" />
+      <DeviceToggle
+        checked={device.previewForms}
+        onChange={(v) => updateDevice({ previewForms: v })}
+        hint="Dla osób, które czytają. Kto nie czyta, szuka kafelka po stałym podpisie i obrazku — wtedy lepiej zostawić wyłączone."
+      >
+        Podpisy kafelków w formie, jaką słowo przyjmie w zdaniu — po „ty”: „idziesz” (na tym
+        urządzeniu)
+      </DeviceToggle>
     </section>
   );
 }

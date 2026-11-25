@@ -69,6 +69,12 @@ export const DeviceSettingsSchema = z
      * instead of the home board, until it is unpinned. Ignored once the board is gone.
      */
     pinnedBoard: ObjectIdSchema.nullable(),
+    /**
+     * Tiles show the form their word takes in the sentence now (F8 G4: after "ty", "iść" reads
+     * "idziesz"). Off by default: for someone who does not read, a label that never changes is
+     * part of finding the tile again (motor and visual planning).
+     */
+    previewForms: z.boolean(),
   })
   .strict();
 export type DeviceSettings = z.infer<typeof DeviceSettingsSchema>;
@@ -82,6 +88,7 @@ export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
   fitGrid: null,
   tileMin: 'M',
   pinnedBoard: null,
+  previewForms: false,
 };
 
 /** Stored values from older versions fall back to defaults key by key. */

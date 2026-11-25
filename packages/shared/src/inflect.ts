@@ -24,9 +24,14 @@ export interface GrammarWord {
   role: FitzgeraldRole | null;
   /**
    * Said exactly as it is: a tile's own words (Tile.speech), history, favourites, the phrase
-   * generator, a form picked by hand. Still counts as a subject or as the clause's verb.
+   * generator, a form picked by hand, a tile set not to inflect (TileGrammar.fixed). Still
+   * counts as a subject or as the clause's verb.
    */
   fixed: boolean;
+  /** An own word inflecting like this lexicon's lemma ("hulajnoga" like "noga", G3). */
+  like?: string;
+  /** Names someone who can do something (true) or not (false), whatever the lexicon says. */
+  someone?: boolean;
 }
 
 export interface InflectOptions {
@@ -563,7 +568,7 @@ function readWord(word: GrammarWord, lexicon: GrammarLexicon, speaker: Agreement
       if (verb) info.governor = governorOf(tokens, verb);
     }
     if (labelSubject) info.subject = labelSubject === 'speaker' ? speaker : labelSubject;
-    const noun = nounReading(readings, tokens, word.role, lexicon);
+    const noun = nounReading(readings, tokens, word.role, lexicon, word.someone);
     if (noun && !ownSubject) Object.assign(info, noun);
     return info;
   }
@@ -600,7 +605,7 @@ function readWord(word: GrammarWord, lexicon: GrammarLexicon, speaker: Agreement
     info.head = object;
     return info;
   }
-  const noun = nounReading(readings, tokens, role, lexicon);
+  const noun = nounReading(readings, tokens, role, lexicon, word.someone);
   if (noun) Object.assign(info, noun);
   return info;
 }
@@ -675,10 +680,13 @@ function nounReading(
   tokens: Token[],
   role: FitzgeraldRole | null,
   lexicon: GrammarLexicon,
+  /** TileGrammar.someone: the user's word over the lexicon's. */
+  override?: boolean,
 ): Pick<WordInfo, 'noun' | 'subject' | 'nominal' | 'head'> | undefined {
   const found = nominalHead(tokens, readings);
   if (!found) {
-    if (role !== 'person' || readings.some((r) => r.length > 0)) return undefined;
+    const person = override ?? role === 'person';
+    if (!person || readings.some((r) => r.length > 0)) return undefined;
     // Someone the lexicon does not know ("Burek", an own tile): 3rd person, the gender guessed.
     const label = tokens[0]?.core ?? '';
     const guess: Agreement = { person: 3, plural: false, gender: /a$/i.test(label) ? 'f' : 'm1' };
@@ -689,12 +697,13 @@ function nounReading(
   const g = reading.tag.attrs[2] ?? [];
   const name = reading.lemma.charAt(0) !== reading.lemma.charAt(0).toLowerCase();
   const someone =
-    role === 'person' ||
-    g.includes('m1') ||
-    g.includes('m2') ||
-    g.includes('p1') ||
-    name ||
-    lexicon.animate(reading.lemma);
+    override ??
+    (role === 'person' ||
+      g.includes('m1') ||
+      g.includes('m2') ||
+      g.includes('p1') ||
+      name ||
+      lexicon.animate(reading.lemma));
   return someone
     ? { noun: true, subject: agreement, nominal: agreement, head }
     : { noun: true, nominal: agreement, head };
@@ -1335,17 +1344,37 @@ function subjectAfter(
 }
 
 /**
+ * The own words of `words` (TileGrammar.like) for GrammarLexicon.withOwnWords: in each label
+ * the token the lexicon does not know (else the first) that ends as the other word does.
+ */
+export function ownWords(
+  words: readonly GrammarWord[],
+  lexicon: GrammarLexicon,
+): [string, string][] {
+  const out: [string, string][] = [];
+  for (const { label, like } of words) {
+    if (!like) continue;
+    const cores = tokenize(label).map((t) => t.core);
+    const fitting = cores.filter((c) => c && lexicon.ownWordFits(c, like));
+    const word = fitting.find((c) => lexicon.analyze(c).length === 0) ?? fitting[0];
+    if (word) out.push([word, like]);
+  }
+  return out;
+}
+
+/**
  * The form of every word: its label when nothing changes. Pure and cheap (a sentence is a few
  * dozen words), so the whole sentence is redone on every change and a later word may change an
  * earlier one ("idę" + "wczoraj" → "szedłem wczoraj").
  */
 export function inflectSentence(
   words: readonly GrammarWord[],
-  lexicon: GrammarLexicon | null,
+  base: GrammarLexicon | null,
   options: InflectOptions,
 ): string[] {
   const out = words.map((w) => w.label);
-  if (!lexicon || options.level === 'off' || words.length === 0) return out;
+  if (!base || options.level === 'off' || words.length === 0) return out;
+  const lexicon = base.withOwnWords(ownWords(words, base));
   const full = options.level === 'full';
   const speaker = speakerAgreement(options.speaker);
   const infos = words.map((w) => readWord(w, lexicon, speaker));
@@ -1423,6 +1452,26 @@ export function inflectSentence(
   return out;
 }
 
+// --- the tile editor (G3) ------------------------------------------------------------------
+
+/** The label's first word the lexicon does not know ("moja hulajnoga" → "hulajnoga"). */
+export function unknownWord(label: string, lexicon: GrammarLexicon): string | undefined {
+  return tokenize(label)
+    .map((t) => t.core)
+    .find((c) => c && !own(PRONOUNS, c.toLowerCase()) && lexicon.analyze(c).length === 0);
+}
+
+/**
+ * Whether the word names someone who can do something, as the sentence reads it now: the
+ * default of TileGrammar.someone. Null when it is no noun.
+ */
+export function namesSomeone(word: GrammarWord, base: GrammarLexicon): boolean | null {
+  const lexicon = base.withOwnWords(ownWords([word], base));
+  const info = readWord({ ...word, fixed: false }, lexicon, speakerAgreement(null));
+  if (!info.noun) return null;
+  return info.subject !== undefined;
+}
+
 // --- choosing a form by hand --------------------------------------------------------------
 
 export interface FormChoice {
@@ -1487,8 +1536,9 @@ function unique(choices: (FormChoice | undefined)[]): FormChoice[] {
  * Every form the user may pick for a word, grouped (PLAN §2.10 "Wybierz formę"). Empty when
  * the lexicon does not know the word.
  */
-export function formChoices(word: GrammarWord, lexicon: GrammarLexicon | null): FormGroup[] {
-  if (!lexicon) return [];
+export function formChoices(word: GrammarWord, base: GrammarLexicon | null): FormGroup[] {
+  if (!base) return [];
+  const lexicon = base.withOwnWords(ownWords([word], base));
   const info = readWord({ ...word, fixed: false }, lexicon, speakerAgreement(null));
   const tokens = info.tokens;
   const readings = tokens.map((t) => (t.core ? lexicon.analyze(t.core) : []));

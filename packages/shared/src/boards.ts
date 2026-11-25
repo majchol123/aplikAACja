@@ -92,6 +92,40 @@ export const BoardNameSchema = text(BOARD_LIMITS.nameMax);
 export const TileLabelSchema = text(BOARD_LIMITS.labelMax);
 export const TileSpeechSchema = text(BOARD_LIMITS.speechMax);
 
+/**
+ * How a tile's word inflects in the sentence (F8 G3, PLAN §2.10), when the lexicon alone gets
+ * it wrong or does not know the word: `fixed` — never ("Nie odmieniaj"); `like` — as this word
+ * of the lexicon ("hulajnoga" like "noga", "Burek" like "Marek"); `someone` — whether it names
+ * someone who can do something, so it may be the subject ("lalka śpi", "pilot" the device: no).
+ */
+export const TileGrammarSchema = z
+  .object({
+    fixed: z.literal(true).optional(),
+    like: z
+      .string()
+      .regex(/^\p{L}[\p{L}-]{0,39}$/u)
+      .optional(),
+    someone: z.boolean().optional(),
+  })
+  .strict()
+  .refine((g) => Object.keys(g).length > 0, 'empty grammar')
+  .refine((g) => !(g.fixed && g.like), 'fixed and like');
+export type TileGrammar = z.infer<typeof TileGrammarSchema>;
+
+/** A stored tile grammar (JSON text or an object); anything else counts as none. */
+export function parseTileGrammar(raw: unknown): TileGrammar | null {
+  let value = raw;
+  if (typeof raw === 'string') {
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  const parsed = TileGrammarSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 const libraryRef = z.string().regex(/^(0|[1-9][0-9]{0,9})$/);
 
 /** A tile's picture: library symbol by ID, or an own photo by media ID. */
@@ -158,6 +192,7 @@ const TemplateTileSchema = z
     symbol: tileStyle.symbol.optional(),
     hidden: z.boolean().optional(),
     speech: TileSpeechSchema.optional(),
+    grammar: TileGrammarSchema.optional(),
     /** Contents of the board a folder opens (folders only). */
     get board() {
       return TemplateBoardSchema.optional();
@@ -234,6 +269,7 @@ export const CreateTileSchema = z
     symbol: tileStyle.symbol.optional(),
     hidden: z.boolean().optional(),
     speech: TileSpeechSchema.nullable().optional(),
+    grammar: TileGrammarSchema.nullable().optional(),
     /** Grid of the board a folder opens; defaults to the parent board's grid. */
     folder: GridSizeSchema.optional(),
   })
@@ -258,6 +294,8 @@ export const PatchTileSchema = z
     hidden: z.boolean().optional(),
     /** null: say the label again. */
     speech: TileSpeechSchema.nullable().optional(),
+    /** null: as the lexicon reads the label. */
+    grammar: TileGrammarSchema.nullable().optional(),
     folder: GridSizeSchema.optional(),
   })
   .strict()
@@ -300,6 +338,8 @@ export interface Tile {
   hidden: boolean;
   /** Said instead of the label ("pić" → "Chcę się napić"); null: the label. */
   speech: string | null;
+  /** How its word inflects (G3); null: as the lexicon reads the label. */
+  grammar: TileGrammar | null;
 }
 
 export interface Board {
@@ -357,6 +397,7 @@ export function packageTree(pkg: BoardPackage): BoardTree {
       symbol: t.symbol ?? null,
       hidden: t.hidden ?? false,
       speech: t.speech ?? null,
+      grammar: t.grammar ?? null,
     }));
     return id;
   };

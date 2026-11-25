@@ -14,18 +14,21 @@ import {
   type Me,
   type SymbolRef,
   type Tile,
+  type TileGrammar,
   type TileKind,
 } from '@aplikaacja/shared';
 import { useId, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { ROLE_COLORS } from '../boards/colors.ts';
 import { useSetPreferred } from '../boards/preferred.ts';
 import type { BoardWrite } from '../boards/writes.ts';
+import { useGrammar } from '../comm/grammar.ts';
 import { useTileLook } from '../comm/tileLook.tsx';
 import { TileView } from '../comm/TileView.tsx';
 import { photoProblem, useUploadPhoto } from '../media/data.ts';
 import { PhotoCropper } from '../media/PhotoCropper.tsx';
 import { GridFields } from './BoardDialog.tsx';
 import { Dialog } from './Dialog.tsx';
+import { GrammarFields, sameGrammar } from './GrammarFields.tsx';
 import { MovePanel } from './MovePanel.tsx';
 import { SymbolPicker, type PickerItem } from './SymbolPicker.tsx';
 import { ui } from './ui.ts';
@@ -58,6 +61,8 @@ interface Draft {
   hidden: boolean;
   /** Typed text; empty: the tile says its label. */
   speech: string;
+  /** How its word inflects (G3); null: as the lexicon reads the label. */
+  grammar: TileGrammar | null;
 }
 
 const BOARDS_PL = ['tablica', 'tablice', 'tablic'] as const;
@@ -177,7 +182,10 @@ export function TileEditor({
     symbol: tile?.symbol ?? null,
     hidden: tile?.hidden ?? false,
     speech: tile?.speech ?? '',
+    grammar: tile?.grammar ?? null,
   }));
+  // The lexicon of the sentence bar, to show and set how the word inflects (G3).
+  const { lexicon } = useGrammar(me.extraSet);
   // Picking a symbol proposes its part-of-speech colour until a colour is chosen by hand.
   const [autoColor, setAutoColor] = useState(true);
   // null: the search follows the label.
@@ -246,15 +254,17 @@ export function TileEditor({
     // Folders open a board and say nothing; the label itself needs no copy.
     const typed = draft.speech.trim();
     const speech = draft.kind === 'word' && typed && typed !== label ? typed : null;
+    const grammar = draft.kind === 'word' ? draft.grammar : null;
     if (!label) {
       setMissingLabel(true);
       return;
     }
     let ok: boolean;
     if (tile) {
-      const input: Partial<Omit<Draft, 'symbol' | 'speech'>> & {
+      const input: Partial<Omit<Draft, 'symbol' | 'speech' | 'grammar'>> & {
         symbol?: SymbolRef | null;
         speech?: string | null;
+        grammar?: TileGrammar | null;
         folder?: GridSize;
       } = {};
       if (label !== tile.label) input.label = label;
@@ -266,6 +276,7 @@ export function TileEditor({
       if (draft.colorMode !== tile.colorMode) input.colorMode = draft.colorMode;
       if (draft.hidden !== tile.hidden) input.hidden = draft.hidden;
       if (speech !== tile.speech) input.speech = speech;
+      if (!sameGrammar(grammar, tile.grammar)) input.grammar = grammar;
       if (!sameSymbol(draft.symbol, tile.symbol)) input.symbol = draft.symbol;
       if (Object.keys(input).length === 0) return onClose();
       if (input.kind === 'word' && lost && !confirmed) {
@@ -277,7 +288,14 @@ export function TileEditor({
       ok = await run({
         op: 'createTile',
         boardId: board.id,
-        input: { ...cell, ...draft, label, speech, ...(newFolder ? { folder: grid } : {}) },
+        input: {
+          ...cell,
+          ...draft,
+          label,
+          speech,
+          grammar,
+          ...(newFolder ? { folder: grid } : {}),
+        },
       });
     }
     if (!ok) {
@@ -471,6 +489,15 @@ export function TileEditor({
                 Na kafelku i w pasku zdania zostaje napis.
               </p>
             </div>
+          )}
+          {draft.kind === 'word' && lexicon && !draft.speech.trim() && (
+            <GrammarFields
+              label={draft.label}
+              role={draft.colorRole}
+              value={draft.grammar}
+              lexicon={lexicon}
+              onChange={(grammar) => change({ grammar })}
+            />
           )}
 
           <Choices

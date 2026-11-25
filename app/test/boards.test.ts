@@ -177,6 +177,7 @@ describe('board tree', () => {
       symbol: { set: 'arasaac', ref: '2494' },
       hidden: false,
       speech: null,
+      grammar: null,
     });
 
     const t = await tree(api);
@@ -684,6 +685,48 @@ describe('board tree', () => {
       items: [{ label: 'pić', symbol: null, speech: 'Chcę się napić' }],
     });
     expect(favorite.status).toBe(201);
+  });
+
+  it('a tile keeps how its word inflects; null hands it back to the lexicon (F8 G3)', async () => {
+    const { api } = await setup();
+    const start = await home(api);
+    const tile = await addTile(api, start, {
+      row: 0,
+      col: 1,
+      label: 'hulajnoga',
+      grammar: { like: 'noga', someone: false },
+    });
+    expect(tile.tile).toMatchObject({ grammar: { like: 'noga', someone: false } });
+    const fixed = await api<BoardChanges>('PATCH', `/api/tiles/${tile.tile.id}`, {
+      rev: tile.board.rev,
+      grammar: { fixed: true },
+    });
+    expect(changed(fixed, start.id).tiles[0]).toMatchObject({ grammar: { fixed: true } });
+    const cleared = await api<BoardChanges>('PATCH', `/api/tiles/${tile.tile.id}`, {
+      rev: changed(fixed, start.id).rev,
+      grammar: null,
+    });
+    expect(changed(cleared, start.id).tiles[0]).toMatchObject({ grammar: null });
+    for (const grammar of [{}, { like: '<x>' }, { fixed: true, like: 'noga' }, { pos: 'noun' }]) {
+      const res = await api('PATCH', `/api/tiles/${tile.tile.id}`, { rev: 3, grammar });
+      expect(res.status, JSON.stringify(grammar)).toBe(400);
+    }
+    // It travels with a board: shares, the catalogue and files carry it in the package.
+    const imported = await api<BoardChanges>('POST', `/api/boards/${start.id}/import`, {
+      rev: changed(cleared, start.id).rev,
+      package: {
+        v: 1,
+        name: 'Własne słowa',
+        board: {
+          rows: 1,
+          cols: 1,
+          tiles: [{ row: 0, col: 0, kind: 'word', label: 'Burek', grammar: { like: 'Marek' } }],
+        },
+      },
+    });
+    expect(imported.status).toBe(200);
+    const copy = imported.body.boards.find((b) => b.name === 'Własne słowa')!;
+    expect(copy.tiles[0]).toMatchObject({ label: 'Burek', grammar: { like: 'Marek' } });
   });
 
   it('enforces the per-account quotas', async () => {

@@ -363,3 +363,47 @@ describe('inflecting the sentence (G2: cases)', () => {
     expect(full('myć zęby:verb | mama:noun')).toBe('myję zęby mama');
   });
 });
+
+describe('own words of the tiles (G3)', () => {
+  const w = (label: string, role: FitzgeraldRole | null, extra: Partial<GrammarWord> = {}) => ({
+    label,
+    role,
+    fixed: false,
+    ...extra,
+  });
+  const full = (words: GrammarWord[]) =>
+    inflectSentence(words, lexicon, { level: 'full', speaker: 'f' }).join(' ');
+
+  it('inflects a word the lexicon lacks like another one', () => {
+    expect(full([w('lubić', 'verb'), w('hulajnoga', 'noun', { like: 'noga' })])).toBe(
+      'lubię hulajnogę',
+    );
+    expect(full([w('iść', 'verb'), w('z', null), w('Basia', 'person', { like: 'Kasia' })])).toBe(
+      'idę z Basią',
+    );
+    expect(full([w('Basia', 'person', { like: 'Kasia' }), w('iść', 'verb')])).toBe('Basia idzie');
+    // Not ending as "noga" does: left as it is.
+    expect(full([w('lubić', 'verb'), w('rower', 'noun', { like: 'noga' })])).toBe('lubię rower');
+    expect(lexicon.ownWordFits('hulajnoga', 'noga')).toBe(true);
+    expect(lexicon.ownWordFits('kot', 'noga')).toBe(false);
+    // The lexicon itself is not changed.
+    expect(lexicon.has('hulajnoga')).toBe(false);
+  });
+
+  it('takes the user’s word on who may be the subject, and on not inflecting', () => {
+    expect(full([w('lalka', 'noun'), w('spać', 'verb')])).toBe('lalka śpię');
+    expect(full([w('lalka', 'noun', { someone: true }), w('spać', 'verb')])).toBe('lalka śpi');
+    expect(full([w('mama', 'noun', { someone: false }), w('iść', 'verb')])).toBe('mama idę');
+    expect(full([w('Burek', 'noun', { someone: true }), w('spać', 'verb')])).toBe('Burek śpi');
+    expect(full([w('iść', 'verb', { fixed: true })])).toBe('iść');
+  });
+
+  it('proposes words to inflect like, and offers the own word’s forms', () => {
+    expect(lexicon.suggestLike('hulajnoga', 'subst')).toContain('noga');
+    expect(lexicon.suggestLike('Basia')).toContain('Kasia');
+    const groups = formChoices(w('hulajnoga', 'noun', { like: 'noga' }), lexicon);
+    expect(groups.find((g) => g.title === 'Jeden')?.choices.map((c) => c.text)).toContain(
+      'hulajnogę',
+    );
+  });
+});

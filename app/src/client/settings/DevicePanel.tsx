@@ -136,7 +136,7 @@ function LabelPlace() {
   );
 }
 
-function DeviceToggle({
+export function DeviceToggle({
   checked,
   onChange,
   hint,

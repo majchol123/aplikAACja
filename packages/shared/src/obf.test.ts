@@ -240,6 +240,47 @@ describe('Open Board Format', () => {
     ]);
   });
 
+  it('how a word inflects travels as ext_aplikaacja_grammar; a malformed one is dropped', () => {
+    const start: BoardPackage = {
+      v: 1,
+      name: 'Start',
+      board: {
+        rows: 1,
+        cols: 3,
+        tiles: [
+          { row: 0, col: 0, kind: 'word', label: 'hulajnoga', grammar: { like: 'noga' } },
+          { row: 0, col: 1, kind: 'word', label: 'lalka', grammar: { someone: true } },
+          { row: 0, col: 2, kind: 'word', label: 'iść' },
+        ],
+      },
+    };
+    const files = packageToObz(start, new Map());
+    const root = JSON.parse(files['boards/0.obf'] as string) as {
+      buttons: { ext_aplikaacja_grammar?: unknown }[];
+    };
+    expect(root.buttons.map((b) => b.ext_aplikaacja_grammar)).toEqual([
+      { like: 'noga' },
+      { someone: true },
+      undefined,
+    ]);
+    const back = obzToPackage(bytes(files));
+    expect(back.package.board.tiles.map((t) => t.grammar)).toEqual([
+      { like: 'noga' },
+      { someone: true },
+      undefined,
+    ]);
+    const broken = {
+      ...root,
+      buttons: root.buttons.map((b) => ({ ...b, ext_aplikaacja_grammar: { like: '<x>' } })),
+    };
+    const junk = obzToPackage(bytes({ ...files, 'boards/0.obf': JSON.stringify(broken) }));
+    expect(junk.package.board.tiles.map((t) => [t.label, t.grammar])).toEqual([
+      ['hulajnoga', undefined],
+      ['lalka', undefined],
+      ['iść', undefined],
+    ]);
+  });
+
   it('hidden tiles stay hidden, with Open Board’s own field', () => {
     const start: BoardPackage = {
       v: 1,

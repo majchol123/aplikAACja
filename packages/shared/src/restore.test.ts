@@ -120,9 +120,11 @@ describe('restoring boards from a backup (PLAN §6)', () => {
       colorRole: 'person',
       colorMode: 'background',
       symbol: { set: 'own', ref: PHOTO },
-      // This dump predates the columns (vault v6, v7): nothing hidden, the label said.
+      // This dump predates the columns (vault v6, v7, v13): nothing hidden, the label said,
+      // inflected as the lexicon reads it.
       hidden: false,
       speech: null,
+      grammar: null,
     });
     expect(tree.boards.find((b) => b.id === FOLDER)!.tiles[0]!.symbol).toBeNull();
     expect(photos).toEqual([

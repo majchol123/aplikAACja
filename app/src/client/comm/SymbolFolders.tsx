@@ -47,6 +47,7 @@ const cell = (
   symbol: null,
   hidden: false,
   speech: null,
+  grammar: null,
   ...extra,
 });
 

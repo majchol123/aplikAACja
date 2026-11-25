@@ -10,6 +10,7 @@ import {
   type GrammarLevel,
   type LibrarySet,
   type SpeakerGender,
+  type TileGrammar,
 } from '@aplikaacja/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -33,6 +34,8 @@ export interface SentenceWord {
   fixed?: boolean;
   /** A form picked by hand ("Wybierz formę"); the grammar leaves it alone. */
   picked?: string;
+  /** How the tile's word inflects (G3): fixed, like another word, someone or not. */
+  grammar?: TileGrammar | null;
 }
 
 async function loadData(set: LibrarySet, file: string): Promise<GrammarData> {
@@ -97,7 +100,9 @@ export function sentenceForms(words: readonly SentenceWord[], grammar: Grammar):
     words.map((w) => ({
       label: w.picked ?? w.label,
       role: w.role ?? null,
-      fixed: Boolean(w.fixed || w.speech || w.picked !== undefined),
+      fixed: Boolean(w.fixed || w.speech || w.picked !== undefined || w.grammar?.fixed),
+      ...(w.grammar?.like ? { like: w.grammar.like } : {}),
+      ...(w.grammar?.someone !== undefined ? { someone: w.grammar.someone } : {}),
     })),
     grammar.lexicon,
     { level: grammar.level, speaker: grammar.speaker },

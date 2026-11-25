@@ -17,6 +17,7 @@ export const ALL_SYMBOLS_TILE: Tile = {
   symbol: { set: 'arasaac', ref: '15018' },
   hidden: false,
   speech: null,
+  grammar: null,
 };
 
 /**

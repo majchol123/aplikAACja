@@ -59,7 +59,8 @@ export const SettingsSchema = z
     showPhraseGenerator: z.boolean(),
     /**
      * Inflecting the sentence bar (F8, PLAN §2.10): off — words as on the tiles; verbs — the
-     * verb agrees with the subject, "ja" by default ("iść" → "idę"). On by default.
+     * verb agrees with the subject, "ja" by default ("iść" → "idę"); full (the default) — nouns,
+     * adjectives, numerals and pronouns take their cases too ("chcę wody").
      */
     grammar: z.enum(GRAMMAR_LEVELS),
     /** How the user speaks of themselves ("szedłem" / "szłam"); null: masculine forms. */
@@ -93,7 +94,7 @@ export const DEFAULT_SETTINGS: Settings = {
   labelPosition: 'top',
   showAllSymbols: true,
   showPhraseGenerator: true,
-  grammar: 'verbs',
+  grammar: 'full',
   speakerGender: null,
   keepHistory: true,
   usageStats: true,
