@@ -403,7 +403,7 @@ function EditGrid({
   // Another board starts at its top; a tile found with the search is scrolled into view.
   // Block bodies: scroll methods return a promise in newer browsers, not a cleanup.
   useLayoutEffect(() => {
-    area.current?.scrollTo({ top: 0 });
+    area.current?.scrollTo({ top: 0, left: 0 });
   }, [board.id]);
   useEffect(() => {
     if (found)

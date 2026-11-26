@@ -25,7 +25,7 @@ export const ALWAYS_FIT_ROWS = 6;
 
 /**
  * Attributes of a `.board-grid` (styles.css): its size on screen and the device's smallest
- * tile, below which a board of more than ALWAYS_FIT_ROWS rows scrolls instead.
+ * tile, below which a board scrolls (vertically or horizontally) instead of shrinking tiles.
  */
 export function useGridAttributes(layout: GridLayout): {
   style: CSSProperties;
@@ -39,6 +39,7 @@ export function useGridAttributes(layout: GridLayout): {
       '--cols': layout.cols,
       '--rows': layout.rows,
       '--tile-min': `${layout.rows > ALWAYS_FIT_ROWS ? TILE_MIN_REM[device.tileMin] : 0}rem`,
+      '--col-min': `${TILE_MIN_REM[device.tileMin]}rem`,
     } as CSSProperties,
     ...(layout.transposed ? { 'data-transposed': true as const } : {}),
     ...(fit ? { 'data-fit': true as const } : {}),

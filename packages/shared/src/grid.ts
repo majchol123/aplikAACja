@@ -21,6 +21,31 @@ export interface GridLayout {
   transposed: boolean;
 }
 
+/**
+ * Effective `(rows, cols)` of a board in communication mode: trailing completely empty rows
+ * and columns beyond the last tile (hidden tiles still hold their cells for motor planning,
+ * and the home board's reserved first cell `(0, 0)` always counts) are trimmed so accidental
+ * extra grid rows or columns from the editor never shrink tiles or add blank scrollbars.
+ */
+export function trimmedBoardGrid(board: {
+  parentId: string | null;
+  rows: number;
+  cols: number;
+  tiles: readonly { row: number; col: number }[];
+}): { rows: number; cols: number } {
+  let maxRow = board.parentId === null ? 0 : -1;
+  let maxCol = board.parentId === null ? 0 : -1;
+  for (const tile of board.tiles) {
+    if (tile.row > maxRow) maxRow = tile.row;
+    if (tile.col > maxCol) maxCol = tile.col;
+  }
+  if (maxRow < 0) return { rows: board.rows, cols: board.cols };
+  return {
+    rows: Math.min(board.rows, maxRow + 1),
+    cols: Math.min(board.cols, maxCol + 1),
+  };
+}
+
 export function gridLayout(
   board: { rows: number; cols: number },
   { fit, portrait }: { fit: boolean; portrait: boolean },

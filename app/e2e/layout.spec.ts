@@ -252,6 +252,61 @@ test('a tall board scrolls down instead of shrinking its tiles', async ({ page }
   expect((await tile(page, 'pierwszy').boundingBox())!.height).toBeLessThan(40);
 });
 
+test('communication mode trims trailing empty rows and fills wide screens without side bands; narrow screens scroll horizontally', async ({
+  page,
+}) => {
+  test.skip(test.info().project.name !== 'desktop', 'wide and narrow viewport checks');
+  await page.setViewportSize({ width: 1480, height: 640 });
+  await freshLogin(page, 'Pelna szerokosc');
+  // Declared 10×10 board, but tiles sit only in the first 4 rows (rows 0..3) and 6 columns (cols 0..5).
+  await seedGrid(page, 10, 10, [
+    ['lewy', 0, 1],
+    ['prawy', 0, 5],
+    ['dolny', 3, 2],
+  ]);
+
+  const area = page.locator('.comm-root > .board-area');
+  const boardGrid = grid(page);
+
+  // Communication mode trimmed the 6 trailing empty rows (rows 4..9) and 4 trailing empty columns (cols 6..9),
+  // so there is no vertical scroll and the 4×6 grid stretches across the full width of the area.
+  const wideMetrics = await area.evaluate((el) => {
+    const g = el.querySelector<HTMLElement>('[data-testid="board-grid"]')!;
+    const areaBox = el.getBoundingClientRect();
+    const gridBox = g.getBoundingClientRect();
+    return {
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+      areaWidth: areaBox.width,
+      gridWidth: gridBox.width,
+      sideMargin: areaBox.width - gridBox.width,
+    };
+  });
+  expect(wideMetrics.scrollHeight).toBeLessThanOrEqual(wideMetrics.clientHeight + 2);
+  expect(wideMetrics.sideMargin).toBeLessThan(40);
+  await expect(boardGrid.locator('.tile-cell')).toHaveCount(24);
+
+  // Edit mode still shows all 10×10 = 100 editable cells so the user can add tiles anywhere.
+  await holdEditLock(page);
+  await expect(page.getByTestId('edit-grid').locator('.tile-cell')).toHaveCount(100);
+  await page.getByRole('button', { name: 'Gotowe' }).click();
+
+  // On a narrow screen (360px, fitGrid off) with 6 occupied columns, columns keep their minimum width
+  // (--col-min = 6rem) and scroll horizontally instead of squeezing below the minimum tile size.
+  await page.evaluate(() => {
+    const key = 'aplikaacja.device.v1';
+    const stored = JSON.parse(localStorage.getItem(key) ?? '{}');
+    localStorage.setItem(key, JSON.stringify({ ...stored, fitGrid: false, tileMin: 'M' }));
+  });
+  await page.reload();
+  await page.setViewportSize({ width: 360, height: 640 });
+  const narrowMetrics = await area.evaluate((el) => ({
+    scrollWidth: el.scrollWidth,
+    clientWidth: el.clientWidth,
+  }));
+  expect(narrowMetrics.scrollWidth).toBeGreaterThan(narrowMetrics.clientWidth + 100);
+});
+
 test('the editor scrolls a tall board too and offers 40 rows', async ({ page }) => {
   test.skip(test.info().project.name !== 'desktop', 'one run is enough');
   await freshLogin(page, 'Wysoka edycja');

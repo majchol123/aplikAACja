@@ -72,13 +72,10 @@ html[data-state='anon'] .landing-reveal {
 
 /*
  * Board grid (communication and edit mode). The space left by the bars is a size
- * container; cells get the largest size that fits, at most 1:1.3 (tall) so tiles never turn
- * into strips, and the grid is centred in that space. Boards of more than six rows keep
- * their rows at the device's smallest tile (--tile-min, layout.ts) — though at least four
- * rows show on a short screen — and what does not fit scrolls down. Columns always fit the
- * width. Cells are at most 1.6 times as wide as high, so the label stays under the
- * symbol; only short screens (phones held sideways) and "fit" boards allow 3:1, with the
- * label beside the symbol.
+ * container; columns expand across the full width (no empty side bands on wide screens)
+ * and scroll sideways when narrower than the device's minimum tile width (--col-min),
+ * while rows keep at most a 1:1.3 tall ratio and scroll down when taller boards would
+ * shrink below --tile-min (layout.ts, with at least four rows on a short screen).
  */
 .board-area {
   container-type: size;
@@ -87,38 +84,30 @@ html[data-state='anon'] .landing-reveal {
   flex: 1 1 0;
   align-items: flex-start;
   justify-content: safe center;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: auto;
   overscroll-behavior: contain;
   /* A scrollbar appearing must not narrow the cells, which would change the rows again. */
   scrollbar-gutter: stable;
 }
 .board-grid {
   --gap: 0.5rem;
-  --wide: 1.6;
   --fit-w: calc((100cqw - (var(--cols) - 1) * var(--gap)) / var(--cols));
   --fit-h: calc((100cqh - (var(--rows) - 1) * var(--gap)) / var(--rows));
   --four: calc((100cqh - 3 * var(--gap)) / 4);
-  --row-h: min(1.3 * var(--fit-w), max(min(var(--tile-min, 0px), var(--four)), var(--fit-h)));
+  --three-w: calc((100cqw - 2 * var(--gap)) / 3);
+  --col-w: max(var(--fit-w), min(var(--col-min, 0px), var(--three-w)));
+  --row-h: min(1.3 * var(--col-w), max(min(var(--tile-min, 0px), var(--four)), var(--fit-h)));
   display: grid;
   flex-shrink: 0;
   gap: var(--gap);
-  grid-template-columns: repeat(var(--cols), min(var(--fit-w), var(--wide) * var(--row-h)));
+  grid-template-columns: repeat(var(--cols), var(--col-w));
   grid-template-rows: repeat(var(--rows), var(--row-h));
-}
-.board-grid[data-fit] {
-  --wide: 3;
 }
 /* The rings of focused and found tiles stay inside the scrolling area, not cut at its edge. */
 .comm-root > .board-area,
 .edit-root > .board-area {
   margin: -0.375rem;
   padding: 0.375rem;
-}
-@media (max-height: 32rem) {
-  .board-grid {
-    --wide: 3;
-  }
 }
 @media (min-width: 40rem) and (min-height: 32.01rem) {
   .board-grid {
@@ -317,10 +306,10 @@ html[data-state='anon'] .landing-reveal {
   width: 100%;
   height: 100%;
   /*
-   * A swipe scrolls a tall board; a long press starts dragging, and from then on the drag
-   * sensor keeps the page from moving (it cancels touchmove). No zoom meanwhile.
+   * A swipe scrolls a tall or wide board; a long press starts dragging, and from then on
+   * the drag sensor keeps the page from moving (it cancels touchmove). No zoom meanwhile.
    */
-  touch-action: pan-y;
+  touch-action: pan-x pan-y;
 }
 .edit-dragging {
   opacity: 0.85;

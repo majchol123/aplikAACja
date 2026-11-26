@@ -342,8 +342,9 @@ export function DevicePanel() {
               </select>
             </label>
             <p id={`${id}-tile-min`} className="mt-1 text-sm text-slate-600">
-              Tablica do sześciu rzędów zawsze mieści się na ekranie. Większa, na której kafelki
-              byłyby mniejsze, przewija się w dół — palcem albo paskiem.
+              Tablica do sześciu rzędów mieści się w wysokości ekranu. Większa lub mająca wiele
+              kolumn na wąskim ekranie, na której kafelki byłyby mniejsze, przewija się w dół lub w
+              bok — palcem albo paskiem.
             </p>
           </div>
         </div>

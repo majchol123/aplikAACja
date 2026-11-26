@@ -1,10 +1,53 @@
 import { describe, expect, it } from 'vitest';
-import { cellAt, gridLayout, toScreen } from './grid.ts';
+import { cellAt, gridLayout, toScreen, trimmedBoardGrid } from './grid.ts';
 
 const wide = { rows: 4, cols: 6 };
 const tall = { rows: 6, cols: 4 };
 
 describe('grid layout', () => {
+  it('trims trailing empty rows and columns in communication mode while keeping tile cells', () => {
+    // Trailing empty rows/cols beyond the last occupied cell are trimmed.
+    expect(
+      trimmedBoardGrid({
+        parentId: null,
+        rows: 8,
+        cols: 6,
+        tiles: [
+          { row: 0, col: 5 },
+          { row: 3, col: 2 },
+        ],
+      }),
+    ).toEqual({ rows: 4, cols: 6 });
+
+    // Hidden tiles are part of `board.tiles`, so their cells stay reserved for motor planning.
+    expect(
+      trimmedBoardGrid({
+        parentId: 'parent',
+        rows: 10,
+        cols: 8,
+        tiles: [{ row: 4, col: 3 }],
+      }),
+    ).toEqual({ rows: 5, cols: 4 });
+
+    // An empty sub-board keeps its declared grid; an empty home board keeps at least (1, 1) for cell (0, 0).
+    expect(
+      trimmedBoardGrid({
+        parentId: 'parent',
+        rows: 4,
+        cols: 5,
+        tiles: [],
+      }),
+    ).toEqual({ rows: 4, cols: 5 });
+    expect(
+      trimmedBoardGrid({
+        parentId: null,
+        rows: 4,
+        cols: 6,
+        tiles: [],
+      }),
+    ).toEqual({ rows: 1, cols: 1 });
+  });
+
   it('turns a grid to the orientation of the screen only when asked', () => {
     expect(gridLayout(wide, { fit: true, portrait: true })).toEqual({
       rows: 6,

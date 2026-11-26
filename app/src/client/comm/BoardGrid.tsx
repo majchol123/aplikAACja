@@ -1,4 +1,4 @@
-import { cellAt, TapFilter, type Board, type Tile } from '@aplikaacja/shared';
+import { cellAt, TapFilter, trimmedBoardGrid, type Board, type Tile } from '@aplikaacja/shared';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useGridAttributes, useGridLayout } from '../boards/layout.ts';
 import { useDeviceSettings } from '../device.ts';
@@ -30,13 +30,14 @@ export function BoardGrid({
   // Hidden tiles leave their cell empty: nothing else moves (motor planning).
   const shown = useMemo(() => board.tiles.filter((t) => !t.hidden), [board.tiles]);
   const byId = useMemo(() => new Map(shown.map((t) => [t.id, t])), [shown]);
-  const layout = useGridLayout(board);
+  const trimmed = useMemo(() => trimmedBoardGrid(board), [board]);
+  const layout = useGridLayout(trimmed);
   const gridAttributes = useGridAttributes(layout);
   const area = useRef<HTMLDivElement>(null);
-  // Another board starts at its top; a tile found with the search is scrolled into view.
+  // Another board starts at its top-left; a tile found with the search is scrolled into view.
   // Block bodies: scroll methods return a promise in newer browsers, not a cleanup.
   useLayoutEffect(() => {
-    area.current?.scrollTo({ top: 0 });
+    area.current?.scrollTo({ top: 0, left: 0 });
   }, [board.id]);
   useEffect(() => {
     if (found)
