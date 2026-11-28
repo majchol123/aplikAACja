@@ -1,0 +1,42 @@
+# Curated Polish Piper VITS voices served from /tts/ (workers/tts).
+# Only CC0 / MIT models with explicit license metadata so attribution stays clean.
+
+[[voices]]
+id = "pl_PL-gosia-medium"
+name = "Gosia"
+gender = "female"
+quality = "medium"
+license = "CC0"
+source_name = "rhasspy/piper-voices"
+onnx_url = "https://huggingface.co/rhasspy/piper-voices/resolve/main/pl/pl_PL/gosia/medium/pl_PL-gosia-medium.onnx"
+config_url = "https://huggingface.co/rhasspy/piper-voices/resolve/main/pl/pl_PL/gosia/medium/pl_PL-gosia-medium.onnx.json"
+
+[[voices]]
+id = "pl_PL-justyna_wg_glos-medium"
+name = "Justyna"
+gender = "female"
+quality = "medium"
+license = "MIT"
+source_name = "WitoldG/polish_piper_models"
+onnx_url = "https://huggingface.co/WitoldG/polish_piper_models/resolve/main/pl_PL-justyna_wg_glos-medium.onnx"
+config_url = "https://huggingface.co/WitoldG/polish_piper_models/resolve/main/pl_PL-justyna_wg_glos-medium.onnx.json"
+
+[[voices]]
+id = "pl_PL-darkman-medium"
+name = "Darkman"
+gender = "male"
+quality = "medium"
+license = "CC0"
+source_name = "rhasspy/piper-voices"
+onnx_url = "https://huggingface.co/rhasspy/piper-voices/resolve/main/pl/pl_PL/darkman/medium/pl_PL-darkman-medium.onnx"
+config_url = "https://huggingface.co/rhasspy/piper-voices/resolve/main/pl/pl_PL/darkman/medium/pl_PL-darkman-medium.onnx.json"
+
+[[voices]]
+id = "pl_PL-meski_wg_glos-medium"
+name = "Męski (WG)"
+gender = "male"
+quality = "medium"
+license = "MIT"
+source_name = "WitoldG/polish_piper_models"
+onnx_url = "https://huggingface.co/WitoldG/polish_piper_models/resolve/main/pl_PL-meski_wg_glos-medium.onnx"
+config_url = "https://huggingface.co/WitoldG/polish_piper_models/resolve/main/pl_PL-meski_wg_glos-medium.onnx.json"

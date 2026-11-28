@@ -18,7 +18,8 @@ const DND_KIT_STYLES = [
 
 export const HTML_CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  // 'wasm-unsafe-eval' allows WebAssembly (Piper TTS) without permitting JS eval or inline scripts.
+  "script-src 'self' 'wasm-unsafe-eval'",
   `style-src 'self' ${DND_KIT_STYLES.join(' ')}`,
   "img-src 'self' blob: data:",
   "font-src 'self'",

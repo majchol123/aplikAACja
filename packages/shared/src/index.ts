@@ -22,4 +22,5 @@ export * from './share.ts';
 export * from './speech.ts';
 export * from './symbols.ts';
 export * from './tap.ts';
+export * from './tts.ts';
 export * from './usage.ts';

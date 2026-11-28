@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { CACHES, LIMITS, strategyFor, supersededBy } from './routes.ts';
+import { CACHES, isSupersededAsset, LIMITS, strategyFor } from './routes.ts';
 
 /**
  * Service worker (PLAN D11): no offline mode, only a faster start and a clear message when
@@ -22,7 +22,11 @@ self.addEventListener('activate', (event) => {
       for (const name of await caches.keys()) {
         if (name.startsWith('aplikaacja-') && !keep.has(name)) await caches.delete(name);
       }
-      await Promise.all([trim(CACHES.shell, LIMITS.shell), trim(CACHES.symbols, LIMITS.symbols)]);
+      await Promise.all([
+        trim(CACHES.shell, LIMITS.shell),
+        trim(CACHES.symbols, LIMITS.symbols),
+        trim(CACHES.tts, LIMITS.tts),
+      ]);
       await self.clients.claim();
     })(),
   );
@@ -52,7 +56,7 @@ async function page(request: Request, url: URL): Promise<Response> {
 async function cached(
   event: FetchEvent,
   url: URL,
-  strategy: 'shell' | 'symbols',
+  strategy: 'shell' | 'symbols' | 'tts',
 ): Promise<Response> {
   const cache = await caches.open(CACHES[strategy]);
   const hit = await cache.match(url.pathname);
@@ -68,15 +72,12 @@ async function store(
   cache: Cache,
   pathname: string,
   response: Response,
-  strategy: 'shell' | 'symbols',
+  strategy: 'shell' | 'symbols' | 'tts',
 ): Promise<void> {
   await cache.put(pathname, response);
-  const prefix = supersededBy(pathname);
-  if (prefix) {
-    for (const key of await cache.keys()) {
-      const path = new URL(key.url).pathname;
-      if (path !== pathname && path.startsWith(prefix)) await cache.delete(key);
-    }
+  for (const key of await cache.keys()) {
+    const path = new URL(key.url).pathname;
+    if (isSupersededAsset(path, pathname)) await cache.delete(key);
   }
   if (++stored % 100 === 0) await trim(CACHES[strategy], LIMITS[strategy]);
 }

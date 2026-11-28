@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import arasaacText from '../../workers/arasaac/wrangler.jsonc?raw';
 import extraText from '../../workers/extra/wrangler.jsonc?raw';
+import ttsText from '../../workers/tts/wrangler.jsonc?raw';
 import wranglerText from '../wrangler.jsonc?raw';
 import { parseJsonc } from './jsonc.ts';
 
@@ -19,6 +20,7 @@ interface WorkerConfig {
 const config = parseJsonc(wranglerText) as WorkerConfig;
 const extra = parseJsonc(extraText) as WorkerConfig;
 const arasaac = parseJsonc(arasaacText) as WorkerConfig;
+const tts = parseJsonc(ttsText) as WorkerConfig;
 const HOSTS = ['aplikaacja.one.pl', 'staging.aplikaacja.one.pl'];
 
 describe('wrangler.jsonc', () => {
@@ -27,7 +29,14 @@ describe('wrangler.jsonc', () => {
   });
 
   it('keeps every Worker off workers.dev and preview URLs', () => {
-    for (const cfg of [config, ...Object.values(config.env ?? {}), extra, arasaac]) {
+    for (const cfg of [
+      config,
+      ...Object.values(config.env ?? {}),
+      extra,
+      arasaac,
+      tts,
+      ...Object.values(tts.env ?? {}),
+    ]) {
       expect(cfg.workers_dev, cfg.name).toBe(false);
       expect(cfg.preview_urls, cfg.name).toBe(false);
     }
@@ -71,5 +80,18 @@ describe('symbol-set Workers', () => {
     expect(arasaac.routes).toEqual(
       HOSTS.map((host) => ({ pattern: `${host}/sym/arasaac/*`, zone_name: 'aplikaacja.one.pl' })),
     );
+  });
+
+  it('Piper TTS assets: assets only, routed under /tts/ per environment', () => {
+    expect(tts.main).toBeUndefined();
+    expect(tts.routes).toBeUndefined();
+    expect(tts.env?.staging?.name).toBe('aplikaacja-tts-staging');
+    expect(tts.env?.staging?.routes).toEqual([
+      { pattern: 'staging.aplikaacja.one.pl/tts/*', zone_name: 'aplikaacja.one.pl' },
+    ]);
+    expect(tts.env?.production?.name).toBe('aplikaacja-tts');
+    expect(tts.env?.production?.routes).toEqual([
+      { pattern: 'aplikaacja.one.pl/tts/*', zone_name: 'aplikaacja.one.pl' },
+    ]);
   });
 });

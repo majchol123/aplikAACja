@@ -30,6 +30,18 @@ if [[ -n "$grammar" ]]; then
 fi
 [[ "$(status /sym/extra/manifest.json)" == 401 ]] || fail "/sym/extra/* must require a session"
 
+# Self-hosted Piper TTS assets (assets-only Worker under /tts/*).
+tts_manifest="$(curl -fsS "$origin/tts/manifest.json" 2>/dev/null || true)"
+if [[ -n "$tts_manifest" ]]; then
+  ort_wasm="$(python3 -c 'import json,sys; m=json.loads(sys.argv[1]); assert m["v"]==1 and m["voices"]; print(m["runtime"]["ortWasm"])' "$tts_manifest")" ||
+    fail "TTS manifest invalid"
+  ort_mjs="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["runtime"]["ortMjs"])' "$tts_manifest")"
+  [[ "$(status "/tts/$ort_wasm")" == 200 ]] || fail "TTS runtime wasm missing"
+  [[ "$(status "/tts/$ort_mjs")" == 200 ]] || fail "TTS runtime mjs missing"
+else
+  fail "TTS manifest missing"
+fi
+
 privacy="$(curl -sS "$origin/prywatnosc")"
 grep -q 'href="mailto:[^"%]*@' <<<"$privacy" || fail "contact address missing on /prywatnosc"
 # Email Obfuscation (zone Configuration Rule) must stay off: its injected script breaks the CSP.
@@ -61,17 +73,21 @@ for path in / /prywatnosc /o-aplikacji /pomoc; do
   h="$(fetch_headers "$origin$path")"
   common "$path" "$h"
   csp="$(value content-security-policy "$h")"
-  for directive in "default-src 'self'" "script-src 'self';" "object-src 'none'" "base-uri 'none'" \
+  for directive in "default-src 'self'" "script-src 'self' 'wasm-unsafe-eval';" "object-src 'none'" "base-uri 'none'" \
     "form-action 'self'" "frame-ancestors 'none'"; do
     [[ "$csp" == *"$directive"* ]] || fail "$path: CSP lacks $directive"
   done
-  [[ "$csp" != *unsafe-* ]] || fail "$path: CSP allows unsafe-*"
+  for bad in "'unsafe-inline'" "'unsafe-eval'" "'unsafe-hashes'"; do
+    [[ "$csp" != *"$bad"* ]] || fail "$path: CSP allows $bad"
+  done
   [[ -z "$page_csp" || "$csp" == "$page_csp" ]] || fail "$path: CSP differs from /"
   page_csp="$csp"
 done
 asset="$(curl -sS "$origin/" | grep -o '/assets/main-[A-Za-z0-9_-]*\.js' | head -1)"
 [[ -n "$asset" ]] || fail "no app script on /"
 expect "$asset" "$(fetch_headers "$origin$asset")" cache-control 'immutable'
+expect "/tts/$ort_mjs" "$(fetch_headers "$origin/tts/$ort_mjs")" cross-origin-embedder-policy '^require-corp$'
+expect "/tts/$ort_mjs" "$(fetch_headers "$origin/tts/$ort_mjs")" cross-origin-resource-policy '^same-origin$'
 expect /sw.js "$(fetch_headers "$origin/sw.js")" cache-control '^no-cache$'
 for path in /api/health /api/me; do
   h="$(fetch_headers -H 'Origin: https://attacker.example' "$origin$path")"

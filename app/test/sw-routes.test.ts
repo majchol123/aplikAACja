@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { strategyFor, supersededBy } from '../src/sw/routes.ts';
+import { isSupersededAsset, strategyFor, supersededBy } from '../src/sw/routes.ts';
 
 const ORIGIN = 'https://aplikaacja.example';
 const at = (path: string, mode = 'no-cors', method = 'GET') =>
@@ -13,6 +13,8 @@ describe('service worker routing (PLAN D11, §4.1)', () => {
     expect(at('/sym/arasaac/forms.963a1920.json', 'cors')).toBe('symbols');
     expect(at('/sym/arasaac/categories.963a1920.json', 'cors')).toBe('symbols');
     expect(at('/sym/arasaac/grammar.963a1920.json', 'cors')).toBe('symbols');
+    expect(at('/tts/runtime/a1b2c3d4/ort-wasm-simd-threaded.wasm', 'cors')).toBe('tts');
+    expect(at('/tts/runtime/a1b2c3d4/ort-wasm-simd-threaded.mjs', 'cors')).toBe('tts');
     expect(at('/', 'navigate')).toBe('page');
     expect(at('/prywatnosc?x=1', 'navigate')).toBe('page');
     expect(at('/o-aplikacji', 'navigate')).toBe('page');
@@ -29,6 +31,8 @@ describe('service worker routing (PLAN D11, §4.1)', () => {
       '/sym/extra/categories.0a1b2c3d.json',
       '/sym/extra/g/3.0a1b2c3d.webp',
       '/sym/arasaac/manifest.json', // no-cache: it announces new mirror versions
+      '/tts/manifest.json', // no-cache: announces runtime/voice hashes
+      '/tts/voices/pl_PL-gosia-medium.11223344.onnx.part00', // stored in IndexedDB, not CacheStorage
       '/favicon.svg',
       '/sw.js',
     ]) {
@@ -49,11 +53,23 @@ describe('service worker routing (PLAN D11, §4.1)', () => {
     expect(at('/assets/sub/dir.js', 'cors')).toBe('network');
   });
 
-  it('keeps only the newest mirror index, lexicon and category tree', () => {
+  it('keeps only the newest mirror index, lexicon, category tree and TTS runtime', () => {
     expect(supersededBy('/sym/arasaac/index.963a1920.json')).toBe('/sym/arasaac/index.');
     expect(supersededBy('/sym/arasaac/forms.963a1920.json')).toBe('/sym/arasaac/forms.');
     expect(supersededBy('/sym/arasaac/categories.963a1920.json')).toBe('/sym/arasaac/categories.');
     expect(supersededBy('/sym/arasaac/grammar.963a1920.json')).toBe('/sym/arasaac/grammar.');
     expect(supersededBy('/sym/arasaac/p/2462.0a1b2c3d.webp')).toBeNull();
+    expect(
+      isSupersededAsset(
+        '/tts/runtime/00001111/ort-wasm-simd-threaded.wasm',
+        '/tts/runtime/22223333/ort-wasm-simd-threaded.wasm',
+      ),
+    ).toBe(true);
+    expect(
+      isSupersededAsset(
+        '/tts/runtime/00001111/ort-wasm-simd-threaded.mjs',
+        '/tts/runtime/22223333/ort-wasm-simd-threaded.wasm',
+      ),
+    ).toBe(false);
   });
 });

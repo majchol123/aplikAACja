@@ -1,6 +1,8 @@
 import {
   DEFAULT_SETTINGS,
   MIN_HOLD_STEPS,
+  piperVoiceIdFromURI,
+  piperVoiceURI,
   polishVoices,
   VOICE_PRESETS,
   type LabelPosition,
@@ -16,6 +18,14 @@ import { useFitGrid } from '../boards/layout.ts';
 import { useDeviceSettings } from '../device.ts';
 import { useAccountSettings, useUpdateAccountSettings } from './account.ts';
 import { speak, speechSupported, useVoices } from '../speech.ts';
+import {
+  cancelVoiceDownload,
+  deletePiperVoice,
+  downloadPiperVoice,
+  loadTtsManifest,
+  useTtsState,
+  warmPiperVoice,
+} from '../tts/manager.ts';
 
 export const PRESET_LABELS: Record<VoicePreset, string> = {
   woman: 'Kobieta',
@@ -31,6 +41,8 @@ const select =
   'mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/30';
 const seconds = (ms: number) =>
   `${(ms / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 2 })} s`;
+const megabytes = (bytes: number) =>
+  `${Math.max(1, Math.round(bytes / (1024 * 1024))).toLocaleString('pl-PL')} MB`;
 
 type Speech = Settings['speech'];
 
@@ -176,9 +188,49 @@ export function DevicePanel() {
   const polish = polishVoices(voices as readonly VoiceInfo[]);
   const { speech, change, ready } = useSpeechDraft();
   const pinned = device.voices[speech.preset] ?? null;
+  const tts = useTtsState();
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const motor = (patch: Partial<MotorSettings>) => update({ motor: { ...device.motor, ...patch } });
   const fitGrid = useFitGrid();
   const id = useId();
+
+  const installedIds = new Set(tts.installed.map((v) => v.id));
+  const pinnedPiperId = piperVoiceIdFromURI(pinned);
+  const hasAnyVoice = speechSupported || tts.installed.length > 0;
+
+  useEffect(() => {
+    if (pinnedPiperId && installedIds.has(pinnedPiperId)) warmPiperVoice(pinnedPiperId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pinnedPiperId, tts.installed.length]);
+
+  const openCatalog = () => {
+    setCatalogOpen((open) => !open);
+    if (!tts.manifest && tts.manifestStatus !== 'loading') void loadTtsManifest();
+  };
+
+  const handleDownload = async (voiceId: string) => {
+    if (!tts.manifest) return;
+    const voice = tts.manifest.voices.find((v) => v.id === voiceId);
+    if (!voice) return;
+    const ok = await downloadPiperVoice(voice, tts.manifest.runtime);
+    if (ok && !device.voices[speech.preset]) {
+      update({ voices: { ...device.voices, [speech.preset]: piperVoiceURI(voice.id) } });
+    }
+  };
+
+  const handleDelete = async (voiceId: string) => {
+    await deletePiperVoice(voiceId);
+    const targetUri = piperVoiceURI(voiceId);
+    const nextVoices = { ...device.voices };
+    let changed = false;
+    for (const preset of VOICE_PRESETS) {
+      if (nextVoices[preset] === targetUri) {
+        nextVoices[preset] = null;
+        changed = true;
+      }
+    }
+    if (changed) update({ voices: nextVoices });
+  };
 
   return (
     <>
@@ -186,13 +238,15 @@ export function DevicePanel() {
         <h2 id={`${id}-voice`} className="text-lg font-bold text-brand-900">
           Głos
         </h2>
-        {!speechSupported ? (
+        {!hasAnyVoice ? (
           <p className="mt-2 text-red-700">Ta przeglądarka nie obsługuje czytania na głos.</p>
         ) : (
-          polish.length === 0 && (
+          polish.length === 0 &&
+          tts.installed.length === 0 && (
             <p className="mt-2 text-amber-800">
               Brak polskiego głosu w systemie. Zainstaluj go w ustawieniach urządzenia (Mowa /
-              Zamiana tekstu na mowę); do tego czasu przeglądarka użyje głosu domyślnego.
+              Zamiana tekstu na mowę) albo pobierz ulepszony głos offline poniżej; do tego czasu
+              przeglądarka użyje głosu domyślnego.
             </p>
           )
         )}
@@ -222,12 +276,32 @@ export function DevicePanel() {
               }
             >
               <option value="">Automatycznie</option>
-              {polish.map((v) => (
-                <option key={v.voiceURI} value={v.voiceURI}>
-                  {v.name}
-                  {v.localService ? '' : ' (wymaga internetu)'}
-                </option>
-              ))}
+              {tts.installed.length > 0 && (
+                <optgroup label="Głosy ulepszone (offline na urządzeniu)">
+                  {tts.installed.map((v) => (
+                    <option key={v.id} value={piperVoiceURI(v.id)}>
+                      {v.name} ({v.gender === 'female' ? 'kobiecy' : 'męski'}, offline)
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {tts.installed.length > 0 ? (
+                <optgroup label="Głosy systemu i przeglądarki">
+                  {polish.map((v) => (
+                    <option key={v.voiceURI} value={v.voiceURI}>
+                      {v.name}
+                      {v.localService ? '' : ' (wymaga internetu)'}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : (
+                polish.map((v) => (
+                  <option key={v.voiceURI} value={v.voiceURI}>
+                    {v.name}
+                    {v.localService ? '' : ' (wymaga internetu)'}
+                  </option>
+                ))
+              )}
             </select>
           </label>
           <label className={field}>
@@ -257,13 +331,206 @@ export function DevicePanel() {
             />
           </label>
         </div>
-        <button
-          type="button"
-          onClick={() => speak(SAMPLE, { ...speech, voiceURI: pinned })}
-          className="mt-4 rounded-full bg-brand-700 px-5 py-2.5 font-semibold text-white hover:bg-brand-800"
-        >
-          Test głosu
-        </button>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => speak(SAMPLE, { ...speech, voiceURI: pinned })}
+            className="rounded-full bg-brand-700 px-5 py-2.5 font-semibold text-white hover:bg-brand-800"
+          >
+            Test głosu
+          </button>
+          <button
+            type="button"
+            aria-expanded={catalogOpen}
+            onClick={openCatalog}
+            className="rounded-full border border-brand-700 px-4 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50"
+          >
+            {catalogOpen ? 'Ukryj głosy offline' : 'Pobierz ulepszony głos (offline)'}
+          </button>
+        </div>
+
+        {(catalogOpen || tts.installed.length > 0) && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-sm font-bold text-slate-800">Ulepszone głosy offline (Piper)</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Wyraźniejsze polskie głosy działające w całości w przeglądarce — po pobraniu także bez
+              internetu. Czytany tekst nigdy nie opuszcza urządzenia.
+              {tts.manifest && tts.installed.length === 0 && (
+                <>
+                  {' '}
+                  Pierwsze pobranie pobiera również silnik mowy (
+                  {megabytes(tts.manifest.runtime.totalBytes)}).
+                </>
+              )}
+            </p>
+
+            {tts.installed.length > 0 && !catalogOpen && (
+              <ul className="mt-3 space-y-2">
+                {tts.installed.map((v) => {
+                  const uri = piperVoiceURI(v.id);
+                  const active = pinned === uri;
+                  return (
+                    <li
+                      key={v.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 ring-1 ring-slate-200"
+                    >
+                      <div className="text-sm">
+                        <span className="font-semibold text-slate-800">{v.name}</span>{' '}
+                        <span className="text-slate-600">
+                          ({v.gender === 'female' ? 'kobiecy' : 'męski'}, {megabytes(v.bytes)},{' '}
+                          {v.license})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {active ? (
+                          <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-800">
+                            Aktywny dla „{PRESET_LABELS[speech.preset]}”
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              update({ voices: { ...device.voices, [speech.preset]: uri } })
+                            }
+                            className="rounded-full border border-brand-700 px-3 py-1 text-xs font-semibold text-brand-800 hover:bg-brand-50"
+                          >
+                            Użyj teraz
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(v.id)}
+                          className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                        >
+                          Usuń
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            {catalogOpen && (
+              <>
+                {tts.manifestStatus === 'loading' && (
+                  <p className="mt-3 text-sm text-slate-600">Ładowanie listy głosów offline…</p>
+                )}
+                {tts.manifestStatus === 'error' && (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <p className="text-sm text-red-700" role="alert">
+                      Nie udało się pobrać listy głosów ({tts.manifestError}).
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void loadTtsManifest(true)}
+                      className="rounded-full border border-brand-700 px-3 py-1 text-xs font-semibold text-brand-800 hover:bg-brand-50"
+                    >
+                      Spróbuj ponownie
+                    </button>
+                  </div>
+                )}
+                {tts.manifest && (
+                  <ul className="mt-3 space-y-2">
+                    {tts.manifest.voices.map((v) => {
+                      const uri = piperVoiceURI(v.id);
+                      const installed = installedIds.has(v.id);
+                      const active = pinned === uri;
+                      const progress = tts.downloads[v.id];
+                      const error = tts.downloadErrors[v.id];
+                      const pct =
+                        progress && progress.total > 0
+                          ? Math.min(100, Math.round((progress.loaded / progress.total) * 100))
+                          : 0;
+                      return (
+                        <li
+                          key={v.id}
+                          className="rounded-lg bg-white px-3 py-2.5 ring-1 ring-slate-200"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-sm">
+                              <span className="font-semibold text-slate-800">{v.name}</span>{' '}
+                              <span className="text-slate-600">
+                                ({v.gender === 'female' ? 'kobiecy' : 'męski'}, {megabytes(v.bytes)}
+                                , {v.license})
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {progress ? (
+                                <>
+                                  <span className="text-xs font-medium text-slate-600">
+                                    {pct}% ({megabytes(progress.loaded)} /{' '}
+                                    {megabytes(progress.total)})
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => cancelVoiceDownload(v.id)}
+                                    className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                                  >
+                                    Anuluj
+                                  </button>
+                                </>
+                              ) : installed ? (
+                                <>
+                                  {active ? (
+                                    <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-800">
+                                      Aktywny dla „{PRESET_LABELS[speech.preset]}”
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        update({
+                                          voices: { ...device.voices, [speech.preset]: uri },
+                                        })
+                                      }
+                                      className="rounded-full border border-brand-700 px-3 py-1 text-xs font-semibold text-brand-800 hover:bg-brand-50"
+                                    >
+                                      Użyj teraz
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleDelete(v.id)}
+                                    className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                                  >
+                                    Usuń
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDownload(v.id)}
+                                  className="rounded-full bg-brand-700 px-3.5 py-1 text-xs font-semibold text-white hover:bg-brand-800"
+                                >
+                                  Pobierz
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {progress && (
+                            <progress
+                              aria-label={`Pobieranie głosu ${v.name}`}
+                              value={progress.loaded}
+                              max={Math.max(1, progress.total)}
+                              className="mt-2 h-2 w-full accent-brand-700"
+                            />
+                          )}
+                          {error && (
+                            <p className="mt-1.5 text-xs text-red-700" role="alert">
+                              {error}
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         <DeviceToggle checked={device.speakOnTap} onChange={(v) => update({ speakOnTap: v })}>
           Czytaj słowo od razu po dotknięciu kafelka (na tym urządzeniu)
         </DeviceToggle>

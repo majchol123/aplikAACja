@@ -1,13 +1,21 @@
 import {
   DEFAULT_SETTINGS,
   localVoiceRate,
+  piperVoiceIdFromURI,
   planSpeech,
   type SpeechPrefs,
   type VoiceInfo,
 } from '@aplikaacja/shared';
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useDeviceSettings } from './device.ts';
 import { useAccountSettings } from './settings/account.ts';
+import {
+  cancelPiperSpeech,
+  isPiperVoiceInstalled,
+  speakWithPiper,
+  useTtsState,
+  warmPiperVoice,
+} from './tts/manager.ts';
 
 const synth: SpeechSynthesis | null =
   typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
@@ -34,7 +42,7 @@ export function useVoices(): readonly SpeechSynthesisVoice[] {
   return useSyncExternalStore(subscribe, () => voices);
 }
 
-export function speak(text: string, prefs: SpeechPrefs): void {
+function speakNative(text: string, prefs: SpeechPrefs): void {
   if (!synth || !text.trim()) return;
   const available = synth.getVoices();
   const plan = planSpeech(available as readonly VoiceInfo[], prefs, localRate);
@@ -49,6 +57,22 @@ export function speak(text: string, prefs: SpeechPrefs): void {
   synth.speak(utterance);
 }
 
+export function speak(text: string, prefs: SpeechPrefs): void {
+  if (!text.trim()) return;
+  synth?.cancel();
+  cancelPiperSpeech();
+  const piperId = piperVoiceIdFromURI(prefs.voiceURI);
+  if (piperId) {
+    if (isPiperVoiceInstalled(piperId)) {
+      speakWithPiper(text, piperId, prefs, () => speakNative(text, { ...prefs, voiceURI: null }));
+      return;
+    }
+    speakNative(text, { ...prefs, voiceURI: null });
+    return;
+  }
+  speakNative(text, prefs);
+}
+
 /** Account preset and sliders + the system voice this device plays for that preset. */
 export function useSpeechPrefs(): SpeechPrefs {
   const [device] = useDeviceSettings();
@@ -60,5 +84,11 @@ export function useSpeechPrefs(): SpeechPrefs {
 
 export function useSpeaker(): (text: string) => void {
   const prefs = useSpeechPrefs();
+  const tts = useTtsState();
+  const piperId = piperVoiceIdFromURI(prefs.voiceURI);
+  const piperReady = piperId !== null && tts.installed.some((v) => v.id === piperId);
+  useEffect(() => {
+    if (piperId && piperReady) warmPiperVoice(piperId);
+  }, [piperId, piperReady]);
   return useCallback((text: string) => speak(text, prefs), [prefs]);
 }

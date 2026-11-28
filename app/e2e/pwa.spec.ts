@@ -81,7 +81,9 @@ test('the service worker keeps public files only and explains a lost connection'
     'aplikaacja-arasaac-v1',
     'aplikaacja-pages-v1',
     'aplikaacja-shell-v1',
+    'aplikaacja-tts-v1',
   ]);
+  expect(all['aplikaacja-tts-v1']).toEqual([]);
   expect(all['aplikaacja-pages-v1']).toEqual(['/']);
   expect(all['aplikaacja-shell-v1']!.length).toBeGreaterThan(0);
   expect(all['aplikaacja-shell-v1']!.every((p) => p.startsWith('/assets/'))).toBe(true);

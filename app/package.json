@@ -12,13 +12,15 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local"
   },
   "dependencies": {
+    "@aplikaacja/shared": "workspace:*",
+    "@diffusionstudio/piper-wasm": "^1.0.0",
     "@dnd-kit/dom": "0.5.3",
     "@dnd-kit/react": "0.5.3",
-    "@aplikaacja/shared": "workspace:*",
     "@tanstack/react-query": "^5.108.2",
     "age-encryption": "0.3.1",
     "fflate": "^0.8.3",
     "hono": "^4.13.19",
+    "onnxruntime-web": "^1.31.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"

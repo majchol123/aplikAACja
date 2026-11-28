@@ -1,7 +1,9 @@
 import { cloudflare } from '@cloudflare/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'node:path';
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, extname, resolve, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { COMMON_SECURITY_HEADERS, HTML_CSP } from './src/worker/security/headers.ts';
 
@@ -77,8 +79,67 @@ function contactEmail(): Plugin {
   };
 }
 
+const TTS_MIME: Record<string, string> = {
+  '.json': 'application/json; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.wasm': 'application/wasm',
+};
+
+/** Serves locally built `/tts/*` assets (workers/tts/dist/tts) during `vite dev` and `vite preview`. */
+function localTtsAssets(): Plugin {
+  const ttsRoot = resolve(import.meta.dirname, '../workers/tts/dist/tts');
+  const attach = (middlewares: {
+    use: (
+      path: string,
+      fn: (
+        req: { url?: string; method?: string },
+        res: {
+          statusCode: number;
+          setHeader: (name: string, val: string) => void;
+          end: (body?: string) => void;
+        } & NodeJS.WritableStream,
+        next: () => void,
+      ) => void,
+    ) => void;
+  }) => {
+    middlewares.use('/tts', (req, res, next) => {
+      if (req.method !== 'GET' || !req.url) return next();
+      const rel = req.url.split('?')[0]?.replace(/^\/+/, '') ?? '';
+      const filePath = resolve(ttsRoot, rel);
+      if (filePath !== ttsRoot && !filePath.startsWith(ttsRoot + sep)) return next();
+      if (!existsSync(filePath) || !statSync(filePath).isFile()) return next();
+      res.setHeader('Content-Type', TTS_MIME[extname(filePath)] ?? 'application/octet-stream');
+      res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+      res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      createReadStream(filePath).pipe(res);
+    });
+  };
+  return {
+    name: 'aplikaacja:local-tts',
+    configureServer: (server) => attach(server.middlewares),
+    configurePreviewServer: (server) => attach(server.middlewares),
+  };
+}
+
+/** Uses `ort.wasm.min.mjs` so Vite does not duplicate the 15 MB .wasm file already served under `/tts/`. */
+function externOrtWasm(): Plugin {
+  const require = createRequire(import.meta.url);
+  const externEntry = resolve(dirname(require.resolve('onnxruntime-web/wasm')), 'ort.wasm.min.mjs');
+  return {
+    name: 'aplikaacja:extern-ort-wasm',
+    enforce: 'pre',
+    resolveId(source) {
+      if (source === 'onnxruntime-web/wasm') return externEntry;
+      return null;
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
+    externOrtWasm(),
+    localTtsAssets(),
     react(),
     tailwindcss(),
     cloudflare(),
@@ -86,6 +147,10 @@ export default defineConfig({
     serviceWorkerEntry(),
     contactEmail(),
   ],
+  worker: {
+    format: 'es',
+    plugins: () => [externOrtWasm()],
+  },
   server: { port: 5173, strictPort: true },
   preview: { port: 5173, strictPort: true },
   environments: {

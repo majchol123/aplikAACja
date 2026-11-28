@@ -47,6 +47,36 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          working-directory: tools
+          enable-cache: false
+      - name: Restore TTS voice cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: tools/.cache/tts
+          key: tts-voices-${{ hashFiles('tools/tts/voices.toml') }}
+          restore-keys: tts-voices-
+      - name: Build TTS assets
+        working-directory: tools
+        run: uv run --frozen build_tts.py --out ../workers/tts/dist --node-modules ../app/node_modules
+      - name: Save TTS voice cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: tools/.cache/tts
+          key: tts-voices-${{ hashFiles('tools/tts/voices.toml') }}
+      - name: Deploy TTS assets if changed
+        working-directory: app
+        run: |
+          built="../workers/tts/dist/tts/manifest.json"
+          if curl -fsS "https://staging.aplikaacja.one.pl/tts/manifest.json" -o /tmp/live-tts.json && cmp -s /tmp/live-tts.json "$built"; then
+            echo "TTS assets unchanged"
+          else
+            pnpm exec wrangler deploy -c ../workers/tts/wrangler.jsonc --env staging
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: D1 migrations
         working-directory: app
         run: pnpm exec wrangler d1 migrations apply DB --env staging --remote
@@ -86,6 +116,31 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          working-directory: tools
+          enable-cache: false
+      - name: Restore TTS voice cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: tools/.cache/tts
+          key: tts-voices-${{ hashFiles('tools/tts/voices.toml') }}
+          restore-keys: tts-voices-
+      - name: Build TTS assets
+        working-directory: tools
+        run: uv run --frozen build_tts.py --out ../workers/tts/dist --node-modules ../app/node_modules
+      - name: Deploy TTS assets if changed
+        working-directory: app
+        run: |
+          built="../workers/tts/dist/tts/manifest.json"
+          if curl -fsS "https://aplikaacja.one.pl/tts/manifest.json" -o /tmp/live-tts.json && cmp -s /tmp/live-tts.json "$built"; then
+            echo "TTS assets unchanged"
+          else
+            pnpm exec wrangler deploy -c ../workers/tts/wrangler.jsonc --env production
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: D1 migrations
         working-directory: app
         run: pnpm exec wrangler d1 migrations apply DB --env production --remote
