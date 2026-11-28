@@ -7,7 +7,7 @@ import process from 'node:process';
 
 const root = resolve(import.meta.dirname, '..');
 const svg = readFileSync(resolve(root, 'public/favicon.svg'), 'utf8');
-const glyph = svg.replace(/<rect width="64" height="64" rx="14" fill="#0f766e"\/>/, '');
+const glyph = svg.replace(/<rect width="64" height="64" rx="16" fill="#196862"\/>/, '');
 if (glyph === svg) throw new Error('favicon.svg background not found');
 
 // "any": the rounded favicon on a transparent canvas. "maskable" and Apple: full-bleed
@@ -26,8 +26,8 @@ const page = await browser.newPage();
 for (const { file, size, full } of icons) {
   await page.setViewportSize({ width: size, height: size });
   const body = full
-    ? `<div style="width:${size}px;height:${size}px;background:#0f766e;display:grid;place-items:center">
-         <svg xmlns="http://www.w3.org/2000/svg" viewBox="8 8 48 48" width="${size * 0.66}" height="${size * 0.66}">${glyph.replace(/^<svg[^>]*>|<\/svg>$/g, '')}</svg>
+    ? `<div style="width:${size}px;height:${size}px;background:#196862;display:grid;place-items:center">
+         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="${size * 0.82}" height="${size * 0.82}">${glyph.replace(/^<svg[^>]*>|<\/svg>$/g, '')}</svg>
        </div>`
     : svg.replace('<svg ', `<svg width="${size}" height="${size}" `);
   await page.setContent(
