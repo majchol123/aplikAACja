@@ -396,6 +396,8 @@ describe('own words of the tiles (G3)', () => {
     expect(full([w('mama', 'noun', { someone: false }), w('iść', 'verb')])).toBe('mama idę');
     expect(full([w('Burek', 'noun', { someone: true }), w('spać', 'verb')])).toBe('Burek śpi');
     expect(full([w('iść', 'verb', { fixed: true })])).toBe('iść');
+    expect(full([w('chcieć', 'verb'), w('sok', 'noun', { fixed: true })])).toBe('chcę sok');
+    expect(full([w('lubić', 'verb'), w('piłki', 'noun', { fixed: true })])).toBe('lubię piłki');
   });
 
   it('proposes words to inflect like, and offers the own word’s forms', () => {

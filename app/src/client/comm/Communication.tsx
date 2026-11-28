@@ -158,9 +158,11 @@ export function Communication({
 
   /** A form picked by hand for the held word, or undefined to let the grammar choose again. */
   function pickForm(form: string | undefined): void {
+    const index = picking;
+    if (index === null) return;
     setSentence((items) =>
       items.map((item, i) => {
-        if (i !== picking) return item;
+        if (i !== index) return item;
         const next = { ...item };
         if (form === undefined) delete next.picked;
         else next.picked = form;

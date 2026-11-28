@@ -569,7 +569,15 @@ function readWord(word: GrammarWord, lexicon: GrammarLexicon, speaker: Agreement
     }
     if (labelSubject) info.subject = labelSubject === 'speaker' ? speaker : labelSubject;
     const noun = nounReading(readings, tokens, word.role, lexicon, word.someone);
-    if (noun && !ownSubject) Object.assign(info, noun);
+    if (noun && !ownSubject) {
+      if (noun.head && word.fixed) {
+        const cases = (readings[noun.head.at] ?? [])
+          .filter((a) => a.tag.pos === 'subst')
+          .flatMap((a) => (a.tag.attrs[1] ?? []).filter(isCase));
+        noun.head.asWritten = cases.length > 0 ? cases : ['nom'];
+      }
+      Object.assign(info, noun);
+    }
     return info;
   }
 

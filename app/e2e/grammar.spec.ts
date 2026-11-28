@@ -117,6 +117,20 @@ test('a word held in the bar offers its forms; the one picked is said and stays'
   await sentence(page).first().click({ button: 'right' });
   await dialog.getByRole('button', { name: /Automatycznie/ }).click();
   await expect(sentence(page)).toHaveText(['chcę', 'pomocy']);
+
+  // A picked noun form ("sok" instead of automatic "soku") also stays fixed.
+  await page.getByRole('button', { name: 'Wyczyść zdanie' }).click();
+  await tile(page, 'chcę').click();
+  await word(page, 'Picie', 'sok');
+  await expect(sentence(page)).toHaveText(['chcę', 'soku']);
+  await sentence(page).nth(1).click({ button: 'right' });
+  const sokDialog = page.getByRole('dialog', { name: 'Wybierz formę: sok' });
+  await sokDialog
+    .getByRole('button', { name: /^sok\b/ })
+    .first()
+    .click();
+  await expect(sokDialog).toBeHidden();
+  await expect(sentence(page)).toHaveText(['chcę', 'sok']);
 });
 
 test('how the user speaks of themselves is asked at the first run (F8)', async ({ page }) => {
