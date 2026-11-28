@@ -92,7 +92,7 @@ test('downloading, selecting and removing an offline Piper voice persists on the
   await page.getByRole('button', { name: 'Ustawienia i konto' }).click();
 
   await page.getByRole('button', { name: 'Pobierz ulepszony głos (offline)' }).click();
-  await expect(page.getByText('Ulepszone głosy offline (Piper)')).toBeVisible();
+  await expect(page.getByText('Ulepszone głosy offline')).toBeVisible();
   await expect(page.getByText('Gosia')).toBeVisible();
 
   await page.getByRole('button', { name: 'Pobierz', exact: true }).click();
@@ -111,6 +111,6 @@ test('downloading, selecting and removing an offline Piper voice persists on the
   await expect(page.getByLabel(/Głos syntezatora dla/)).toHaveValue('piper:pl_PL-gosia-medium');
 
   await page.getByRole('button', { name: 'Usuń', exact: true }).click();
-  await expect(page.getByText('Ulepszone głosy offline (Piper)')).toHaveCount(0);
+  await expect(page.getByText('Ulepszone głosy offline')).toHaveCount(0);
   await expect(page.getByLabel(/Głos syntezatora dla/)).toHaveValue('');
 });

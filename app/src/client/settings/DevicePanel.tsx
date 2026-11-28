@@ -195,6 +195,8 @@ export function DevicePanel() {
   const id = useId();
 
   const installedIds = new Set(tts.installed.map((v) => v.id));
+  const manifestNames = new Map(tts.manifest?.voices.map((v) => [v.id, v.name]));
+  const voiceName = (v: { id: string; name: string }) => manifestNames.get(v.id) ?? v.name;
   const pinnedPiperId = piperVoiceIdFromURI(pinned);
   const hasAnyVoice = speechSupported || tts.installed.length > 0;
 
@@ -280,7 +282,7 @@ export function DevicePanel() {
                 <optgroup label="Głosy ulepszone (offline na urządzeniu)">
                   {tts.installed.map((v) => (
                     <option key={v.id} value={piperVoiceURI(v.id)}>
-                      {v.name} ({v.gender === 'female' ? 'kobiecy' : 'męski'}, offline)
+                      {voiceName(v)} ({v.gender === 'female' ? 'kobiecy' : 'męski'}, offline)
                     </option>
                   ))}
                 </optgroup>
@@ -351,7 +353,7 @@ export function DevicePanel() {
 
         {(catalogOpen || tts.installed.length > 0) && (
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-bold text-slate-800">Ulepszone głosy offline (Piper)</h3>
+            <h3 className="text-sm font-bold text-slate-800">Ulepszone głosy offline</h3>
             <p className="mt-1 text-sm text-slate-600">
               Wyraźniejsze polskie głosy działające w całości w przeglądarce — po pobraniu także bez
               internetu. Czytany tekst nigdy nie opuszcza urządzenia.
@@ -375,10 +377,9 @@ export function DevicePanel() {
                       className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 ring-1 ring-slate-200"
                     >
                       <div className="text-sm">
-                        <span className="font-semibold text-slate-800">{v.name}</span>{' '}
+                        <span className="font-semibold text-slate-800">{voiceName(v)}</span>{' '}
                         <span className="text-slate-600">
-                          ({v.gender === 'female' ? 'kobiecy' : 'męski'}, {megabytes(v.bytes)},{' '}
-                          {v.license})
+                          ({v.gender === 'female' ? 'kobiecy' : 'męski'}, {megabytes(v.bytes)})
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -452,7 +453,7 @@ export function DevicePanel() {
                               <span className="font-semibold text-slate-800">{v.name}</span>{' '}
                               <span className="text-slate-600">
                                 ({v.gender === 'female' ? 'kobiecy' : 'męski'}, {megabytes(v.bytes)}
-                                , {v.license})
+                                )
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
